@@ -15,3 +15,6 @@ web/android/capacitor-cordova-android-plugins
 *.jks
 .pglite
 coverage
+e2e/shots
+test-results
+playwright-report

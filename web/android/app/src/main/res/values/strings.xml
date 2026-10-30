@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dayloop</string>
+    <string name="title_activity_main">Dayloop</string>
+    <string name="package_name">com.dayloop.app</string>
+    <string name="custom_url_scheme">com.dayloop.app</string>
+    <string name="widget_title">Heute</string>
+    <string name="widget_empty">Alles erledigt</string>
+    <string name="widget_description">Heutige Aufgaben</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:textColor="@color/dl_widget_fg"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView android:id="@+id/empty" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/widget_empty" android:textColor="@color/dl_widget_muted" android:textSize="13sp" />
+    <TextView android:id="@+id/row1" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/row2" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/row3" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/row4" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/row5" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/row6" style="@style/DlWidgetRow" />
+    <TextView android:id="@+id/more" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textColor="@color/dl_widget_muted" android:textSize="12sp" />
+</LinearLayout>

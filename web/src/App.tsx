@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { saveSettings, syncClient, useHashRoute, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
 import { useReminders } from "./lib/useReminders";
+import { useWidgetSync } from "./lib/widget";
 import type { View } from "./lib/tasks";
 import { AuthPanel } from "./components/AuthPanel";
 import { Calendar } from "./components/Calendar";
@@ -47,6 +48,7 @@ export default function App() {
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
   const { state, left } = usePomo();
   useReminders();
+  useWidgetSync();
 
   useEffect(() => setSelected(null), [route]);
 

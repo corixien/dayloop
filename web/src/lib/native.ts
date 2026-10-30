@@ -16,6 +16,7 @@ export async function scheduleNative(reminders: Reminder[], _lang: string): Prom
   if (perm.display !== "granted") {
     if ((await LocalNotifications.requestPermissions()).display !== "granted") return;
   }
+  await LocalNotifications.createChannel({ id: "reminders", name: "Erinnerungen / Reminders", importance: 4, vibration: true });
   const pending = await LocalNotifications.getPending();
   if (pending.notifications.length) await LocalNotifications.cancel({ notifications: pending.notifications.filter((n) => n.id < 2_000_000_000) });
   const list = reminders.slice(0, 60);
