@@ -14,14 +14,13 @@ test("core flows on desktop", async ({ page }) => {
   // quick add with natural language
   await page.goto("/#/inbox");
   const add = page.locator("[data-quickadd]");
-  await add.fill("Zahnarzt morgen 15 Uhr !1 #privat");
+  await add.fill("Zahnarzt morgen 15 Uhr !1");
   await shot(page, "01-quickadd-preview");
   await add.press("Enter");
   await add.fill("Milch kaufen");
   await add.press("Enter");
   const row = page.getByRole("button", { name: /Zahnarzt/ });
   await expect(row).toContainText("Morgen 15:00");
-  await expect(row).toContainText("privat");
   await shot(page, "02-inbox");
 
   // detail panel: edit + subtask + priority
@@ -85,7 +84,13 @@ test("mobile layout", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
-  await page.goto("/#/today");
+  await page.goto("/#/todo");
+  await expect(page.getByRole("link", { name: "Todo" })).toBeVisible();
+  await page.getByLabel("Listen").selectOption("smart:inbox");
+  await page.getByRole("button", { name: "Board" }).click();
+  await expect(page.getByRole("heading", { name: "Ohne Datum" })).toBeVisible();
+  await page.getByRole("button", { name: "Liste", exact: true }).click();
+  await page.getByLabel("Listen").selectOption("smart:today");
   await page.locator("[data-quickadd]").fill("Heute Sport 18 Uhr");
   await page.locator("[data-quickadd]").press("Enter");
   await expect(page.getByRole("button", { name: /Sport/ })).toContainText("Heute 18:00");

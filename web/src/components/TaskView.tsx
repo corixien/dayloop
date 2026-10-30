@@ -1,9 +1,9 @@
-import { Pencil, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { local, useItems, useNow, useT } from "../lib/app";
+import { EyeOff, Pencil, Trash2 } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
+import { local, saveSettings, useItems, useNow, useSettings, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
 import { type Group, type TaskItem, type View, compareTasks, deleteTaskForever, groupOf, matches } from "../lib/tasks";
-import { Kanban } from "./Kanban";
+import { DateBoard, Kanban } from "./Kanban";
 import { ListDialog } from "./ListDialog";
 import { QuickAdd } from "./QuickAdd";
 import { TaskRow } from "./TaskRow";
@@ -11,66 +11,80 @@ import { Button, Empty, IconButton, PageHeader, Segmented } from "./ui";
 
 const GROUPED = new Set(["today", "next7", "all"]);
 const GROUP_ORDER: Group[] = ["overdue", "today", "tomorrow", "later", "noDate"];
-const GROUP_KEY = { overdue: "overdue", today: "today", tomorrow: "tomorrow", later: "later", noDate: "noDate" } as const;
 
-export function TaskView({ view, selectedId, onSelect }: { view: View; selectedId: string | null; onSelect: (id: string | null) => void }) {
+export function TaskView({
+  view, selectedId, onSelect, titleSlot,
+}: { view: View; selectedId: string | null; onSelect: (id: string | null) => void; titleSlot?: ReactNode }) {
   const t = useT();
   const now = useNow();
   const today = todayStr(now);
+  const settings = useSettings();
   const tasks = useItems("task");
   const lists = useItems("list");
-  const tagItems = useItems("tag");
-  const tags = useMemo(() => new Map(tagItems.map((x) => [x.id, x])), [tagItems]);
   const listNames = useMemo(() => new Map(lists.map((x) => [x.id, x.name])), [lists]);
   const [edit, setEdit] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const boardKey = view.kind === "smart" ? `dl_board_${view.id}` : "";
+  const [smartBoard, setSmartBoard] = useState(() => !!boardKey && localStorage.getItem(boardKey) === "1");
 
   const list = view.kind === "list" ? lists.find((x) => x.id === view.id) : undefined;
-  const tag = view.kind === "tag" ? tagItems.find((x) => x.id === view.id) : undefined;
-  const title =
-    view.kind === "smart" ? t(view.id) : view.kind === "list" ? list?.name ?? "" : `# ${tag?.name ?? ""}`;
+  const title = view.kind === "smart" ? t(view.id) : list?.name ?? "";
 
   const visible = tasks.filter((x) => matches(x, view, today)).sort(compareTasks);
   const open = visible.filter((x) => !x.done);
   const done = visible.filter((x) => x.done);
   const isTrash = view.kind === "smart" && view.id === "trash";
-  const canAdd = !(view.kind === "smart" && (view.id === "done" || view.id === "trash"));
+  const canBoard = !(view.kind === "smart" && (view.id === "done" || view.id === "trash"));
+  const canAdd = canBoard;
+  const board = list ? list.view === "kanban" : canBoard && smartBoard;
+  const hideable = view.kind === "smart" && view.id !== "trash";
 
   const row = (task: TaskItem, showList = view.kind !== "list") => (
     <TaskRow
-      key={task.id} task={task} tags={tags} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
+      key={task.id} task={task} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
       listName={showList && task.listId ? listNames.get(task.listId) : undefined}
     />
   );
 
-  async function setView(v: "list" | "kanban") {
-    if (!list) return;
-    const columns = list.columns.length ? list.columns : [{ id: crypto.randomUUID(), name: t("todo") }, { id: crypto.randomUUID(), name: t("done") }];
-    await local.patch("list", list.id, { view: v, columns });
+  async function setMode(v: "list" | "kanban") {
+    if (list) {
+      const columns = list.columns.length ? list.columns : [{ id: crypto.randomUUID(), name: t("todo") }, { id: crypto.randomUUID(), name: t("done") }];
+      await local.patch("list", list.id, { view: v, columns });
+    } else {
+      localStorage.setItem(boardKey, v === "kanban" ? "1" : "0");
+      setSmartBoard(v === "kanban");
+    }
+  }
+
+  async function hide() {
+    if (view.kind !== "smart" || view.id === "trash") return;
+    await saveSettings({ hiddenSmart: [...settings.hiddenSmart, view.id] });
+    location.hash = "/todo";
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader title={title}>
-        {list && (
+      <PageHeader title={titleSlot ?? title}>
+        {canBoard && (
           <Segmented
-            value={list.view}
-            onChange={(v) => void setView(v)}
+            value={board ? "kanban" : "list"}
+            onChange={(v) => void setMode(v)}
             options={[{ value: "list", label: t("list_view") }, { value: "kanban", label: t("kanban") }]}
           />
         )}
-        {(list || tag) && <IconButton label={t("edit")} onClick={() => setEdit(true)}><Pencil size={15} /></IconButton>}
+        {list && <IconButton label={t("edit")} onClick={() => setEdit(true)}><Pencil size={15} /></IconButton>}
+        {hideable && <IconButton label={t("hide")} onClick={() => void hide()}><EyeOff size={15} /></IconButton>}
         {isTrash && visible.length > 0 && (
           <Button variant="danger" onClick={() => { if (confirm(t("confirmDelete"))) visible.forEach((x) => void deleteTaskForever(x.id)); }}>
             <Trash2 size={14} /> {t("emptyTrash")}
           </Button>
         )}
       </PageHeader>
-      {canAdd && list?.view !== "kanban" && <QuickAdd listId={list?.id ?? null} tagId={tag?.id} />}
+      {canAdd && !(list && board) && <QuickAdd listId={list?.id ?? null} />}
 
-      {list?.view === "kanban" ? (
+      {board ? (
         <div className="min-h-0 flex-1">
-          <Kanban list={list} tasks={visible} tags={tags} selectedId={selectedId} onSelect={onSelect} />
+          {list ? <Kanban list={list} tasks={visible} selectedId={selectedId} onSelect={onSelect} /> : <DateBoard tasks={visible} selectedId={selectedId} onSelect={onSelect} />}
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -82,7 +96,7 @@ export function TaskView({ view, selectedId, onSelect }: { view: View; selectedI
                 return (
                   <section key={g}>
                     <h2 className="sticky top-0 z-10 bg-bg/95 px-4 pb-1 pt-3 text-xs font-medium text-muted backdrop-blur md:px-6">
-                      {t(GROUP_KEY[g])} <span className="text-faint">{items.length}</span>
+                      {t(g)} <span className="text-faint">{items.length}</span>
                     </h2>
                     {items.map((x) => row(x))}
                   </section>
@@ -102,8 +116,7 @@ export function TaskView({ view, selectedId, onSelect }: { view: View; selectedI
           )}
         </div>
       )}
-      {edit && (list || tag) && <ListDialog kind={list ? "list" : "tag"} item={(list ?? tag)!} onClose={() => setEdit(false)} onDeleted={() => onSelect(null)} />}
+      {edit && list && <ListDialog kind="list" item={list} onClose={() => setEdit(false)} onDeleted={() => onSelect(null)} />}
     </div>
   );
 }
-

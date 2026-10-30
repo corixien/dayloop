@@ -6,7 +6,6 @@ export interface Parsed {
   dueDate: string | null;
   dueTime: string | null;
   priority: number;
-  tags: string[];
   list: string | null;
   repeat: Repeat | null;
 }
@@ -22,10 +21,10 @@ const WEEKDAYS: Record<string, number> = {
 };
 const wdNames = Object.keys(WEEKDAYS).sort((a, b) => b.length - a.length).join("|");
 
-/** Quick-add parser: "Zahnarzt morgen 15 Uhr !1 #privat ~Gesundheit jeden montag" (DE/EN). */
+/** Quick-add parser: "Zahnarzt morgen 15 Uhr !1 ~Gesundheit jeden montag" (DE/EN). */
 export function parseQuickAdd(input: string, now = new Date()): Parsed {
   let s = ` ${input} `;
-  const out: Parsed = { title: "", dueDate: null, dueTime: null, priority: 0, tags: [], list: null, repeat: null };
+  const out: Parsed = { title: "", dueDate: null, dueTime: null, priority: 0, list: null, repeat: null };
   const take = (re: RegExp, fn: (m: RegExpExecArray) => void) => {
     const m = re.exec(s);
     if (m) {
@@ -36,11 +35,7 @@ export function parseQuickAdd(input: string, now = new Date()): Parsed {
   const today = fmtDate(now);
 
   take(/\s!([123])(?=\s)/, (m) => (out.priority = { "1": 3, "2": 2, "3": 1 }[m[1]]!));
-  for (let m: RegExpExecArray | null; (m = /\s#([^\s#~!]+)/.exec(s)); ) {
-    out.tags.push(m[1]);
-    s = s.slice(0, m.index) + " " + s.slice(m.index + m[0].length);
-  }
-  take(/\s~([^\s#~!]+)/, (m) => (out.list = m[1]));
+  take(/\s~([^\s~!]+)/, (m) => (out.list = m[1]));
 
   // repeat
   const each = new RegExp(`\\s(?:jeden|every)\\s+(${wdNames})(?=\\s)`, "i");

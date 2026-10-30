@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { local, useItems, useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, addMonths, fmtLong, fmtMonth, monthGrid, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
 import { occurrences } from "../lib/repeat";
+import { useSwipe } from "../lib/swipe";
 import { type TaskItem, addTask } from "../lib/tasks";
 import { Button, Dialog, IconButton, PageHeader, Segmented, cx, inputCls } from "./ui";
 
@@ -41,6 +42,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   const [anchor, setAnchor] = useState(today);
   const [create, setCreate] = useState<{ date: string; time: string | null } | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
 
   const days = useMemo(() => {
     if (mode === "month") return monthGrid(anchor, weekStart);
@@ -66,6 +68,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   }, [mode]);
 
   const step = (dir: 1 | -1) => setAnchor(mode === "month" ? addMonths(anchor, dir) : addDays(anchor, dir * (mode === "week" ? 7 : 1)));
+  useSwipe(() => body.current, { ignoreLeftEdge: 32, onLeft: () => step(1), onRight: () => step(-1) }, [mode, anchor]);
   const title = mode === "month" ? fmtMonth(anchor, lang) : mode === "day" ? fmtLong(anchor, lang) : `${fmtLong(days[0], lang)} – ${fmtLong(days[6], lang)}`;
   const names = weekdayNames(lang, weekStart);
 
@@ -90,6 +93,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
         <Segmented value={mode} onChange={setMode} options={[{ value: "month", label: t("month") }, { value: "week", label: t("week") }, { value: "day", label: t("day") }]} />
       </PageHeader>
 
+      <div ref={body} className="flex min-h-0 flex-1 flex-col">
       {mode === "month" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="grid grid-cols-7 border-b border-line text-center text-xs text-muted">
@@ -172,6 +176,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
           </div>
         </div>
       )}
+      </div>
       {create && <CreateDialog {...create} onClose={() => setCreate(null)} />}
     </div>
   );

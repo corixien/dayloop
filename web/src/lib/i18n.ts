@@ -2,7 +2,7 @@ const de = {
   inbox: "Eingang", today: "Heute", next7: "Nächste 7 Tage", all: "Alle", done: "Erledigt", trash: "Papierkorb",
   calendar: "Kalender", habits: "Gewohnheiten", pomodoro: "Fokus", matrix: "Matrix", settings: "Einstellungen",
   lists: "Listen", tags: "Tags", newList: "Neue Liste", newTag: "Neuer Tag", newFolder: "Neuer Ordner",
-  addTask: "Aufgabe hinzufügen, z. B. „Zahnarzt morgen 15 Uhr !1 #privat“", search: "Suchen oder Befehl eingeben…",
+  addTask: "Aufgabe hinzufügen, z. B. „Zahnarzt morgen 15 Uhr !1“", search: "Suchen oder Befehl eingeben…",
   overdue: "Überfällig", tomorrow: "Morgen", later: "Später", noDate: "Ohne Datum", completed: "Erledigt",
   title: "Titel", notes: "Notizen", dueDate: "Fällig", dueTime: "Uhrzeit", allDay: "Ganztägig", startDate: "Beginn",
   priority: "Priorität", pNone: "Keine", pLow: "Niedrig", pMed: "Mittel", pHigh: "Hoch",
@@ -34,7 +34,7 @@ const de = {
   confirmDelete: "Wirklich löschen?", moved: "In den Papierkorb verschoben", undo: "Rückgängig", more: "Mehr", menu: "Menü",
   minutesShort: "Min.", hoursShort: "Std.", sessions: "Sessions", noList: "Eingang", chooseList: "Liste wählen", dragHint: "Zum Verschieben ziehen",
   completedOn: "Erledigt am", createdTask: "Aufgabe erstellt", noResults: "Keine Treffer", rename_prompt: "Neuer Name", folder: "Ordner",
-  localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
+  todoTab: "Todo", hide: "Ausblenden", defaultLists: "Standardlisten", restoreHint: "Ausgeblendete Listen kannst du hier wieder einblenden.", localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
 } as const;
 
 export type Key = keyof typeof de;
@@ -75,7 +75,7 @@ const en: Record<Key, string> = {
   confirmDelete: "Really delete?", moved: "Moved to trash", undo: "Undo", more: "More", menu: "Menu",
   minutesShort: "min", hoursShort: "h", sessions: "sessions", noList: "Inbox", chooseList: "Choose list", dragHint: "Drag to move",
   completedOn: "Completed on", createdTask: "Task created", noResults: "No results", rename_prompt: "New name", folder: "Folder",
-  localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
+  todoTab: "Todo", hide: "Hide", defaultLists: "Default lists", restoreHint: "Hidden lists can be shown again here.", localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
 };
 
 export const dict = { de, en };

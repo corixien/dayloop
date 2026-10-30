@@ -6,11 +6,10 @@ import { nextDue } from "./repeat";
 
 export type TaskItem = Item<"task">;
 
-/** A view is a route: smart list, list or tag. */
+/** A view is a route: smart list or list. */
 export type View =
   | { kind: "smart"; id: "inbox" | "today" | "next7" | "all" | "done" | "trash" }
-  | { kind: "list"; id: string }
-  | { kind: "tag"; id: string };
+  | { kind: "list"; id: string };
 
 export function matches(t: TaskItem, v: View, today = todayStr()): boolean {
   if (v.kind === "smart" && v.id === "trash") return t.trashedAt !== null;
@@ -26,7 +25,6 @@ export function matches(t: TaskItem, v: View, today = todayStr()): boolean {
       }
       return false;
     case "list": return t.listId === v.id;
-    case "tag": return t.tags.includes(v.id);
   }
 }
 

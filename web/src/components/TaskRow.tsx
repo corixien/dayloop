@@ -1,10 +1,8 @@
 import { Bell, ListChecks, Repeat } from "lucide-react";
-import type { Tag } from "@dayloop/shared";
 import { useLang, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
-import type { Item } from "../lib/db";
 import { type TaskItem, toggleDone } from "../lib/tasks";
-import { Check_, colorOf, cx } from "./ui";
+import { Check_, cx } from "./ui";
 
 export function dueLabel(t: TaskItem, lang: string, tr: (k: any) => string, today = todayStr()): { text: string; overdue: boolean } | null {
   if (!t.dueDate) return null;
@@ -17,21 +15,11 @@ export function dueLabel(t: TaskItem, lang: string, tr: (k: any) => string, toda
   return { text: text + time, overdue };
 }
 
-export function TagChip({ tag }: { tag: Item<"tag"> | Tag & { id: string } }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-sub px-1.5 py-px text-[11px] text-muted ring-1 ring-line">
-      <span className="size-1.5 rounded-full" style={{ background: colorOf(tag.color) }} />
-      {tag.name}
-    </span>
-  );
-}
-
 export function TaskRow({
-  task, selected, tags, listName, onSelect, draggable, onDragStart,
+  task, selected, listName, onSelect, draggable, onDragStart,
 }: {
   task: TaskItem;
   selected: boolean;
-  tags: Map<string, Item<"tag">>;
   listName?: string;
   onSelect: () => void;
   draggable?: boolean;
@@ -65,7 +53,7 @@ export function TaskRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className={cx("truncate text-[14px]", task.done && "text-faint line-through")}>{task.title}</div>
-        {(due || task.subtasks.length > 0 || task.tags.length > 0 || task.repeat || listName) && (
+        {(due || task.subtasks.length > 0 || task.repeat || listName) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
             {due && <span className={cx(due.overdue && "text-danger")}>{due.text}</span>}
             {task.repeat && <Repeat size={12} aria-label="repeat" />}
@@ -76,7 +64,6 @@ export function TaskRow({
                 {subDone}/{task.subtasks.length}
               </span>
             )}
-            {task.tags.map((id) => tags.get(id)).filter(Boolean).map((tag) => <TagChip key={tag!.id} tag={tag!} />)}
             {listName && <span className="text-faint">{listName}</span>}
           </div>
         )}

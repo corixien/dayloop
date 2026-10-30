@@ -10,7 +10,6 @@ export function Matrix({ selectedId, onSelect }: { selectedId: string | null; on
   const now = useNow();
   const today = todayStr(now);
   const tasks = useItems("task").filter((x) => !x.done && x.trashedAt === null);
-  const tags = new Map(useItems("tag").map((x) => [x.id, x]));
   const [over, setOver] = useState<Quadrant | null>(null);
   const quads: { q: Quadrant; title: string; hint: string }[] = [
     { q: 1, title: t("q1"), hint: `${t("important")} · ${t("urgent")}` },
@@ -44,7 +43,7 @@ export function Matrix({ selectedId, onSelect }: { selectedId: string | null; on
               <div className="flex-1 overflow-y-auto bg-raise [&>div]:px-3">
                 {items.map((task) => (
                   <TaskRow
-                    key={task.id} task={task} tags={tags} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
+                    key={task.id} task={task} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
                     draggable onDragStart={(e) => e.dataTransfer.setData("text/task", task.id)}
                   />
                 ))}

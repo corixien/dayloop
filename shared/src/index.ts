@@ -117,6 +117,8 @@ export const settingsSchema = z.object({
   theme: z.enum(["system", "light", "dark"]).default("system"),
   /** hour of day (0-23) for date-only reminders */
   defaultReminderHour: z.number().int().min(0).max(23).default(9),
+  /** default lists the user removed from navigation */
+  hiddenSmart: z.array(z.enum(["inbox", "today", "next7", "all", "done"])).default([]),
 });
 
 export const itemSchemas = {

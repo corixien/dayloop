@@ -22,14 +22,12 @@ export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () =
   const lang = useLang();
   const tasks = useItems("task");
   const lists = useItems("list");
-  const tags = useItems("tag");
   const task = tasks.find((x) => x.id === id);
   const patch = (p: object) => local.patch("task", id, p as any);
 
   const [title, setTitle, commitTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
   const [notes, setNotes, commitNotes] = useDraft(task?.notes ?? "", (v) => patch({ notes: v }));
   const [newSub, setNewSub] = useState("");
-  const [newTag, setNewTag] = useState("");
 
   if (!task) return null;
   const trashed = task.trashedAt !== null;
@@ -37,19 +35,6 @@ export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () =
   const wdOrder = [1, 2, 3, 4, 5, 6, 0];
   const repeat = task.repeat;
   const setRepeat = (r: Repeat | null) => patch({ repeat: r });
-
-  async function addTag() {
-    const name = newTag.trim();
-    if (!name) return;
-    let tag = tags.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    let tid = tag?.id;
-    if (!tid) {
-      tid = uid();
-      await local.put("tag", tid, { name });
-    }
-    if (!task!.tags.includes(tid)) await patch({ tags: [...task!.tags, tid] });
-    setNewTag("");
-  }
 
   return (
     <aside className="flex h-full flex-col bg-bg">
@@ -119,30 +104,6 @@ export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () =
             <option value="">{t("inbox")}</option>
             {lists.filter((l) => !l.archived).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
-        </Field>
-
-        <Field label={t("tags")}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {tags.map((tag) => {
-              const on = task.tags.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => patch({ tags: on ? task.tags.filter((x) => x !== tag.id) : [...task.tags, tag.id] })}
-                  className={cx("rounded-full px-2 py-0.5 text-xs ring-1", on ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}
-                >
-                  {tag.name}
-                </button>
-              );
-            })}
-            <input
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void addTag()}
-              placeholder={t("newTag")}
-              className="h-6 w-24 rounded-full border border-dashed border-line bg-transparent px-2 text-xs"
-            />
-          </div>
         </Field>
 
         <Field label={t("repeat")}>

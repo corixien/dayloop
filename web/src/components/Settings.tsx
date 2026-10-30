@@ -41,7 +41,6 @@ export function Settings() {
     try {
       const rows = parseTickTickCsv(await f.text());
       const lists = new Map((await local.all("list")).map((l) => [l.name.toLowerCase(), l.id]));
-      const tags = new Map((await local.all("tag")).map((g) => [g.name.toLowerCase(), g.id]));
       const folders = new Map((await local.all("folder")).map((x) => [x.name.toLowerCase(), x.id]));
       for (const r of rows) {
         let listId: string | null = null;
@@ -58,14 +57,8 @@ export function Settings() {
             lists.set(r.list.toLowerCase(), listId);
           }
         }
-        const tagIds: string[] = [];
-        for (const n of r.tags) {
-          let id = tags.get(n.toLowerCase());
-          if (!id) { id = uid(); await local.put("tag", id, { name: n }); tags.set(n.toLowerCase(), id); }
-          tagIds.push(id);
-        }
         await local.put("task", uid(), {
-          title: r.title, notes: r.notes, listId, tags: tagIds, priority: r.priority, dueDate: r.dueDate, dueTime: r.dueTime,
+          title: r.title, notes: r.notes, listId, priority: r.priority, dueDate: r.dueDate, dueTime: r.dueTime,
           done: r.done, completedAt: r.completedAt, repeat: r.repeat, reminders: r.reminders, order: Date.now(),
           subtasks: r.subtasks.map((x) => ({ id: uid(), ...x })),
         });
@@ -115,6 +108,19 @@ export function Settings() {
             <Field label={t("weekStart")}><Segmented value={s.weekStart} onChange={(v) => void saveSettings({ weekStart: v })} options={[{ value: 1, label: t("monday") }, { value: 0, label: t("sunday") }]} /></Field>
           </Section>
 
+          <Section title={t("defaultLists")}>
+            <p className="text-[13px] text-muted">{t("restoreHint")}</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {(["inbox", "today", "next7", "all", "done"] as const).map((k) => (
+                <label key={k} className="flex items-center gap-2 text-[13px]">
+                  <input type="checkbox" checked={!s.hiddenSmart.includes(k)}
+                    onChange={(e) => void saveSettings({ hiddenSmart: e.target.checked ? s.hiddenSmart.filter((x) => x !== k) : [...s.hiddenSmart, k] })} />
+                  {t(k)}
+                </label>
+              ))}
+            </div>
+          </Section>
+
           <Section title={t("notifications")}>
             <Field label={t("defaultReminderHour")}><input type="number" min={0} max={23} className={`${inputCls} w-20`} value={s.defaultReminderHour} onChange={(e) => void saveSettings({ defaultReminderHour: num(e.target.value, 0, 23) })} /></Field>
             {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
@@ -130,7 +136,7 @@ export function Settings() {
               <Button onClick={() => download("dayloop.ics", tasksToIcs(tasks), "text/calendar")}><Download size={14} /> {t("exportIcs")}</Button>
               <Button onClick={async () => {
                 const dump: Record<string, unknown[]> = {};
-                for (const ty of ["folder", "list", "tag", "task", "habit", "habitlog", "pomodoro", "settings"] as const) dump[ty] = await local.all(ty);
+                for (const ty of ["folder", "list", "task", "habit", "habitlog", "pomodoro", "settings"] as const) dump[ty] = await local.all(ty);
                 download("dayloop.json", JSON.stringify(dump, null, 2), "application/json");
               }}><Download size={14} /> {t("exportJson")}</Button>
             </div>

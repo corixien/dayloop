@@ -9,12 +9,11 @@ interface Cmd {
   run: () => void;
 }
 
-/** Ctrl/Cmd+K: jump to any view, list, tag or task. */
+/** Ctrl/Cmd+K: jump to any view, list or task. */
 export function CommandPalette({ onClose, onOpenTask }: { onClose: () => void; onOpenTask: (id: string) => void }) {
   const t = useT();
   const tasks = useItems("task");
   const lists = useItems("list");
-  const tags = useItems("tag");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -32,12 +31,11 @@ export function CommandPalette({ onClose, onOpenTask }: { onClose: () => void; o
     return [
       ...nav,
       ...lists.map((l) => ({ id: l.id, label: l.name, hint: t("lists"), run: go(`/list/${l.id}`) })),
-      ...tags.map((g) => ({ id: g.id, label: `# ${g.name}`, hint: t("tags"), run: go(`/tag/${g.id}`) })),
       ...tasks.filter((x) => x.trashedAt === null).map((x) => ({
         id: x.id, label: x.title, hint: t("tasks"), run: () => { onOpenTask(x.id); onClose(); },
       })),
     ];
-  }, [tasks, lists, tags, t]);
+  }, [tasks, lists, t]);
 
   const needle = q.trim().toLowerCase();
   const results = (needle ? all.filter((c) => c.label.toLowerCase().includes(needle)) : all.slice(0, 11)).slice(0, 30);

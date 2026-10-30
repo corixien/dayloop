@@ -3,9 +3,9 @@ import { local, uid, useItems, useT } from "../lib/app";
 import { trashTask } from "../lib/tasks";
 import { Button, ColorPicker, Dialog, Field, inputCls } from "./ui";
 
-type Kind = "list" | "tag" | "folder";
+type Kind = "list" | "folder";
 
-/** Create or edit a list, tag or folder. `item` undefined = create. */
+/** Create or edit a list or folder. `item` undefined = create. */
 export function ListDialog({
   kind, item, onClose, onDeleted,
 }: { kind: Kind; item?: { id: string; name: string; color?: string; folderId?: string | null }; onClose: () => void; onDeleted?: () => void }) {
@@ -21,7 +21,6 @@ export function ListDialog({
     if (!n) return;
     const id = item?.id ?? uid();
     if (kind === "list") await local.patch("list", id, { name: n, color, folderId: folderId || null, ...(item ? {} : { order: Date.now() }) });
-    else if (kind === "tag") await local.patch("tag", id, { name: n, color });
     else await local.patch("folder", id, { name: n, ...(item ? {} : { order: Date.now() }) });
     onClose();
     if (!item && kind === "list") location.hash = `/list/${id}`;
@@ -32,9 +31,6 @@ export function ListDialog({
     if (kind === "list") {
       for (const x of tasks.filter((x) => x.listId === item.id && x.trashedAt === null)) await trashTask(x.id);
       await local.remove("list", item.id);
-    } else if (kind === "tag") {
-      for (const x of tasks.filter((x) => x.tags.includes(item.id))) await local.patch("task", x.id, { tags: x.tags.filter((g) => g !== item.id) });
-      await local.remove("tag", item.id);
     } else {
       for (const l of (await local.all("list")).filter((l) => l.folderId === item.id)) await local.patch("list", l.id, { folderId: null });
       await local.remove("folder", item.id);
@@ -44,7 +40,7 @@ export function ListDialog({
     location.hash = "/today";
   }
 
-  const heading = item ? t("edit") : kind === "list" ? t("newList") : kind === "tag" ? t("newTag") : t("newFolder");
+  const heading = item ? t("edit") : kind === "list" ? t("newList") : t("newFolder");
   return (
     <Dialog title={heading} onClose={onClose}>
       <div className="space-y-4">

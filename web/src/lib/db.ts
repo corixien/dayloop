@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import { type Change, type DataOf, type ItemType, type ServerChange, parseData } from "@dayloop/shared";
+import { type Change, type DataOf, type ItemType, type ServerChange, itemSchemas, parseData } from "@dayloop/shared";
 
 export interface Row {
   /** `${type}:${id}` */
@@ -71,14 +71,20 @@ export class Local {
     for (const id of ids) await this.remove(type, id);
   }
 
+  /** Rows written by an older app version miss newer fields: fill defaults on read. */
+  private toItem<T extends ItemType>(type: T, r: Row): Item<T> {
+    const parsed = itemSchemas[type].safeParse(r.data);
+    return { ...(parsed.success ? parsed.data : r.data), id: r.id, updatedAt: r.updatedAt } as Item<T>;
+  }
+
   async all<T extends ItemType>(type: T): Promise<Item<T>[]> {
     const rows = await this.db.items.where("[type+deleted]").equals([type, 0]).toArray();
-    return rows.map((r) => ({ ...r.data, id: r.id, updatedAt: r.updatedAt }));
+    return rows.map((r) => this.toItem(type, r));
   }
 
   async get<T extends ItemType>(type: T, id: string): Promise<Item<T> | undefined> {
     const r = await this.db.items.get(`${type}:${id}`);
-    return r && !r.deleted ? { ...r.data, id: r.id, updatedAt: r.updatedAt } : undefined;
+    return r && !r.deleted ? this.toItem(type, r) : undefined;
   }
 
   // ---- sync support ----

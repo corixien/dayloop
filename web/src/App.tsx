@@ -1,7 +1,8 @@
-import { Calendar as CalIcon, Flame, Menu, Sun, Timer } from "lucide-react";
+import { Calendar as CalIcon, Flame, ListTodo, Menu, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import { saveSettings, syncClient, useHashRoute, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
+import { syncClient, useHashRoute, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
+import { useSwipe } from "./lib/swipe";
 import { useReminders } from "./lib/useReminders";
 import { useWidgetSync } from "./lib/widget";
 import type { View } from "./lib/tasks";
@@ -15,14 +16,15 @@ import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
 import { TaskView } from "./components/TaskView";
-import { Button, Dialog, cx } from "./components/ui";
+import { Button, Dialog, cx, inputCls } from "./components/ui";
+import { useItems } from "./lib/app";
 
 const SMART = ["inbox", "today", "next7", "all", "done", "trash"] as const;
 
 function parseView(route: string): View | null {
   const [, a, b] = route.split("/");
   if ((SMART as readonly string[]).includes(a)) return { kind: "smart", id: a as (typeof SMART)[number] };
-  if ((a === "list" || a === "tag") && b) return { kind: a, id: b };
+  if (a === "list" && b) return { kind: "list", id: b };
   return null;
 }
 
@@ -36,6 +38,32 @@ function Welcome({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SMART_ORDER = ["inbox", "today", "next7", "all", "done"] as const;
+
+/** Mobile home: pick which list to look at from a dropdown in the header. */
+function TodoPage({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
+  const t = useT();
+  const hidden = useSettings().hiddenSmart;
+  const lists = useItems("list").filter((l) => !l.archived).sort((a, b) => a.order - b.order);
+  const smart = SMART_ORDER.filter((k) => !hidden.includes(k));
+  const [stored, setStored] = useState(() => localStorage.getItem("dl_todo") ?? "smart:today");
+  const valid = (k: string) => (k.startsWith("smart:") ? smart.includes(k.slice(6) as (typeof SMART_ORDER)[number]) : lists.some((l) => l.id === k.slice(5)));
+  const key = valid(stored) ? stored : smart.length ? `smart:${smart[0]}` : lists[0] ? `list:${lists[0].id}` : "smart:trash";
+  const view: View = key.startsWith("smart:") ? { kind: "smart", id: key.slice(6) as never } : { kind: "list", id: key.slice(5) };
+  const select = (
+    <select
+      aria-label={t("lists")}
+      value={key}
+      onChange={(e) => { localStorage.setItem("dl_todo", e.target.value); setStored(e.target.value); onSelect(null); }}
+      className={cx(inputCls, "h-9 w-auto max-w-[70vw] border-transparent bg-transparent text-[15px] font-semibold")}
+    >
+      {smart.map((k) => <option key={k} value={`smart:${k}`}>{t(k)}</option>)}
+      {lists.map((l) => <option key={l.id} value={`list:${l.id}`}>{l.name}</option>)}
+    </select>
+  );
+  return <TaskView view={view} selectedId={selectedId} onSelect={onSelect} titleSlot={select} />;
+}
+
 export default function App() {
   const t = useT();
   const settings = useSettings();
@@ -47,6 +75,7 @@ export default function App() {
   const [palette, setPalette] = useState(false);
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
   const { state, left } = usePomo();
+  useSwipe(() => window, { fromLeftEdge: 32, threshold: 50, onRight: () => setDrawer(true), enabled: !drawer }, [drawer]);
   useReminders();
   useWidgetSync();
 
@@ -86,7 +115,7 @@ export default function App() {
   const hasDetail = selected !== null && page !== "settings" && page !== "pomodoro" && page !== "habits";
 
   const tabs = [
-    { to: "/today", icon: <Sun size={19} />, label: t("today") },
+    { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab") },
     { to: "/calendar", icon: <CalIcon size={19} />, label: t("calendar") },
     { to: "/habits", icon: <Flame size={19} />, label: t("habits") },
     { to: "/pomodoro", icon: <Timer size={19} />, label: t("pomodoro") },
@@ -94,6 +123,7 @@ export default function App() {
 
   let main;
   if (view) main = <TaskView view={view} selectedId={selected} onSelect={setSelected} />;
+  else if (page === "todo") main = <TodoPage selectedId={selected} onSelect={setSelected} />;
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={setSelected} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro") main = <Pomodoro />;

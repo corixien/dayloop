@@ -1,14 +1,15 @@
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
-import { local, uid, useT } from "../lib/app";
+import { local, uid, useNow, useT } from "../lib/app";
+import { addDays, todayStr } from "../lib/dates";
 import type { Item } from "../lib/db";
-import { type TaskItem, addTask, compareTasks } from "../lib/tasks";
+import { type Group, type TaskItem, addTask, compareTasks, groupOf } from "../lib/tasks";
 import { TaskRow } from "./TaskRow";
 import { IconButton, cx } from "./ui";
 
 export function Kanban({
-  list, tasks, tags, selectedId, onSelect,
-}: { list: Item<"list">; tasks: TaskItem[]; tags: Map<string, Item<"tag">>; selectedId: string | null; onSelect: (id: string) => void }) {
+  list, tasks, selectedId, onSelect,
+}: { list: Item<"list">; tasks: TaskItem[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const t = useT();
   const columns = list.columns;
   const [over, setOver] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function Kanban({
               {items.map((task) => (
                 <div key={task.id} className="mx-1 overflow-hidden rounded-md border border-transparent bg-raise [&>div]:px-3">
                   <TaskRow
-                    task={task} tags={tags} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
+                    task={task} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
                     draggable onDragStart={(e) => e.dataTransfer.setData("text/task", task.id)}
                   />
                 </div>
@@ -78,6 +79,54 @@ export function Kanban({
       >
         <Plus size={14} /> {t("addColumn")}
       </button>
+    </div>
+  );
+}
+
+const DATE_COLUMNS: Group[] = ["overdue", "today", "tomorrow", "later", "noDate"];
+
+/** Board for views without own columns (inbox, today, ...): columns are due-date groups; dropping reschedules. */
+export function DateBoard({ tasks, selectedId, onSelect }: { tasks: TaskItem[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  const t = useT();
+  const today = todayStr(useNow());
+  const [over, setOver] = useState<Group | null>(null);
+  const dueFor = (g: Group): string | null | undefined =>
+    g === "today" ? today : g === "tomorrow" ? addDays(today, 1) : g === "later" ? addDays(today, 7) : g === "noDate" ? null : undefined;
+  const open = tasks.filter((x) => !x.done);
+
+  return (
+    <div className="flex h-full gap-3 overflow-x-auto p-4 md:p-6">
+      {DATE_COLUMNS.map((g) => {
+        const items = open.filter((x) => groupOf(x, today) === g).sort(compareTasks);
+        const droppable = dueFor(g) !== undefined;
+        return (
+          <section
+            key={g}
+            onDragOver={(e) => { if (droppable) { e.preventDefault(); setOver(g); } }}
+            onDragLeave={() => setOver((o) => (o === g ? null : o))}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(null);
+              const id = e.dataTransfer.getData("text/task");
+              const due = dueFor(g);
+              if (id && due !== undefined) void local.patch("task", id, { dueDate: due, ...(due === null ? { dueTime: null } : {}) });
+            }}
+            className={cx("flex w-72 shrink-0 flex-col rounded-lg border bg-sub", over === g ? "border-accent" : "border-line")}
+          >
+            <div className="flex items-center justify-between px-3 py-2">
+              <h2 className="text-[13px] font-semibold">{t(g)}</h2>
+              <span className="text-xs text-muted">{items.length}</span>
+            </div>
+            <div className="flex-1 space-y-px overflow-y-auto pb-2">
+              {items.map((task) => (
+                <div key={task.id} className="mx-1 overflow-hidden rounded-md bg-raise [&>div]:px-3">
+                  <TaskRow task={task} selected={selectedId === task.id} onSelect={() => onSelect(task.id)} draggable onDragStart={(e) => e.dataTransfer.setData("text/task", task.id)} />
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

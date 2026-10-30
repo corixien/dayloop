@@ -1,6 +1,6 @@
-import { Calendar, CheckCircle2, ChevronDown, ChevronRight, Flame, FolderPlus, Grid2x2, Hash, Inbox, ListTodo, Plus, Search, Settings, Sun, Sunrise, Timer, Trash2 } from "lucide-react";
+import { Calendar, CheckCircle2, ChevronDown, ChevronRight, Flame, FolderPlus, Grid2x2, Inbox, ListTodo, Plus, Search, Settings, Sun, Sunrise, Timer, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { useItems, useNow, useSyncStatus, useT } from "../lib/app";
+import { useItems, useNow, useSettings, useSyncStatus, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
 import { type View, matches } from "../lib/tasks";
 import { ListDialog } from "./ListDialog";
@@ -31,9 +31,9 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
   const tasks = useItems("task");
   const lists = useItems("list").filter((l) => !l.archived).sort((a, b) => a.order - b.order);
   const folders = useItems("folder").sort((a, b) => a.order - b.order);
-  const tags = useItems("tag").sort((a, b) => a.name.localeCompare(b.name));
+  const hidden = useSettings().hiddenSmart;
   const status = useSyncStatus();
-  const [dialog, setDialog] = useState<null | { kind: "list" | "tag" | "folder" }>(null);
+  const [dialog, setDialog] = useState<null | { kind: "list" | "folder" }>(null);
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const count = (v: View) => tasks.filter((x) => matches(x, v, today)).length;
   const sz = 15;
@@ -53,11 +53,11 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-2 pb-3">
         <div className="space-y-px">
-          <Item to="/inbox" route={route} label={t("inbox")} icon={<Inbox size={sz} />} count={count({ kind: "smart", id: "inbox" })} onNavigate={onNavigate} />
-          <Item to="/today" route={route} label={t("today")} icon={<Sun size={sz} />} count={count({ kind: "smart", id: "today" })} onNavigate={onNavigate} />
-          <Item to="/next7" route={route} label={t("next7")} icon={<Sunrise size={sz} />} count={count({ kind: "smart", id: "next7" })} onNavigate={onNavigate} />
-          <Item to="/all" route={route} label={t("all")} icon={<ListTodo size={sz} />} count={count({ kind: "smart", id: "all" })} onNavigate={onNavigate} />
-          <Item to="/done" route={route} label={t("done")} icon={<CheckCircle2 size={sz} />} onNavigate={onNavigate} />
+          {!hidden.includes("inbox") && <Item to="/inbox" route={route} label={t("inbox")} icon={<Inbox size={sz} />} count={count({ kind: "smart", id: "inbox" })} onNavigate={onNavigate} />}
+          {!hidden.includes("today") && <Item to="/today" route={route} label={t("today")} icon={<Sun size={sz} />} count={count({ kind: "smart", id: "today" })} onNavigate={onNavigate} />}
+          {!hidden.includes("next7") && <Item to="/next7" route={route} label={t("next7")} icon={<Sunrise size={sz} />} count={count({ kind: "smart", id: "next7" })} onNavigate={onNavigate} />}
+          {!hidden.includes("all") && <Item to="/all" route={route} label={t("all")} icon={<ListTodo size={sz} />} count={count({ kind: "smart", id: "all" })} onNavigate={onNavigate} />}
+          {!hidden.includes("done") && <Item to="/done" route={route} label={t("done")} icon={<CheckCircle2 size={sz} />} onNavigate={onNavigate} />}
         </div>
         <div className="space-y-px">
           <Item to="/calendar" route={route} label={t("calendar")} icon={<Calendar size={sz} />} onNavigate={onNavigate} />
@@ -87,17 +87,6 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between px-2.5 pb-1 text-xs font-medium text-muted">
-            {t("tags")}
-            <IconButton label={t("newTag")} className="size-6" onClick={() => setDialog({ kind: "tag" })}><Plus size={14} /></IconButton>
-          </div>
-          <div className="space-y-px">
-            {tags.map((g) => (
-              <Item key={g.id} to={`/tag/${g.id}`} route={route} label={g.name} icon={<Hash size={14} style={{ color: colorOf(g.color) }} />} onNavigate={onNavigate} />
-            ))}
-          </div>
-        </div>
       </div>
       <div className="space-y-px border-t border-line p-2 safe-bottom">
         <Item to="/trash" route={route} label={t("trash")} icon={<Trash2 size={sz} />} onNavigate={onNavigate} />
