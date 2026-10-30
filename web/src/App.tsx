@@ -1,8 +1,7 @@
 import { Calendar as CalIcon, Flame, ListTodo, Menu, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import { syncClient, useHashRoute, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
+import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
-import { useSwipe } from "./lib/swipe";
 import { useReminders } from "./lib/useReminders";
 import { useWidgetSync } from "./lib/widget";
 import type { View } from "./lib/tasks";
@@ -16,8 +15,10 @@ import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
 import { TaskView } from "./components/TaskView";
-import { Button, Dialog, cx, inputCls } from "./components/ui";
-import { useItems } from "./lib/app";
+import { TodoPage } from "./components/TodoPage";
+import { Drawer } from "./components/Drawer";
+import { Sheet } from "./components/Sheet";
+import { Button, Dialog, cx } from "./components/ui";
 
 const SMART = ["inbox", "today", "next7", "all", "done", "trash"] as const;
 
@@ -38,32 +39,6 @@ function Welcome({ onClose }: { onClose: () => void }) {
   );
 }
 
-const SMART_ORDER = ["inbox", "today", "next7", "all", "done"] as const;
-
-/** Mobile home: pick which list to look at from a dropdown in the header. */
-function TodoPage({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
-  const t = useT();
-  const hidden = useSettings().hiddenSmart;
-  const lists = useItems("list").filter((l) => !l.archived).sort((a, b) => a.order - b.order);
-  const smart = SMART_ORDER.filter((k) => !hidden.includes(k));
-  const [stored, setStored] = useState(() => localStorage.getItem("dl_todo") ?? "smart:today");
-  const valid = (k: string) => (k.startsWith("smart:") ? smart.includes(k.slice(6) as (typeof SMART_ORDER)[number]) : lists.some((l) => l.id === k.slice(5)));
-  const key = valid(stored) ? stored : smart.length ? `smart:${smart[0]}` : lists[0] ? `list:${lists[0].id}` : "smart:trash";
-  const view: View = key.startsWith("smart:") ? { kind: "smart", id: key.slice(6) as never } : { kind: "list", id: key.slice(5) };
-  const select = (
-    <select
-      aria-label={t("lists")}
-      value={key}
-      onChange={(e) => { localStorage.setItem("dl_todo", e.target.value); setStored(e.target.value); onSelect(null); }}
-      className={cx(inputCls, "h-9 w-auto max-w-[70vw] border-transparent bg-transparent text-[15px] font-semibold")}
-    >
-      {smart.map((k) => <option key={k} value={`smart:${k}`}>{t(k)}</option>)}
-      {lists.map((l) => <option key={l.id} value={`list:${l.id}`}>{l.name}</option>)}
-    </select>
-  );
-  return <TaskView view={view} selectedId={selectedId} onSelect={onSelect} titleSlot={select} />;
-}
-
 export default function App() {
   const t = useT();
   const settings = useSettings();
@@ -71,15 +46,17 @@ export default function App() {
   const status = useSyncStatus();
   const [route, go] = useHashRoute();
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusNotes, setFocusNotes] = useState(false);
+  const mobile = useIsMobile();
+  const select = (id: string | null, focus?: "notes") => { setSelected(id); setFocusNotes(focus === "notes"); };
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
   const { state, left } = usePomo();
-  useSwipe(() => window, { fromLeftEdge: 32, threshold: 50, onRight: () => setDrawer(true), enabled: !drawer }, [drawer]);
   useReminders();
   useWidgetSync();
 
-  useEffect(() => setSelected(null), [route]);
+  useEffect(() => { setSelected(null); }, [route]);
 
   useEffect(() => {
     document.documentElement.lang = settings.language;
@@ -122,31 +99,26 @@ export default function App() {
   ];
 
   let main;
-  if (view) main = <TaskView view={view} selectedId={selected} onSelect={setSelected} />;
-  else if (page === "todo") main = <TodoPage selectedId={selected} onSelect={setSelected} />;
-  else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={setSelected} />;
+  if (view) main = <TaskView view={view} selectedId={selected} onSelect={select} />;
+  else if (page === "todo") main = <TodoPage selectedId={selected} onSelect={select} openMenu={() => setDrawer(true)} />;
+  else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro") main = <Pomodoro />;
-  else if (page === "matrix") main = <Matrix selectedId={selected} onSelect={setSelected} />;
+  else if (page === "matrix") main = <Matrix selectedId={selected} onSelect={select} />;
   else if (page === "settings") main = <Settings />;
-  else main = <TaskView view={{ kind: "smart", id: "today" }} selectedId={selected} onSelect={setSelected} />;
+  else main = <TaskView view={{ kind: "smart", id: "today" }} selectedId={selected} onSelect={select} />;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-bg text-fg">
       <div className="hidden w-[248px] shrink-0 border-r border-line md:block">
         <Sidebar route={route} onNavigate={() => {}} onSearch={() => setPalette(true)} />
       </div>
-      {drawer && (
-        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setDrawer(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="pop absolute inset-y-0 left-0 w-[280px] border-r border-line" onClick={(e) => e.stopPropagation()}>
-            <Sidebar route={route} onNavigate={() => setDrawer(false)} onSearch={() => { setDrawer(false); setPalette(true); }} />
-          </div>
-        </div>
-      )}
+      <Drawer open={drawer} onOpenChange={setDrawer}>
+        <Sidebar route={route} onNavigate={() => setDrawer(false)} onSearch={() => { setDrawer(false); setPalette(true); }} />
+      </Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col safe-top">
-        <div className="min-h-0 flex-1">{main}</div>
+        <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
         <nav className="grid shrink-0 grid-cols-5 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (
             <a key={x.to} href={`#${x.to}`} aria-current={route === x.to ? "page" : undefined}
@@ -158,10 +130,15 @@ export default function App() {
         </nav>
       </main>
 
-      {hasDetail && (
-        <div className="pop fixed inset-0 z-30 bg-bg safe-top md:static md:z-auto md:w-[400px] md:shrink-0 md:border-l md:border-line md:p-0">
-          <TaskDetail id={selected!} onClose={() => setSelected(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); setSelected(null); }} />
+      {hasDetail && !mobile && (
+        <div className="anim-fade w-[400px] shrink-0 border-l border-line">
+          <TaskDetail id={selected!} focusNotes={focusNotes} onClose={() => select(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); }} />
         </div>
+      )}
+      {hasDetail && mobile && (
+        <Sheet onClose={() => select(null)}>
+          {(close) => <TaskDetail id={selected!} focusNotes={focusNotes} onClose={close} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); select(null); }} />}
+        </Sheet>
       )}
 
       {state?.status === "running" && page !== "pomodoro" && (

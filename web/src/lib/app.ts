@@ -82,3 +82,16 @@ export function useHashRoute(): [string, (r: string) => void] {
   }, []);
   return [route, (r) => void (location.hash = r)];
 }
+
+/** Phone-sized layout (matches Tailwind md breakpoint). */
+export function useIsMobile(): boolean {
+  const q = "(max-width: 767px)";
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q);
+    const on = () => setM(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return m;
+}

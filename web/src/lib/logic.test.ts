@@ -20,6 +20,10 @@ describe("quick add", () => {
     expect(r.dueDate).toBe("2026-11-02");
     expect(r.title).toBe("Sport");
   });
+  it("splits a note after //", () => {
+    const p = parseQuickAdd("Zahnarzt morgen // Versicherungskarte mitnehmen", NOW);
+    expect(p).toMatchObject({ title: "Zahnarzt", dueDate: "2026-10-29", notes: "Versicherungskarte mitnehmen" });
+  });
   it("parses numeric dates and relative days", () => {
     expect(parseQuickAdd("Steuer 15.11.", NOW).dueDate).toBe("2026-11-15");
     expect(parseQuickAdd("Steuer 3.1.", NOW).dueDate).toBe("2027-01-03");

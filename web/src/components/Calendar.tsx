@@ -40,6 +40,8 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   const tasks = useItems("task");
   const [mode, setMode] = useState<Mode>(() => (window.innerWidth < 768 ? "day" : "month"));
   const [anchor, setAnchor] = useState(today);
+  const [dir, setDir] = useState<1 | -1>(1);
+  const anim = dir > 0 ? "anim-in-right" : "anim-in-left";
   const [create, setCreate] = useState<{ date: string; time: string | null } | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -67,7 +69,10 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
     if (mode !== "month" && scroller.current) scroller.current.scrollTop = 7 * HOUR;
   }, [mode]);
 
-  const step = (dir: 1 | -1) => setAnchor(mode === "month" ? addMonths(anchor, dir) : addDays(anchor, dir * (mode === "week" ? 7 : 1)));
+  const step = (d: 1 | -1) => {
+    setDir(d);
+    setAnchor(mode === "month" ? addMonths(anchor, d) : addDays(anchor, d * (mode === "week" ? 7 : 1)));
+  };
   useSwipe(() => body.current, { ignoreLeftEdge: 32, onLeft: () => step(1), onRight: () => step(-1) }, [mode, anchor]);
   const title = mode === "month" ? fmtMonth(anchor, lang) : mode === "day" ? fmtLong(anchor, lang) : `${fmtLong(days[0], lang)} – ${fmtLong(days[6], lang)}`;
   const names = weekdayNames(lang, weekStart);
@@ -86,10 +91,10 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader title={<span className="capitalize">{title}</span>}>
+      <PageHeader title={<span className="truncate capitalize">{title}</span>}>
         <Button onClick={() => setAnchor(today)}>{t("today_btn")}</Button>
-        <IconButton label="<" onClick={() => step(-1)}><ChevronLeft size={16} /></IconButton>
-        <IconButton label=">" onClick={() => step(1)}><ChevronRight size={16} /></IconButton>
+        <IconButton label="<" className="max-md:hidden" onClick={() => step(-1)}><ChevronLeft size={16} /></IconButton>
+        <IconButton label=">" className="max-md:hidden" onClick={() => step(1)}><ChevronRight size={16} /></IconButton>
         <Segmented value={mode} onChange={setMode} options={[{ value: "month", label: t("month") }, { value: "week", label: t("week") }, { value: "day", label: t("day") }]} />
       </PageHeader>
 
@@ -99,7 +104,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
           <div className="grid grid-cols-7 border-b border-line text-center text-xs text-muted">
             {names.map((n) => <div key={n} className="py-1.5">{n}</div>)}
           </div>
-          <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
+          <div key={anchor} className={`grid min-h-0 flex-1 grid-cols-7 grid-rows-6 ${anim}`}>
             {days.map((d) => {
               const evs = events.get(d) ?? [];
               return (
@@ -127,7 +132,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex border-b border-line pl-12">
+          <div key={anchor} className={`flex border-b border-line pl-12 ${anim}`}>
             {days.map((d) => (
               <div key={d} className="flex-1 border-l border-line px-1 py-1.5">
                 <div className={cx("text-center text-xs", d === today ? "font-semibold text-accent" : "text-muted")}>{fmtLong(d, lang)}</div>
@@ -138,7 +143,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
             ))}
           </div>
           <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
-            <div className="relative flex" style={{ height: 24 * HOUR }}>
+            <div key={anchor} className={`relative flex ${anim}`} style={{ height: 24 * HOUR }}>
               <div className="w-12 shrink-0">
                 {Array.from({ length: 24 }, (_, h) => (
                   <div key={h} className="pr-2 text-right text-[11px] text-faint" style={{ height: HOUR }}>{h > 0 && `${String(h).padStart(2, "0")}:00`}</div>

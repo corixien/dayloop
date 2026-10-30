@@ -111,7 +111,7 @@ export function Settings() {
           <Section title={t("defaultLists")}>
             <p className="text-[13px] text-muted">{t("restoreHint")}</p>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {(["inbox", "today", "next7", "all", "done"] as const).map((k) => (
+              {(["today", "all", "inbox"] as const).map((k) => (
                 <label key={k} className="flex items-center gap-2 text-[13px]">
                   <input type="checkbox" checked={!s.hiddenSmart.includes(k)}
                     onChange={(e) => void saveSettings({ hiddenSmart: e.target.checked ? s.hiddenSmart.filter((x) => x !== k) : [...s.hiddenSmart, k] })} />

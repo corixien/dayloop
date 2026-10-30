@@ -7,6 +7,7 @@ export interface Parsed {
   dueTime: string | null;
   priority: number;
   list: string | null;
+  notes: string;
   repeat: Repeat | null;
 }
 
@@ -24,7 +25,7 @@ const wdNames = Object.keys(WEEKDAYS).sort((a, b) => b.length - a.length).join("
 /** Quick-add parser: "Zahnarzt morgen 15 Uhr !1 ~Gesundheit jeden montag" (DE/EN). */
 export function parseQuickAdd(input: string, now = new Date()): Parsed {
   let s = ` ${input} `;
-  const out: Parsed = { title: "", dueDate: null, dueTime: null, priority: 0, list: null, repeat: null };
+  const out: Parsed = { title: "", dueDate: null, dueTime: null, priority: 0, list: null, notes: "", repeat: null };
   const take = (re: RegExp, fn: (m: RegExpExecArray) => void) => {
     const m = re.exec(s);
     if (m) {
@@ -34,6 +35,8 @@ export function parseQuickAdd(input: string, now = new Date()): Parsed {
   };
   const today = fmtDate(now);
 
+  // everything after " // " is the note
+  take(/\s\/\/\s*(.+)$/, (m) => (out.notes = m[1].trim()));
   take(/\s!([123])(?=\s)/, (m) => (out.priority = { "1": 3, "2": 2, "3": 1 }[m[1]]!));
   take(/\s~([^\s~!]+)/, (m) => (out.list = m[1]));
 

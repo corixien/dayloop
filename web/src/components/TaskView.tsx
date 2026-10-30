@@ -1,4 +1,4 @@
-import { EyeOff, Pencil, Trash2 } from "lucide-react";
+import { EyeOff, LayoutGrid, List as ListIcon, Pencil, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { local, saveSettings, useItems, useNow, useSettings, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
@@ -7,14 +7,14 @@ import { DateBoard, Kanban } from "./Kanban";
 import { ListDialog } from "./ListDialog";
 import { QuickAdd } from "./QuickAdd";
 import { TaskRow } from "./TaskRow";
-import { Button, Empty, IconButton, PageHeader, Segmented } from "./ui";
+import { Button, Empty, IconButton, PageHeader } from "./ui";
 
 const GROUPED = new Set(["today", "next7", "all"]);
 const GROUP_ORDER: Group[] = ["overdue", "today", "tomorrow", "later", "noDate"];
 
 export function TaskView({
   view, selectedId, onSelect, titleSlot,
-}: { view: View; selectedId: string | null; onSelect: (id: string | null) => void; titleSlot?: ReactNode }) {
+}: { view: View; selectedId: string | null; onSelect: (id: string | null, focus?: "notes") => void; titleSlot?: ReactNode }) {
   const t = useT();
   const now = useNow();
   const today = todayStr(now);
@@ -41,7 +41,7 @@ export function TaskView({
 
   const row = (task: TaskItem, showList = view.kind !== "list") => (
     <TaskRow
-      key={task.id} task={task} selected={selectedId === task.id} onSelect={() => onSelect(task.id)}
+      key={task.id} task={task} selected={selectedId === task.id} onSelect={(f) => onSelect(task.id, f)}
       listName={showList && task.listId ? listNames.get(task.listId) : undefined}
     />
   );
@@ -66,14 +66,12 @@ export function TaskView({
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title={titleSlot ?? title}>
         {canBoard && (
-          <Segmented
-            value={board ? "kanban" : "list"}
-            onChange={(v) => void setMode(v)}
-            options={[{ value: "list", label: t("list_view") }, { value: "kanban", label: t("kanban") }]}
-          />
+          <IconButton label={board ? t("list_view") : t("kanban")} onClick={() => void setMode(board ? "list" : "kanban")}>
+            {board ? <ListIcon size={17} /> : <LayoutGrid size={17} />}
+          </IconButton>
         )}
-        {list && <IconButton label={t("edit")} onClick={() => setEdit(true)}><Pencil size={15} /></IconButton>}
-        {hideable && <IconButton label={t("hide")} onClick={() => void hide()}><EyeOff size={15} /></IconButton>}
+        {!titleSlot && list && <IconButton label={t("edit")} onClick={() => setEdit(true)}><Pencil size={15} /></IconButton>}
+        {!titleSlot && hideable && <IconButton label={t("hide")} onClick={() => void hide()}><EyeOff size={15} /></IconButton>}
         {isTrash && visible.length > 0 && (
           <Button variant="danger" onClick={() => { if (confirm(t("confirmDelete"))) visible.forEach((x) => void deleteTaskForever(x.id)); }}>
             <Trash2 size={14} /> {t("emptyTrash")}

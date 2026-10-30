@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle2, ChevronDown, ChevronRight, Flame, FolderPlus, Grid2x2, Inbox, ListTodo, Plus, Search, Settings, Sun, Sunrise, Timer, Trash2 } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Flame, FolderPlus, Grid2x2, Inbox, ListTodo, Plus, Search, Settings, Sun, Timer, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useItems, useNow, useSettings, useSyncStatus, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
@@ -53,11 +53,9 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto px-2 pb-3">
         <div className="space-y-px">
-          {!hidden.includes("inbox") && <Item to="/inbox" route={route} label={t("inbox")} icon={<Inbox size={sz} />} count={count({ kind: "smart", id: "inbox" })} onNavigate={onNavigate} />}
           {!hidden.includes("today") && <Item to="/today" route={route} label={t("today")} icon={<Sun size={sz} />} count={count({ kind: "smart", id: "today" })} onNavigate={onNavigate} />}
-          {!hidden.includes("next7") && <Item to="/next7" route={route} label={t("next7")} icon={<Sunrise size={sz} />} count={count({ kind: "smart", id: "next7" })} onNavigate={onNavigate} />}
           {!hidden.includes("all") && <Item to="/all" route={route} label={t("all")} icon={<ListTodo size={sz} />} count={count({ kind: "smart", id: "all" })} onNavigate={onNavigate} />}
-          {!hidden.includes("done") && <Item to="/done" route={route} label={t("done")} icon={<CheckCircle2 size={sz} />} onNavigate={onNavigate} />}
+          {!hidden.includes("inbox") && <Item to="/inbox" route={route} label={t("inbox")} icon={<Inbox size={sz} />} count={count({ kind: "smart", id: "inbox" })} onNavigate={onNavigate} />}
         </div>
         <div className="space-y-px">
           <Item to="/calendar" route={route} label={t("calendar")} icon={<Calendar size={sz} />} onNavigate={onNavigate} />

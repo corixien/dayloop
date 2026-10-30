@@ -1,5 +1,5 @@
 import { Play, Plus, RotateCcw, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Repeat } from "@dayloop/shared";
 import { local, uid, useItems, useLang, useT } from "../lib/app";
 import { weekdayNames } from "../lib/dates";
@@ -17,7 +17,7 @@ function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, () =
   return [draft, setDraft, () => draft !== value && commit(draft)];
 }
 
-export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () => void; onFocus: (taskId: string) => void }) {
+export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; onClose: () => void; onFocus: (taskId: string) => void; focusNotes?: boolean }) {
   const t = useT();
   const lang = useLang();
   const tasks = useItems("task");
@@ -28,6 +28,10 @@ export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () =
   const [title, setTitle, commitTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
   const [notes, setNotes, commitNotes] = useDraft(task?.notes ?? "", (v) => patch({ notes: v }));
   const [newSub, setNewSub] = useState("");
+  const notesEl = useRef<HTMLTextAreaElement>(null);
+  const grow = () => { const el = notesEl.current; if (el) { el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 320)}px`; } };
+  useEffect(() => { if (focusNotes) { const el = notesEl.current; el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); } }, [id, focusNotes, !!task]);
+  useEffect(() => { grow(); }, [notes]);
 
   if (!task) return null;
   const trashed = task.trashedAt !== null;
@@ -69,12 +73,14 @@ export function TaskDetail({ id, onClose, onFocus }: { id: string; onClose: () =
           className="w-full bg-transparent text-lg font-semibold outline-none"
         />
         <textarea
+          ref={notesEl}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           onBlur={commitNotes}
-          rows={4}
-          placeholder={t("notes")}
-          className="w-full resize-y rounded-ctl border border-line bg-raise p-2.5 text-[13px] placeholder:text-faint focus:border-accent"
+          rows={2}
+          placeholder={t("addNote")}
+          aria-label={t("note")}
+          className="min-h-16 w-full resize-none rounded-ctl border border-line bg-raise p-2.5 text-[14px] placeholder:text-faint focus:border-accent"
         />
 
         <div className="grid grid-cols-2 gap-3">
