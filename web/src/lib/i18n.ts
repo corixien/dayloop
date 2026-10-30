@@ -1,0 +1,89 @@
+const de = {
+  inbox: "Eingang", today: "Heute", next7: "Nächste 7 Tage", all: "Alle", done: "Erledigt", trash: "Papierkorb",
+  calendar: "Kalender", habits: "Gewohnheiten", pomodoro: "Fokus", matrix: "Matrix", settings: "Einstellungen",
+  lists: "Listen", tags: "Tags", newList: "Neue Liste", newTag: "Neuer Tag", newFolder: "Neuer Ordner",
+  addTask: "Aufgabe hinzufügen, z. B. „Zahnarzt morgen 15 Uhr !1 #privat“", search: "Suchen oder Befehl eingeben…",
+  overdue: "Überfällig", tomorrow: "Morgen", later: "Später", noDate: "Ohne Datum", completed: "Erledigt",
+  title: "Titel", notes: "Notizen", dueDate: "Fällig", dueTime: "Uhrzeit", allDay: "Ganztägig", startDate: "Beginn",
+  priority: "Priorität", pNone: "Keine", pLow: "Niedrig", pMed: "Mittel", pHigh: "Hoch",
+  reminders: "Erinnerungen", addReminder: "Erinnerung", atDue: "Zum Zeitpunkt", before5: "5 Min. vorher", before30: "30 Min. vorher",
+  before1h: "1 Std. vorher", before1d: "1 Tag vorher", repeat: "Wiederholen", noRepeat: "Nie", daily: "Täglich", weekly: "Wöchentlich",
+  monthly: "Monatlich", yearly: "Jährlich", every: "Alle", intervalDays: "Tage", intervalWeeks: "Wochen", intervalMonths: "Monate",
+  intervalYears: "Jahre", until: "Bis", fromCompletion: "Ab Erledigung zählen", list: "Liste", subtasks: "Teilaufgaben",
+  addSubtask: "Teilaufgabe hinzufügen", estimate: "Pomodoros geplant", startFocus: "Fokus starten",
+  delete: "Löschen", deleteForever: "Endgültig löschen", restore: "Wiederherstellen", emptyTrash: "Papierkorb leeren",
+  save: "Speichern", cancel: "Abbrechen", create: "Erstellen", rename: "Umbenennen", edit: "Bearbeiten", close: "Schließen", add: "Hinzufügen",
+  name: "Name", color: "Farbe", noTasks: "Keine Aufgaben", allClear: "Alles erledigt", month: "Monat", week: "Woche", day: "Tag",
+  list_view: "Liste", kanban: "Board", addColumn: "Spalte hinzufügen", columnName: "Spaltenname", todo: "Zu erledigen",
+  urgent: "Dringend", important: "Wichtig", q1: "Sofort erledigen", q2: "Einplanen", q3: "Abgeben", q4: "Später / streichen",
+  newHabit: "Neue Gewohnheit", habitTarget: "Ziel pro Tag", habitUnit: "Einheit", habitDays: "Aktive Tage", streak: "Serie",
+  bestStreak: "Beste Serie", total: "Gesamt", rate30: "30 Tage", noHabits: "Noch keine Gewohnheiten", archive: "Archivieren", reminderTime: "Erinnerung um",
+  focus: "Fokus", shortBreak: "Pause", longBreak: "Lange Pause", start: "Start", pause: "Pause", resume: "Weiter", reset: "Zurücksetzen", skip: "Überspringen",
+  noTaskLinked: "Keine Aufgabe verknüpft", sessionsToday: "Sessions heute", focusToday: "Fokuszeit heute", focusWeek: "Letzte 7 Tage",
+  workMin: "Fokus (Min.)", breakMin: "Pause (Min.)", longBreakMin: "Lange Pause (Min.)", longBreakEvery: "Lange Pause nach … Sessions", autoStart: "Nächste Phase automatisch starten",
+  language: "Sprache", theme: "Design", themeSystem: "System", themeLight: "Hell", themeDark: "Dunkel", weekStart: "Wochenbeginn", monday: "Montag", sunday: "Sonntag",
+  defaultReminderHour: "Erinnerung für ganztägige Aufgaben um", notifications: "Benachrichtigungen", enableNotifications: "Benachrichtigungen erlauben",
+  account: "Konto", signIn: "Anmelden", signUp: "Registrieren", signOut: "Abmelden", email: "E-Mail", password: "Passwort (min. 8 Zeichen)",
+  useOffline: "Ohne Konto fortfahren", signedInAs: "Angemeldet als", syncing: "Synchronisiert…", synced: "Synchronisiert", offline: "Offline", syncError: "Sync-Fehler",
+  syncNow: "Jetzt synchronisieren", serverUrl: "Server-URL", authWrong: "E-Mail oder Passwort falsch", authTaken: "E-Mail bereits registriert", authInvalid: "Ungültige Eingabe",
+  authClosed: "Registrierung ist geschlossen", authNetwork: "Server nicht erreichbar",
+  apiTokens: "API-Tokens (für Claude / MCP)", apiTokensHelp: "Mit einem Token kann Claude deine Daten lesen und ändern. Er wird nur einmal angezeigt.",
+  newToken: "Token erstellen", tokenName: "Name, z. B. Claude", tokenCreated: "Token kopieren – er wird nicht noch einmal angezeigt", revoke: "Widerrufen", lastUsed: "Zuletzt genutzt", never: "nie",
+  data: "Daten", importTick: "TickTick-CSV importieren", exportIcs: "Kalender exportieren (.ics)", exportJson: "Alle Daten exportieren (.json)", imported: "Aufgaben importiert",
+  copy: "Kopieren", copied: "Kopiert", newTask: "Neue Aufgabe", goTo: "Gehe zu", tasks: "Aufgaben", today_btn: "Heute",
+  confirmDelete: "Wirklich löschen?", moved: "In den Papierkorb verschoben", undo: "Rückgängig", more: "Mehr", menu: "Menü",
+  minutesShort: "Min.", hoursShort: "Std.", sessions: "Sessions", noList: "Eingang", chooseList: "Liste wählen", dragHint: "Zum Verschieben ziehen",
+  completedOn: "Erledigt am", createdTask: "Aufgabe erstellt", noResults: "Keine Treffer", rename_prompt: "Neuer Name", folder: "Ordner",
+  localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
+} as const;
+
+export type Key = keyof typeof de;
+
+const en: Record<Key, string> = {
+  inbox: "Inbox", today: "Today", next7: "Next 7 days", all: "All", done: "Completed", trash: "Trash",
+  calendar: "Calendar", habits: "Habits", pomodoro: "Focus", matrix: "Matrix", settings: "Settings",
+  lists: "Lists", tags: "Tags", newList: "New list", newTag: "New tag", newFolder: "New folder",
+  addTask: "Add task, e.g. “Dentist tomorrow 3pm !1 #personal”", search: "Search or type a command…",
+  overdue: "Overdue", tomorrow: "Tomorrow", later: "Later", noDate: "No date", completed: "Completed",
+  title: "Title", notes: "Notes", dueDate: "Due", dueTime: "Time", allDay: "All day", startDate: "Start",
+  priority: "Priority", pNone: "None", pLow: "Low", pMed: "Medium", pHigh: "High",
+  reminders: "Reminders", addReminder: "Reminder", atDue: "At due time", before5: "5 min before", before30: "30 min before",
+  before1h: "1 hour before", before1d: "1 day before", repeat: "Repeat", noRepeat: "Never", daily: "Daily", weekly: "Weekly",
+  monthly: "Monthly", yearly: "Yearly", every: "Every", intervalDays: "days", intervalWeeks: "weeks", intervalMonths: "months",
+  intervalYears: "years", until: "Until", fromCompletion: "Count from completion", list: "List", subtasks: "Subtasks",
+  addSubtask: "Add subtask", estimate: "Planned pomodoros", startFocus: "Start focus",
+  delete: "Delete", deleteForever: "Delete forever", restore: "Restore", emptyTrash: "Empty trash",
+  save: "Save", cancel: "Cancel", create: "Create", rename: "Rename", edit: "Edit", close: "Close", add: "Add",
+  name: "Name", color: "Color", noTasks: "No tasks", allClear: "All clear", month: "Month", week: "Week", day: "Day",
+  list_view: "List", kanban: "Board", addColumn: "Add column", columnName: "Column name", todo: "To do",
+  urgent: "Urgent", important: "Important", q1: "Do first", q2: "Schedule", q3: "Delegate", q4: "Later / drop",
+  newHabit: "New habit", habitTarget: "Target per day", habitUnit: "Unit", habitDays: "Active days", streak: "Streak",
+  bestStreak: "Best streak", total: "Total", rate30: "30 days", noHabits: "No habits yet", archive: "Archive", reminderTime: "Remind at",
+  focus: "Focus", shortBreak: "Break", longBreak: "Long break", start: "Start", pause: "Pause", resume: "Resume", reset: "Reset", skip: "Skip",
+  noTaskLinked: "No task linked", sessionsToday: "Sessions today", focusToday: "Focus time today", focusWeek: "Last 7 days",
+  workMin: "Focus (min)", breakMin: "Break (min)", longBreakMin: "Long break (min)", longBreakEvery: "Long break after … sessions", autoStart: "Start next phase automatically",
+  language: "Language", theme: "Theme", themeSystem: "System", themeLight: "Light", themeDark: "Dark", weekStart: "Week starts on", monday: "Monday", sunday: "Sunday",
+  defaultReminderHour: "Reminder for all-day tasks at", notifications: "Notifications", enableNotifications: "Allow notifications",
+  account: "Account", signIn: "Sign in", signUp: "Sign up", signOut: "Sign out", email: "Email", password: "Password (min. 8 characters)",
+  useOffline: "Continue without account", signedInAs: "Signed in as", syncing: "Syncing…", synced: "Synced", offline: "Offline", syncError: "Sync error",
+  syncNow: "Sync now", serverUrl: "Server URL", authWrong: "Wrong email or password", authTaken: "Email already registered", authInvalid: "Invalid input",
+  authClosed: "Registration is closed", authNetwork: "Server unreachable",
+  apiTokens: "API tokens (for Claude / MCP)", apiTokensHelp: "A token lets Claude read and change your data. It is shown only once.",
+  newToken: "Create token", tokenName: "Name, e.g. Claude", tokenCreated: "Copy the token now – it will not be shown again", revoke: "Revoke", lastUsed: "Last used", never: "never",
+  data: "Data", importTick: "Import TickTick CSV", exportIcs: "Export calendar (.ics)", exportJson: "Export all data (.json)", imported: "tasks imported",
+  copy: "Copy", copied: "Copied", newTask: "New task", goTo: "Go to", tasks: "Tasks", today_btn: "Today",
+  confirmDelete: "Really delete?", moved: "Moved to trash", undo: "Undo", more: "More", menu: "Menu",
+  minutesShort: "min", hoursShort: "h", sessions: "sessions", noList: "Inbox", chooseList: "Choose list", dragHint: "Drag to move",
+  completedOn: "Completed on", createdTask: "Task created", noResults: "No results", rename_prompt: "New name", folder: "Folder",
+  localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
+};
+
+export const dict = { de, en };
+export type Lang = "de" | "en";
+
+export function translate(lang: Lang, key: Key): string {
+  return dict[lang][key];
+}
+
+export const detectLang = (): Lang =>
+  typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("de") ? "de" : "en";
