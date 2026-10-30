@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Goal
-Dayloop: TickTick-style tasks (lists, subtasks, tags, priorities, reminders, repeats, smart lists, kanban, matrix), calendar, habits, pomodoro (default 25/5, adjustable, linkable to tasks). Web (PWA) + Android (Capacitor), offline-first, synced through one server. Claude reads/writes the same data through Website-MCP. DE/EN, light/dark.
+Dayloop: TickTick-style tasks (lists, subtasks, priorities, notes, reminders, repeats, Heute/Alle/Eingang, board, matrix; no tags), calendar, habits, pomodoro (default 25/5, adjustable, linkable to tasks). Web (PWA) + Android (Capacitor), offline-first, synced through one server. Claude reads/writes the same data through Website-MCP. DE/EN, light/dark.
 
 ## Stack
 npm workspaces: `shared` (zod schemas + types, single source of truth), `server` (Express 5 + pg, Neon Postgres, deployed on Render, also serves `web/dist`), `web` (React + Vite + Tailwind + Dexie, Capacitor in `web/android`).

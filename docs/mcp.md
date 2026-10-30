@@ -13,7 +13,7 @@ Auth: `Authorization: Bearer dl_...`. A token cannot create or list tokens.
 
 | Call | Purpose |
 |---|---|
-| `GET /api/items?type=task\|list\|tag\|habit\|habitlog\|pomodoro\|settings` | list non-deleted items |
+| `GET /api/items?type=task\|list\|habit\|habitlog\|pomodoro\|settings` | list non-deleted items |
 | `GET /api/items/:type/:id` | one item |
 | `POST /api/items/:type` `{id?, data}` | create / replace (server fills defaults) |
 | `PATCH /api/items/:type/:id` `{data}` | merge fields |
