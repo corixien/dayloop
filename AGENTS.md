@@ -19,6 +19,12 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Auth: JWT access (15 min) + rotating refresh token; API tokens `dl_...` (sha256 stored) for MCP, cannot manage tokens.
 - habitlog id = `${habitId}_${date}`.
 
+## Android (web/android, Capacitor 8)
+- Web layer builds into `web/dist`; `npx cap sync android`; native code only for the widget (`TodayWidget`, `WidgetPlugin`, plugin name `DayloopWidget`). Reminders: `lib/reminders.ts` computes, `lib/native.ts` schedules OS notifications (channel `reminders`).
+- compileSdk 37 (SDK platform 37 installed, 36 is not). Gradle uses JDK 21 from `~/.gradle/gradle.properties`.
+- App id `com.dayloop.app`; API URL = build-time `VITE_API_URL`, overridable in Settings (native only).
+- E2E: `e2e/` Playwright against `dev:local` on :3100.
+
 ## Rules
 - Never commit secrets or `.env`. Neon project for Dayloop is its own project; never run tests/migrations against other projects.
 - Device tests: phone is the user's own. Check the foreground app before scripted input; stop if it is not Dayloop.
