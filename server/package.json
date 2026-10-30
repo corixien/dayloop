@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
     "dev:local": "tsx src/dev.ts",
-    "build": "tsup src/index.ts --format esm --target node22 --noExternal @dayloop/shared --clean",
+    "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc -p .",
     "test": "vitest run"
