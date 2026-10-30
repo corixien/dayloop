@@ -71,6 +71,8 @@ export const taskSchema = z.object({
   order: z.number().default(0),
   /** estimated pomodoros */
   estimate: z.number().int().min(0).max(100).default(0),
+  /** soft delete (trash), epoch ms */
+  trashedAt: z.number().nullable().default(null),
 });
 
 export const habitSchema = z.object({
