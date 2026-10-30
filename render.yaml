@@ -1,0 +1,18 @@
+# Render blueprint: one web service serves the API and the built web app (Free plan; spins down when idle).
+services:
+  - type: web
+    name: dayloop
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w web && npm run build -w server
+    startCommand: npm start -w server
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_SSL_REJECT_UNAUTHORIZED
+        value: "false"

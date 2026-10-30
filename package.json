@@ -1,0 +1,12 @@
+{
+  "name": "dayloop",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["shared", "server", "web"],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "test": "npm test -w shared -w server -w web --if-present",
+    "check": "npm run typecheck -w shared -w server -w web --if-present && npm test"
+  }
+}
