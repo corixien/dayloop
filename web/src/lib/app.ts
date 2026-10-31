@@ -20,8 +20,23 @@ export const syncClient = new SyncClient(
 
 export const uid = () => crypto.randomUUID();
 
+let resumeTick = 0;
+const resumeSubs = new Set<() => void>();
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    resumeTick++;
+    resumeSubs.forEach((f) => f());
+  });
+}
+/** Bumps whenever the app returns to the foreground. */
+export function useResumeTick() {
+  return useSyncExternalStore((f) => { resumeSubs.add(f); return () => void resumeSubs.delete(f); }, () => resumeTick);
+}
+
 export function useItems<T extends ItemType>(type: T): Item<T>[] {
-  return useLiveQuery(() => local.all(type), [type], []) as Item<T>[];
+  const tick = useResumeTick();
+  return useLiveQuery(() => local.all(type), [type, tick], []) as Item<T>[];
 }
 
 export function useSettings(): Settings {

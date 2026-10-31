@@ -6,5 +6,7 @@
     <string name="custom_url_scheme">com.dayloop.app</string>
     <string name="widget_title">Heute</string>
     <string name="widget_empty">Alles erledigt</string>
-    <string name="widget_description">Heutige Aufgaben</string>
+    <string name="widget_description">Todo und Have Done mit Abhaken und Plus-Button</string>
+    <string name="widget_add">Neu</string>
+    <string name="widget_done">Erledigt</string>
 </resources>

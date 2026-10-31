@@ -3,7 +3,7 @@ import { type ReactNode, useRef, useState } from "react";
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** Bottom sheet: slides up, drag the handle area down (or fling) to dismiss. */
-export function Sheet({ onClose, children }: { onClose: () => void; children: (close: () => void) => ReactNode }) {
+export function Sheet({ onClose, children, always }: { onClose: () => void; children: (close: () => void) => ReactNode; always?: boolean }) {
   const panel = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
@@ -30,7 +30,7 @@ export function Sheet({ onClose, children }: { onClose: () => void; children: (c
 
   const d = drag.current;
   return (
-    <div className="fixed inset-0 z-30 md:hidden">
+    <div className={always ? "fixed inset-0 z-30" : "fixed inset-0 z-30 md:hidden"}>
       <div ref={back} onClick={close} className="anim-fade absolute inset-0 bg-black/45" />
       <div
         ref={panel}

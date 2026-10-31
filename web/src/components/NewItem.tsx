@@ -11,7 +11,7 @@ import { Button, Dialog, Field, Segmented, Select, inputCls } from "./ui";
 export function NewItem({ kind, onClose, bare }: { kind: "todo" | "done"; onClose: () => void; bare?: boolean }) {
   const mobile = useIsMobile();
   if (bare || mobile) {
-    return <Sheet onClose={onClose}>{(close) => <Form kind={kind} close={close} />}</Sheet>;
+    return <Sheet always={bare} onClose={onClose}>{(close) => <Form kind={kind} close={close} />}</Sheet>;
   }
   return <DialogShell kind={kind} onClose={onClose} />;
 }

@@ -3,26 +3,60 @@ package com.dayloop.app;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
+import android.os.Build;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-/** Receives a snapshot of today's tasks from the web layer and refreshes the home screen widget. */
+/** Bridge between the web app and the home screen widget. */
 @CapacitorPlugin(name = "DayloopWidget")
 public class WidgetPlugin extends Plugin {
+    /** Snapshot of todos and Have Done rows, already formatted by the web layer. */
     @PluginMethod
     public void update(PluginCall call) {
         Context ctx = getContext();
-        JSObject data = call.getData();
-        ctx.getSharedPreferences(TodayWidget.PREFS, Context.MODE_PRIVATE).edit().putString("data", data.toString()).apply();
-        Intent i = new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
-        i.setComponent(new ComponentName(ctx, TodayWidget.class));
-        i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS,
-            AppWidgetManager.getInstance(ctx).getAppWidgetIds(new ComponentName(ctx, TodayWidget.class)));
-        ctx.sendBroadcast(i);
+        WidgetStore.saveSnapshot(ctx, call.getData());
+        DayloopWidget.refreshAll(ctx);
         call.resolve();
+    }
+
+    /** API token the widget uses to tick todos without opening the app. */
+    @PluginMethod
+    public void setCredentials(PluginCall call) {
+        WidgetStore.setCredentials(getContext(), call.getString("url", ""), call.getString("token", ""));
+        call.resolve();
+    }
+
+    /** Completions made in the widget that the server did not take yet. */
+    @PluginMethod
+    public void takePending(PluginCall call) {
+        JSObject out = new JSObject();
+        JSONArray a = WidgetStore.takePending(getContext());
+        out.put("actions", a);
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void finishOverlay(PluginCall call) {
+        if (getActivity() != null) getActivity().finish();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void pinWidget(PluginCall call) {
+        Context ctx = getContext();
+        JSObject out = new JSObject();
+        boolean ok = false;
+        if (Build.VERSION.SDK_INT >= 26) {
+            AppWidgetManager m = AppWidgetManager.getInstance(ctx);
+            if (m.isRequestPinAppWidgetSupported()) ok = m.requestPinAppWidget(new ComponentName(ctx, DayloopWidget.class), null, null);
+        }
+        out.put("supported", ok);
+        call.resolve(out);
     }
 }

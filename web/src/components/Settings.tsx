@@ -4,6 +4,7 @@ import { local, saveSettings, syncClient, uid, useItems, useSettings, useSyncSta
 import { parseTickTickCsv } from "../lib/importTick";
 import { type TrackerConfig, TrackerError, clearTracker, getTracker, saveTracker, trackerLogin } from "../lib/tracker";
 import { tasksToIcs } from "../lib/ics";
+import { widgetPlugin } from "../lib/widget";
 import { Button, Field, PageHeader, Segmented, inputCls } from "./ui";
 import { AuthPanel } from "./AuthPanel";
 
@@ -92,6 +93,13 @@ export function Settings() {
             <Field label={t("theme")}><Segmented value={s.theme} onChange={(v) => void saveSettings({ theme: v })} options={[{ value: "system", label: t("themeSystem") }, { value: "light", label: t("themeLight") }, { value: "dark", label: t("themeDark") }]} /></Field>
             <Field label={t("weekStart")}><Segmented value={s.weekStart} onChange={(v) => void saveSettings({ weekStart: v })} options={[{ value: 1, label: t("monday") }, { value: 0, label: t("sunday") }]} /></Field>
           </Section>
+
+          {native && (
+            <Section title={t("widget")}>
+              <p className="text-[13px] text-muted">{t("widgetHelp")}</p>
+              <Button onClick={() => void widgetPlugin().pinWidget().then((r) => setMsg(r.supported ? "" : t("widgetManual"))).catch(() => setMsg(t("widgetManual")))}>{t("widgetAdd")}</Button>
+            </Section>
+          )}
 
           <Section title={t("notifications")}>
             <Field label={t("defaultReminderHour")}><input type="number" min={0} max={23} className={`${inputCls} w-20`} value={s.defaultReminderHour} onChange={(e) => void saveSettings({ defaultReminderHour: num(e.target.value, 0, 23) })} /></Field>

@@ -42,6 +42,11 @@ export function createApp(opts: AppOptions) {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
+  // HttpURLConnection (Android widget) cannot send PATCH: let it POST with a method override.
+  app.use((req, _res, next) => {
+    if (req.method === "POST" && req.headers["x-http-method-override"] === "PATCH") req.method = "PATCH";
+    next();
+  });
 
   const authLimiter = opts.noLimits
     ? (_q: Request, _s: Response, n: NextFunction) => n()

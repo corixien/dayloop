@@ -197,6 +197,14 @@ describe("api tokens and REST items (MCP path)", () => {
     expect((await api.get(`/api/items/task/${id}`).set(u.h)).status).toBe(404);
   });
 
+  it("accepts POST with X-HTTP-Method-Override: PATCH (Android widget)", async () => {
+    const u = await user("override@example.com");
+    const created = await api.post("/api/items/task").set(u.h).send({ data: task("Widget") });
+    const r = await api.post(`/api/items/task/${created.body.id}`).set(u.h).set("X-HTTP-Method-Override", "PATCH").send({ data: { done: true, completedAt: now() } });
+    expect(r.status).toBe(200);
+    expect(r.body.data).toMatchObject({ title: "Widget", done: true });
+  });
+
   it("streams a change event to SSE listeners", async () => {
     const u = await user("sse@example.com");
     const server = (await import("node:http")).createServer(events as any);

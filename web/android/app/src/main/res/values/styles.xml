@@ -31,4 +31,12 @@
         <item name="android:textColor">@color/dl_widget_fg</item>
         <item name="android:textSize">13sp</item>
     </style>
+    <style name="AppTheme.Overlay" parent="AppTheme.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
