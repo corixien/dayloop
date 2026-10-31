@@ -12,3 +12,14 @@ describe("notes checklist", () => {
     expect(uncheckAll("- [x] a\ntext - [x]\n- [ ] b")).toBe("- [ ] a\ntext - [x]\n- [ ] b");
   });
 });
+
+describe("checklist completion time", () => {
+  it("keeps and resets timestamps", async () => {
+    const { doneItems } = await import("./notes");
+    const n = "- [x@1730000000000] a\n- [x] old\n- [ ] b";
+    expect(doneItems(n)).toEqual([{ text: "a", at: 1730000000000 }]);
+    expect(formatNotes(parseNotes(n))).toBe(n);
+    expect(uncheckAll(n)).toBe("- [ ] a\n- [x] old\n- [ ] b".replace("- [x] old", "- [ ] old"));
+    expect(noteStats(n)).toEqual({ total: 3, done: 2, first: "" });
+  });
+});

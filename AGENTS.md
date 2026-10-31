@@ -37,7 +37,7 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
   - Per-widget settings (background color/opacity, corners, font size, default tab, plus button) live in `WidgetStore.Cfg` (SharedPreferences, keyed by widget id); the config activity opens when adding and on long-press > settings (`reconfigurable`).
   - Reading app-private storage (tokens) with `adb run-as` is not allowed here: test the MCP/server path with a token the user creates.
 - `useItems` re-queries when the app returns to the foreground (another WebView, the overlay, may have written IndexedDB).
-- E2E: `e2e/` Playwright against `dev:local` on :3100.
+- E2E: `e2e/` Playwright against `dev:local` (3100 may be taken by another project: `PORT=3190 npm run dev:local -w server`, `E2E_URL=http://localhost:3190 npx playwright test`).
 
 ## Rules
 - Never commit secrets or `.env`. Neon project for Dayloop is its own project; never run tests/migrations against other projects.
@@ -47,4 +47,7 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 ## Notes and checklists
 - Notes are plain text; lines `- [ ] x` / `- [x] x` are checklist items (`web/src/lib/notes.ts`, editor `NotesEditor`). The old `subtasks` field stays in the schema (MCP/import) and is moved into the notes the first time a task is opened. `extras()` in `taskLogic.ts` counts both.
 - The widget snapshot carries `n` (plain note) / `c` (checklist) per row; the widget shows small icons next to the title.
+- Ticking a checklist item stores `- [x@<ms>] text` (hidden in the editor); the calendar shows ticked items and completed tasks color coded by timing vs. deadline (before = green, on the day = accent, late = orange, no deadline = gray). A repeating task's finished copy keeps the old deadline.
+- Calendar pinch (spread = closer: month > week > day) is handled in `Calendar.tsx`; `useSwipe` ignores multi-touch.
+- Have Done: each entry has its own send button (tracker); the widget shows it too (`WRow.s`: 0 off, 1 send, 2 sent) and runs it through the overlay route `/overlay/track/<id>`. Tapping empty widget space (footer row, background) opens the app.
 - Overlay activity keeps its WebView at alpha 0 until the overlay route calls `overlayReady()` (avoids a flash of the normal app).

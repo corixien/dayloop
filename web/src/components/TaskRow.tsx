@@ -20,13 +20,15 @@ const ACTION_AT = 96;
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 export function TaskRow({
-  task, selected, meta, onSelect, draggable, onDragStart,
+  task, selected, meta, onSelect, trailing, draggable, onDragStart,
 }: {
   task: TaskItem;
   selected: boolean;
   /** small trailing text in the meta line, e.g. completion time */
   meta?: string;
   onSelect: (focus?: "notes") => void;
+  /** action at the right end of the row (e.g. send to tracker) */
+  trailing?: React.ReactNode;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
 }) {
@@ -149,6 +151,7 @@ export function TaskRow({
               </div>
             )}
           </div>
+          {trailing && <div className="shrink-0 self-center" onClick={(e) => e.stopPropagation()}>{trailing}</div>}
         </div>
       </div>
     </div>

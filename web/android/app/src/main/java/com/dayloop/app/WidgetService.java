@@ -26,8 +26,8 @@ public class WidgetService extends RemoteViewsService {
         @Override public void onCreate() {}
         @Override public void onDestroy() {}
         @Override public void onDataSetChanged() { rows = WidgetStore.rows(ctx, WidgetStore.mode(ctx, widgetId)); }
-        @Override public int getCount() { return rows.length(); }
-        @Override public int getViewTypeCount() { return 2; }
+        @Override public int getCount() { return rows.length() + 1; }
+        @Override public int getViewTypeCount() { return 3; }
         @Override public boolean hasStableIds() { return false; }
         @Override public long getItemId(int position) { return position; }
         @Override public RemoteViews getLoadingView() { return null; }
@@ -37,6 +37,12 @@ public class WidgetService extends RemoteViewsService {
             WidgetStore.Cfg cfg = WidgetStore.cfg(ctx, widgetId);
             int bg = WidgetStore.bgColor(ctx, cfg);
             int text = WidgetStore.textColor(bg), muted = WidgetStore.mutedColor(bg);
+            if (position >= rows.length()) {
+                // empty space below the rows: a tap opens the app
+                RemoteViews f = new RemoteViews(ctx.getPackageName(), R.layout.widget_footer);
+                f.setOnClickFillInIntent(R.id.footer, new Intent().putExtra("op", "app"));
+                return f;
+            }
             JSONObject r = rows.optJSONObject(position);
             if (r == null) return new RemoteViews(ctx.getPackageName(), R.layout.widget_header);
 
@@ -70,6 +76,14 @@ public class WidgetService extends RemoteViewsService {
             int tint = doneMode ? muted : prio == 3 ? 0xFFE5484D : prio == 2 ? 0xFFE5930B : prio == 1 ? 0xFF3E63DD : muted;
             v.setImageViewResource(R.id.check, doneMode ? R.drawable.widget_check_on : R.drawable.widget_check_off);
             v.setInt(R.id.check, "setColorFilter", tint);
+
+            int sent = doneMode ? r.optInt("s", 0) : 0;
+            v.setViewVisibility(R.id.send, sent > 0 ? android.view.View.VISIBLE : android.view.View.GONE);
+            if (sent > 0) {
+                v.setImageViewResource(R.id.send, sent == 2 ? R.drawable.widget_sent : R.drawable.widget_send);
+                v.setInt(R.id.send, "setColorFilter", sent == 2 ? muted : 0xFF8A87F5);
+                if (sent == 1) v.setOnClickFillInIntent(R.id.send, new Intent().putExtra("op", "track").putExtra("id", id));
+            }
 
             Intent toggle = new Intent().putExtra("op", "toggle").putExtra("id", id).putExtra("done", !doneMode).putExtra("rep", r.optBoolean("rep", false));
             v.setOnClickFillInIntent(R.id.check, toggle);

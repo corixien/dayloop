@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { type NoteLine, formatNotes, parseNotes } from "../lib/notes";
+import { type NoteLine, formatNotes, parseNotes, toggled } from "../lib/notes";
 import { Check_, cx } from "./ui";
 
 /**
@@ -48,7 +48,7 @@ export function NotesEditor({
         <div key={i} className="flex items-start gap-2.5">
           {l.check && (
             <div className="pt-[3px]">
-              <Check_ done={l.done} label={l.text || label} onChange={() => { const next = lines.map((x, j) => (j === i ? { ...x, done: !x.done } : x)); onChange(formatNotes(next)); onCommit(formatNotes(next)); }} />
+              <Check_ done={l.done} label={l.text || label} onChange={() => { const next = lines.map((x, j) => (j === i ? toggled(x) : x)); onChange(formatNotes(next)); onCommit(formatNotes(next)); }} />
             </div>
           )}
           <textarea
@@ -87,7 +87,7 @@ export function NotesEditor({
                 }
               }
             }}
-            className={cx("min-w-0 flex-1 resize-none overflow-hidden bg-transparent leading-[1.45] placeholder:text-faint", l.check && l.done && "text-faint line-through")}
+            className={cx("min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 leading-[1.45] outline-none focus-visible:outline-none placeholder:text-faint", l.check && l.done && "text-faint line-through")}
           />
         </div>
       ))}

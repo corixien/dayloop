@@ -15,3 +15,5 @@ One todo list with deadlines (calendar), Have Done list (by day, sendable to the
 ## Update 2026-10-31
 - Overlay: WebView hidden until `overlayReady()`, lighter backdrop (black/20), sheet 78dvh. Notes are checklist editor (`- ` becomes round checkbox, subtasks migrated into notes). Icons for note/checklist in TaskRow and widget rows. APK built (debug), not installed (phone offline), not tested on device.
 - e2e: port 3100 is taken by matnotes; run `PORT=3190 npm run dev:local -w server` and `E2E_URL=http://localhost:3190 npx playwright test`.
+
+- 2026-10-31 later: notes checklist w/ timestamps, calendar color coding + pinch + prev/next, per-entry tracker send (web + widget), FAB right, bigger headings, habits one-line rows, widget footer tap opens app. APK installed on phone, not device-tested.

@@ -123,7 +123,7 @@ export default function App() {
           <button
             onClick={() => setNewKind(page === "done" ? "done" : "todo")}
             aria-label={page === "done" ? t("newDone") : t("newTask")}
-            className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] left-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-transform duration-200 active:scale-95 md:bottom-6 md:left-6 dark:text-[#101012]"
+            className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] right-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-transform duration-200 active:scale-95 md:bottom-6 md:right-6 dark:text-[#101012]"
           >
             <Plus size={26} strokeWidth={2.2} />
           </button>
@@ -142,7 +142,7 @@ export default function App() {
       )}
 
       {state?.status === "running" && page !== "pomodoro" && (
-        <a href="#/pomodoro" className="fixed bottom-20 right-4 z-20 flex items-center gap-2 rounded-full border border-line bg-raise px-3 py-1.5 text-[13px] font-medium tabular-nums shadow-lg md:bottom-4">
+        <a href="#/pomodoro" className="fixed bottom-20 left-4 z-20 flex items-center gap-2 rounded-full border border-line bg-raise px-3 py-1.5 text-[13px] font-medium tabular-nums shadow-lg md:bottom-4">
           <Timer size={14} className="text-accent" /> {fmtClock(left)}
         </a>
       )}

@@ -21,13 +21,30 @@ export function getTracker(): TrackerConfig | null {
     return null;
   }
 }
-export const saveTracker = (c: TrackerConfig) =>
+/** Fired when the tracker setup or the sent marks change (the widget snapshot depends on them). */
+export const TRACKER_EVENT = "dl-tracker";
+const changed = () => window.dispatchEvent(new Event(TRACKER_EVENT));
+
+export const saveTracker = (c: TrackerConfig) => {
   localStorage.setItem(CFG, JSON.stringify({ ...c, url: c.url.trim().replace(/\/+$/, "") }));
-export const clearTracker = () => localStorage.removeItem(CFG);
+  changed();
+};
+export const clearTracker = () => {
+  localStorage.removeItem(CFG);
+  changed();
+};
 
 export const sentIds = (): Set<string> => new Set(JSON.parse(localStorage.getItem(SENT) ?? "[]"));
-export const markSent = (ids: string[]) =>
+export const markSent = (ids: string[]) => {
   localStorage.setItem(SENT, JSON.stringify([...sentIds(), ...ids].slice(-1000)));
+  changed();
+};
+
+/** i18n key for a failed send. */
+export const trackerErrorKey = (e: unknown) => {
+  const code = e instanceof TrackerError ? e.code : "other";
+  return code === "auth" ? "trackerErrAuth" : code === "network" ? "trackerErrNet" : code === "ai" ? "trackerErrAi" : code === "rate" ? "trackerErrRate" : "trackerErr";
+};
 
 export class TrackerError extends Error {
   constructor(public code: "network" | "auth" | "ai" | "rate" | "other", message: string) {

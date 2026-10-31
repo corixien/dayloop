@@ -146,11 +146,11 @@ export function Empty({ children }: { children: ReactNode }) {
 
 export function PageHeader({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line px-4 md:px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-line px-4 md:px-6">
       {typeof title === "string" ? (
-        <h1 className="truncate text-[15px] font-semibold">{title}</h1>
+        <h1 className="truncate text-[22px] font-semibold tracking-tight">{title}</h1>
       ) : (
-        <div role="heading" aria-level={1} className="flex min-w-0 flex-1 items-center truncate text-[15px] font-semibold">{title}</div>
+        <div role="heading" aria-level={1} className="flex min-w-0 flex-1 items-center truncate text-[22px] font-semibold tracking-tight">{title}</div>
       )}
       <div className="flex shrink-0 items-center gap-1">{children}</div>
     </header>

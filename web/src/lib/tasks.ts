@@ -28,7 +28,7 @@ export async function toggleDone(t: TaskItem, today = todayStr()): Promise<void>
   if (t.repeat) {
     const next = nextDue(t.dueDate, t.repeat, today);
     if (next) {
-      await addTask({ title: t.title, notes: t.notes, priority: t.priority, done: true, completedAt: Date.now() });
+      await addTask({ title: t.title, notes: t.notes, priority: t.priority, dueDate: t.dueDate, dueTime: t.dueTime, done: true, completedAt: Date.now() });
       await local.patch("task", t.id, {
         dueDate: next,
         subtasks: t.subtasks.map((s) => ({ ...s, done: false })),

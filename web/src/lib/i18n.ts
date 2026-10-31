@@ -40,7 +40,7 @@ const de = {
   tracker: "Productivity-Tracker", trackerHelp: "Verbinde deinen Account. Mit dem Papierflieger in Have Done schickst du erledigte Dinge an die KI des Trackers, die daraus eine fertige Aufgabe mit XP macht. Die Zugangsdaten bleiben nur auf diesem Gerät.",
   trackerUrl: "Adresse (https://…)", trackerUser: "Benutzername", trackerPass: "Passwort", trackerConnect: "Verbinden", trackerConnected: "Verbunden", trackerRemove: "Trennen",
   trackerErrAuth: "Anmeldung beim Tracker fehlgeschlagen", trackerErrNet: "Tracker nicht erreichbar", trackerErrAi: "Die KI des Trackers ist gerade nicht verfügbar", trackerErrRate: "Zu viele Anfragen, versuche es gleich noch einmal",
-  trackerErr: "Senden fehlgeschlagen", trackerSending: "Sende…", deadlines: "Deadlines",
+  trackerErr: "Senden fehlgeschlagen", trackerSending: "Sende…", calEarly: "Vor Deadline", calOn: "Am Tag", calLate: "Später", calNoDue: "Ohne Deadline", deadlines: "Deadlines",
   note: "Notiz", addNote: "Notiz hinzufügen…", todoTab: "Todo", hide: "Ausblenden", defaultLists: "Standardlisten", restoreHint: "Ausgeblendete Listen kannst du hier wieder einblenden.", localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
 } as const;
 
@@ -88,7 +88,7 @@ const en: Record<Key, string> = {
   tracker: "Productivity Tracker", trackerHelp: "Connect your account. The paper plane in Have Done sends finished things to the tracker's AI, which turns them into a completed task with XP. Credentials stay on this device only.",
   trackerUrl: "Address (https://…)", trackerUser: "Username", trackerPass: "Password", trackerConnect: "Connect", trackerConnected: "Connected", trackerRemove: "Disconnect",
   trackerErrAuth: "Tracker login failed", trackerErrNet: "Tracker not reachable", trackerErrAi: "The tracker's AI is unavailable right now", trackerErrRate: "Too many requests, try again in a moment",
-  trackerErr: "Sending failed", trackerSending: "Sending…", deadlines: "Deadlines",
+  trackerErr: "Sending failed", trackerSending: "Sending…", calEarly: "Before deadline", calOn: "On the day", calLate: "Late", calNoDue: "No deadline", deadlines: "Deadlines",
   note: "Note", addNote: "Add a note…", todoTab: "Todo", hide: "Hide", defaultLists: "Default lists", restoreHint: "Hidden lists can be shown again here.", localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
 };
 

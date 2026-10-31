@@ -42,12 +42,10 @@ export function Habits() {
           return (
             <div key={h.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
               <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: colorOf(h.color) }} />
-              <button onClick={() => setOpen(h)} className="min-w-0 flex-1 text-left">
-                <div className="truncate text-[14px] font-medium">{h.name}</div>
-                <div className="mt-0.5 flex items-center gap-3 text-xs text-muted">
-                  <span className="inline-flex items-center gap-1"><Flame size={12} className={s.current > 0 ? "text-p2" : ""} />{s.current}</span>
-                  {h.target > 1 && <span>{n}/{h.target} {h.unit}</span>}
-                </div>
+              <button onClick={() => setOpen(h)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{h.name}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted"><Flame size={13} className={s.current > 0 ? "text-p2" : ""} />{s.current}</span>
+                {h.target > 1 && <span className="shrink-0 text-xs tabular-nums text-muted">{n}/{h.target}{h.unit ? ` ${h.unit}` : ""}</span>}
               </button>
               <div className="hidden gap-1 sm:flex" aria-hidden>
                 {last7.map((d) => {

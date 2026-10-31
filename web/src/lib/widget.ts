@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { local, syncClient, useSettings } from "./app";
 import { isNative } from "./native";
 import { toggleDone } from "./tasks";
+import { TRACKER_EVENT, getTracker, sentIds } from "./tracker";
 import { buildSnapshot } from "./widgetSnapshot";
 
 export * from "./widgetSnapshot";
@@ -58,7 +59,7 @@ export function useWidgetSync() {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         try {
-          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang));
+          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null));
           await ensureCredentials();
         } catch (e) {
           console.warn("widget sync", e);
@@ -72,6 +73,7 @@ export function useWidgetSync() {
     local.db.items.hook("creating", push);
     local.db.items.hook("updating", push);
     document.addEventListener("visibilitychange", resume);
+    window.addEventListener(TRACKER_EVENT, push);
     resume();
     push();
     const day = setInterval(push, 15 * 60_000);
@@ -79,6 +81,7 @@ export function useWidgetSync() {
       clearTimeout(timer);
       clearInterval(day);
       document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener(TRACKER_EVENT, push);
       local.db.items.hook("creating").unsubscribe(push);
       local.db.items.hook("updating").unsubscribe(push);
     };

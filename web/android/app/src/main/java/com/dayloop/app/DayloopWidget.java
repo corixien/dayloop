@@ -130,6 +130,14 @@ public class DayloopWidget extends AppWidgetProvider {
         v.setTextColor(R.id.empty, muted);
         v.setTextViewTextSize(R.id.empty, TypedValue.COMPLEX_UNIT_SP, cfg.titleSp());
 
+        // taps on the background or the empty text open the app
+        Intent launch = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
+        if (launch != null) {
+            PendingIntent open = PendingIntent.getActivity(ctx, id * 10 + 5, launch, flags(false));
+            v.setOnClickPendingIntent(R.id.root, open);
+            v.setOnClickPendingIntent(R.id.empty, open);
+        }
+
         Intent tmpl = new Intent(ctx, WidgetRouterActivity.class);
         v.setPendingIntentTemplate(R.id.list, PendingIntent.getActivity(ctx, id * 10 + 2, tmpl, flags(true)));
 

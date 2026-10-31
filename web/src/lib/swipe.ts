@@ -19,6 +19,7 @@ export function useSwipe(target: () => HTMLElement | Window | null, o: Opts, dep
     if (!el || o.enabled === false) return;
     let x0 = 0, y0 = 0, active = false;
     const start = (e: Event) => {
+      if ((e as TouchEvent).touches.length > 1) { active = false; return; }
       const t = (e as TouchEvent).touches[0];
       x0 = t.clientX;
       y0 = t.clientY;

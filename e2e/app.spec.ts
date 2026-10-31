@@ -102,7 +102,7 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
 
   // tracker: connect in settings, then the paper plane appears in Have Done
   await page.goto("/#/done");
-  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden", exact: true })).toHaveCount(0);
   await page.goto("/#/settings");
   await page.getByPlaceholder("https://").fill(tracker.url);
   await page.getByLabel("Benutzername").fill("mat");
@@ -111,11 +111,11 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
   await expect(page.getByText("Verbunden", { exact: true })).toBeVisible();
   await shot(page, "10-settings");
   await page.goto("/#/done");
-  await page.getByRole("button", { name: "An Productivity-Tracker senden" }).click();
+  await page.getByRole("button", { name: "An Productivity-Tracker senden", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "+17 XP" })).toBeVisible();
   expect(tracker.seen.map((s) => s.path)).toEqual(["/api/auth/login", "/api/auth/login", "/api/groq", "/api/tasks", "/api/tasks/x1/complete"]);
   expect(tracker.seen[2].body.description).toContain("Milch kaufen");
-  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden", exact: true })).toHaveCount(0);
 
   // habits + pomodoro still work
   await page.goto("/#/habits");
@@ -232,4 +232,30 @@ test("overlay routes used by the widget render the same sheets", async ({ page }
   await page.reload();
   await expect(page.getByRole("heading", { name: "Erledigtes eintragen" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Tabs" })).toHaveCount(0);
+});
+
+test("calendar: ticked checklist items appear color coded, pinch changes the time frame", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Kalenderprobe heute");
+  await page.getByRole("button", { name: /Kalenderprobe/ }).first().click();
+  await page.getByRole("textbox", { name: "Notiz" }).click();
+  await page.keyboard.type("- Teil A");
+  await page.getByRole("checkbox", { name: "Teil A" }).click();
+  await expect(page.getByRole("checkbox", { name: "Teil A" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("textbox", { name: "Notiz" }).blur();
+  await page.goto("/#/calendar");
+  await page.reload();
+  await expect(page.getByRole("button", { name: /Teil A/ })).toBeVisible();
+  expect(await page.locator("[data-date]").count()).toBeLessThan(4);
+  // pinch together = wider view
+  const cdp = await page.context().newCDPSession(page);
+  const two = (a: number) => [{ x: 195 - a, y: 400, id: 1 }, { x: 195 + a, y: 400, id: 2 }];
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(100) });
+  for (const a of [80, 60, 40, 30]) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(6);
+  await shot(page, "40-calendar-week");
 });
