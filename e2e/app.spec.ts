@@ -198,3 +198,31 @@ test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   expect(errors).toEqual([]);
   await ctx.close();
 });
+
+test("overlay routes used by the widget render the same sheets", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Overlay Test");
+  await page.getByRole("button", { name: /Overlay Test/ }).click();
+  const id = await page.evaluate(async () => {
+    const req = indexedDB.open("dayloop");
+    return await new Promise<string>((res) => {
+      req.onsuccess = () => {
+        const db = req.result;
+        const all = db.transaction("items").objectStore("items").getAll();
+        all.onsuccess = () => res((all.result.find((r: any) => r.type === "task" && r.data.title === "Overlay Test") as any).id);
+      };
+    });
+  });
+  await page.goto(`/#/overlay/task/${id}`);
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "Titel" })).toHaveValue("Overlay Test");
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  await shot(page, "30-overlay-task");
+  await page.goto("/#/overlay/new/done");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Erledigtes eintragen" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Tabs" })).toHaveCount(0);
+});

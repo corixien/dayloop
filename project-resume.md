@@ -8,6 +8,6 @@ One todo list with deadlines (calendar), Have Done list (by day, sendable to the
 
 ## Current state
 - Done: server + sync, simplified web app (Todo, Have Done, calendar, habits, pomodoro, settings incl. tracker + API tokens), custom dropdown, drag-following drawer/sheet/row swipes, Android build with new launcher icon, Website-MCP tools (committed and pushed), Render deploy live. Tests: server 13, web 31, Playwright e2e (desktop + mobile touch, fake tracker), MCP 37.
-- Phone: production APK (VITE_API_URL=https://dayloop.onrender.com) installed; phone is not signed in yet (user logs in in Settings).
-- Open: live check against the real tracker (needs the user's tracker URL/account), release signing, date/time pickers are still native.
+- Phone: production APK installed, user is signed in and the Zahnarzt todo is synced. Widget (todo/have done, checkboxes, plus, settings, overlay sheets) is built and installed; not yet seen on the home screen (user adds it via Settings > Widget hinzufügen or the widget picker).
+- Open: widget check on the device, MCP check from a new Claude session (Horizon runs the new tools, this session had a stale tool list), live check against the real tracker (needs the user's tracker URL/account), release signing, date/time pickers are still native.
 - Local server for tests: `cd server && PORT=3100 PGLITE_DIR=/tmp/dl-e2e-pg npx tsx src/dev.ts`; debug build against it: `CAP_DEBUG=1 VITE_API_URL=http://localhost:3100`, `adb reverse tcp:3100 tcp:3100`.

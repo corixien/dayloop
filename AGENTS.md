@@ -28,9 +28,15 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - habitlog id = `${habitId}_${date}`.
 
 ## Android (web/android, Capacitor 8)
-- Web layer builds into `web/dist`; `npx cap sync android`; native code only for the widget (`TodayWidget`, `WidgetPlugin`, plugin name `DayloopWidget`). Reminders: `lib/reminders.ts` computes, `lib/native.ts` schedules OS notifications (channel `reminders`).
-- compileSdk 37 (SDK platform 37 installed, 36 is not). Gradle uses JDK 21 from `~/.gradle/gradle.properties`.
-- App id `com.dayloop.app`; API URL = build-time `VITE_API_URL`, overridable in Settings (native only).
+- Web layer builds into `web/dist`; `npx cap sync android`. compileSdk 37 (platform 37 installed, 36 is not). Gradle uses JDK 21 from `~/.gradle/gradle.properties`; build with `./gradlew assembleDebug` in `web/android`. App id `com.dayloop.app`; API URL = build-time `VITE_API_URL` (prod: `https://dayloop.onrender.com`), overridable in Settings (native only).
+- Reminders: `lib/reminders.ts` computes, `lib/native.ts` schedules OS notifications (channel `reminders`).
+- Home screen widget (`DayloopWidget`, `WidgetService`, `WidgetStore`, `WidgetConfigActivity`, `WidgetRouterActivity`, `OverlayActivity`, plugin `DayloopWidget`):
+  - Data: the web layer pushes a pre-formatted snapshot (`lib/widgetSnapshot.ts`: header + task rows for Todo and Have Done) through `DayloopWidget.update`; native only renders it (RemoteViews + ListView).
+  - Ticking a row: list item taps go to the invisible `WidgetRouterActivity` (one PendingIntent template per list). `toggle` -> broadcast -> optimistic snapshot change (`WidgetStore.applyToggle`) + `PATCH /api/items/task/:id` with a dedicated API token ("Android Widget", created by `ensureCredentials`, stored natively); HttpURLConnection cannot PATCH, so it POSTs with `X-HTTP-Method-Override: PATCH` (server middleware). Failures and repeating tasks go to a pending queue the app applies on resume (`applyPendingWidgetActions`, idempotent set-done).
+  - `open` and the plus button start `OverlayActivity` (own task, translucent theme, `BridgeActivity` with transparent WebView) at hash route `/overlay/task/<id>` or `/overlay/new/<todo|done>`; `components/Overlay.tsx` renders the same bottom sheets over the home screen; closing syncs first, then `finishOverlay`.
+  - Per-widget settings (background color/opacity, corners, font size, default tab, plus button) live in `WidgetStore.Cfg` (SharedPreferences, keyed by widget id); the config activity opens when adding and on long-press > settings (`reconfigurable`).
+  - Reading app-private storage (tokens) with `adb run-as` is not allowed here: test the MCP/server path with a token the user creates.
+- `useItems` re-queries when the app returns to the foreground (another WebView, the overlay, may have written IndexedDB).
 - E2E: `e2e/` Playwright against `dev:local` on :3100.
 
 ## Rules
