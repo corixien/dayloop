@@ -14,6 +14,7 @@ interface WidgetPlugin {
   setCredentials(o: { url: string; token: string }): Promise<void>;
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
   finishOverlay(): Promise<void>;
+  openApp(): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }
 export const widgetPlugin = () => registerPlugin<WidgetPlugin>("DayloopWidget");
@@ -100,5 +101,29 @@ export async function closeOverlay() {
     await widgetPlugin().finishOverlay();
   } catch {
     history.back();
+  }
+}
+
+const OPEN_KEY = "dl_open";
+
+/** From the overlay: hand a route (and optionally a task to focus) to the main app, bring it up, close the overlay. */
+export async function openInApp(route: string, focusTaskId?: string) {
+  localStorage.setItem(OPEN_KEY, JSON.stringify({ route, focusTaskId }));
+  try {
+    await widgetPlugin().openApp();
+  } catch {
+    history.back();
+  }
+}
+
+/** Main app: apply what the overlay asked for. Returns the route to go to, if any. */
+export function takeOpenRequest(): { route: string; focusTaskId?: string } | null {
+  const raw = localStorage.getItem(OPEN_KEY);
+  if (!raw) return null;
+  localStorage.removeItem(OPEN_KEY);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
 }

@@ -48,6 +48,15 @@ public class WidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openApp(PluginCall call) {
+        Context ctx = getContext();
+        android.content.Intent launch = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
+        if (launch != null) ctx.startActivity(launch);
+        if (getActivity() instanceof OverlayActivity) getActivity().finish();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void overlayReady(PluginCall call) {
         if (getActivity() instanceof OverlayActivity) ((OverlayActivity) getActivity()).reveal();
         call.resolve();

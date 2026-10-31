@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { local, syncClient, useHashRoute, useSettings, useT, useTheme } from "../lib/app";
 import { getTracker, markSent, sendToTracker, trackerErrorKey } from "../lib/tracker";
-import { pomo } from "../lib/pomoStore";
-import { closeOverlay, overlayReady, useWidgetSync } from "../lib/widget";
+import { closeOverlay, openInApp, overlayReady, useWidgetSync } from "../lib/widget";
 import { NewItem } from "./NewItem";
 import { Sheet } from "./Sheet";
 import { TaskDetail } from "./TaskDetail";
@@ -27,7 +26,7 @@ export function Overlay() {
   if (kind === "task" && arg) {
     return (
       <Sheet always onClose={() => void closeOverlay()}>
-        {(close) => <TaskDetail id={arg} onClose={close} onFocus={(id) => { pomo.focusTask(id); close(); }} />}
+        {(close) => <TaskDetail id={arg} onClose={close} onFocus={(id) => void openInApp("/pomodoro", id)} />}
       </Sheet>
     );
   }

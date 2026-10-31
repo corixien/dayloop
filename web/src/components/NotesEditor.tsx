@@ -47,7 +47,7 @@ export function NotesEditor({
       {lines.map((l, i) => (
         <div key={i} className="flex items-start gap-2.5">
           {l.check && (
-            <div className="pt-[3px]">
+            <div className="flex h-5 items-center">
               <Check_ done={l.done} label={l.text || label} onChange={() => { const next = lines.map((x, j) => (j === i ? toggled(x) : x)); onChange(formatNotes(next)); onCommit(formatNotes(next)); }} />
             </div>
           )}
@@ -87,7 +87,7 @@ export function NotesEditor({
                 }
               }
             }}
-            className={cx("min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 leading-[1.45] outline-none focus-visible:outline-none placeholder:text-faint", l.check && l.done && "text-faint line-through")}
+            className={cx("min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 leading-5 outline-none focus-visible:outline-none placeholder:text-faint", l.check && l.done && "text-faint line-through")}
           />
         </div>
       ))}

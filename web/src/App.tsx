@@ -2,6 +2,7 @@ import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } f
 import { useEffect, useState } from "react";
 import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
+import { takeOpenRequest } from "./lib/widget";
 import { useReminders } from "./lib/useReminders";
 import { useWidgetSync } from "./lib/widget";
 import { AuthPanel } from "./components/AuthPanel";
@@ -60,6 +61,19 @@ export default function App() {
   }, []);
 
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
+  // the widget overlay asks the app to open a screen (e.g. start focus on a task)
+  useEffect(() => {
+    const apply = () => {
+      if (document.visibilityState !== "visible") return;
+      const r = takeOpenRequest();
+      if (!r) return;
+      if (r.focusTaskId) pomo.focusTask(r.focusTaskId);
+      go(r.route);
+    };
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => document.removeEventListener("visibilitychange", apply);
+  }, []);
 
   useEffect(() => {
     document.title = state?.status === "running" ? `${fmtClock(left)} · Dayloop` : "Dayloop";
