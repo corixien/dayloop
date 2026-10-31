@@ -3,7 +3,7 @@ import { type ReactNode, useRef, useState } from "react";
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** Bottom sheet: slides up, drag the handle area down (or fling) to dismiss. */
-export function Sheet({ onClose, children, always }: { onClose: () => void; children: (close: () => void) => ReactNode; always?: boolean }) {
+export function Sheet({ onClose, children, always, fit }: { onClose: () => void; children: (close: () => void) => ReactNode; always?: boolean; fit?: boolean }) {
   const panel = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
@@ -31,10 +31,10 @@ export function Sheet({ onClose, children, always }: { onClose: () => void; chil
   const d = drag.current;
   return (
     <div className={always ? "fixed inset-0 z-30" : "fixed inset-0 z-30 md:hidden"}>
-      <div ref={back} onClick={close} className={always ? "anim-fade absolute inset-0 bg-black/20" : "anim-fade absolute inset-0 bg-black/45"} />
+      <div ref={back} onClick={close} className={always ? "absolute inset-0" : "anim-fade absolute inset-0 bg-black/45"} />
       <div
         ref={panel}
-        className={`anim-sheet absolute inset-x-0 bottom-0 flex ${always ? "h-[78dvh]" : "h-[92dvh]"} flex-col overflow-hidden rounded-t-2xl border-t border-line bg-bg shadow-2xl`}
+        className={`anim-sheet absolute inset-x-0 bottom-0 flex ${always ? (fit ? "max-h-[78dvh]" : "h-[78dvh]") : "h-[92dvh]"} flex-col overflow-hidden rounded-t-2xl border-t border-line bg-bg shadow-[0_-8px_40px_rgba(0,0,0,0.35)]`}
       >
         <div
           className="flex h-8 shrink-0 touch-none items-center justify-center"
@@ -61,7 +61,7 @@ export function Sheet({ onClose, children, always }: { onClose: () => void; chil
         >
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
-        <div className="min-h-0 flex-1">{children(close)}</div>
+        <div className="flex min-h-0 flex-1 flex-col">{children(close)}</div>
       </div>
     </div>
   );

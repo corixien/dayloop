@@ -12,7 +12,7 @@ import { Button, Dialog, Field, Segmented, Select, inputCls } from "./ui";
 export function NewItem({ kind, onClose, bare }: { kind: "todo" | "done"; onClose: () => void; bare?: boolean }) {
   const mobile = useIsMobile();
   if (bare || mobile) {
-    return <Sheet always={bare} onClose={onClose}>{(close) => <Form kind={kind} close={close} />}</Sheet>;
+    return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form kind={kind} close={close} />}</Sheet>;
   }
   return <DialogShell kind={kind} onClose={onClose} />;
 }
@@ -69,7 +69,7 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
   }
 
   return (
-    <div className="flex h-full flex-col bg-bg">
+    <div className="flex min-h-0 flex-1 flex-col bg-bg">
       {!inDialog && (
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
           <h2 className="text-[15px] font-semibold">{kind === "todo" ? t("newTask") : t("newDone")}</h2>

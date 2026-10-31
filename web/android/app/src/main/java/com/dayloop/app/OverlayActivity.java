@@ -12,11 +12,19 @@ public class OverlayActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(WidgetPlugin.class);
         super.onCreate(savedInstanceState);
+        // Capacitor re-applies the opaque app theme: make the window see-through again
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         // hidden until the overlay route has rendered: the initial load shows the normal app for a moment
         getBridge().getWebView().setAlpha(0f);
         getBridge().getWebView().postDelayed(this::reveal, 2500);
         go(getIntent());
+    }
+
+    /** Capacitor switches to the opaque app theme in onCreate; keep the translucent one so the home screen shows through. */
+    @Override
+    public void setTheme(int resid) {
+        super.setTheme(R.style.AppTheme_Overlay);
     }
 
     @Override
