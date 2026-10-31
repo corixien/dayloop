@@ -39,8 +39,6 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
         <div className="space-y-px">
           <Item to="/todo" route={route} label={t("todoTab")} icon={<ListTodo size={sz} />} count={tasks.filter(isOpen).length} onNavigate={onNavigate} />
           <Item to="/done" route={route} label={t("haveDone")} icon={<CheckCheck size={sz} />} count={tasks.filter((x) => isDone(x) && doneDay(x) === today).length} onNavigate={onNavigate} />
-        </div>
-        <div className="space-y-px">
           <Item to="/calendar" route={route} label={t("calendar")} icon={<Calendar size={sz} />} onNavigate={onNavigate} />
           <Item to="/habits" route={route} label={t("habits")} icon={<Flame size={sz} />} onNavigate={onNavigate} />
           <Item to="/pomodoro" route={route} label={t("pomodoro")} icon={<Timer size={sz} />} onNavigate={onNavigate} />

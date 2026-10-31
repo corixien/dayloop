@@ -1,4 +1,4 @@
-import { Calendar as CalIcon, Flame, ListTodo, Menu, Timer } from "lucide-react";
+import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
@@ -16,6 +16,7 @@ import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
 import { Drawer } from "./components/Drawer";
+import { NewItem } from "./components/NewItem";
 import { Sheet } from "./components/Sheet";
 import { Button, Dialog, cx } from "./components/ui";
 
@@ -41,6 +42,7 @@ export default function App() {
   const select = (id: string | null, focus?: "notes") => { setSelected(id); setFocusNotes(focus === "notes"); };
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
+  const [newKind, setNewKind] = useState<"todo" | "done" | null>(null);
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
   const { state, left } = usePomo();
   useReminders();
@@ -69,7 +71,7 @@ export default function App() {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); }
       else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "/") { e.preventDefault(); setPalette(true); }
-      else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "n") { e.preventDefault(); document.querySelector<HTMLInputElement>("[data-quickadd]")?.focus(); }
+      else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "n") { e.preventDefault(); setNewKind(page === "done" ? "done" : "todo"); }
       else if (e.key === "Escape" && !typing) setSelected(null);
     };
     window.addEventListener("keydown", onKey);
@@ -81,9 +83,10 @@ export default function App() {
   const hasDetail = selected !== null && ["todo", "done", "calendar", "trash"].includes(page);
 
   const tabs = [
-    { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab"), also: "/done" },
+    { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab") },
+    { to: "/done", icon: <CheckCheck size={19} />, label: t("haveDone") },
     { to: "/calendar", icon: <CalIcon size={19} />, label: t("calendar") },
-    { to: "/habits", icon: <Flame size={19} />, label: t("habits") },
+    { to: "/habits", icon: <Flame size={19} />, label: t("tabHabits") },
     { to: "/pomodoro", icon: <Timer size={19} />, label: t("pomodoro") },
   ];
 
@@ -105,9 +108,9 @@ export default function App() {
         <Sidebar route={route} onNavigate={() => setDrawer(false)} onSearch={() => { setDrawer(false); setPalette(true); }} />
       </Drawer>
 
-      <main className="flex min-w-0 flex-1 flex-col safe-top">
+      <main className="relative flex min-w-0 flex-1 flex-col safe-top">
         <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
-        <nav className="grid shrink-0 grid-cols-5 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
+        <nav className="grid shrink-0 grid-cols-6 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (
             <a key={x.to} href={`#${x.to}`} aria-current={route === x.to || route === (x as { also?: string }).also ? "page" : undefined}
               className={cx("flex h-14 flex-col items-center justify-center gap-0.5 text-[10px]", route === x.to || route === (x as { also?: string }).also ? "text-accent" : "text-muted")}>
@@ -116,6 +119,15 @@ export default function App() {
           ))}
           <button onClick={() => setDrawer(true)} className="flex h-14 flex-col items-center justify-center gap-0.5 text-[10px] text-muted"><Menu size={19} />{t("menu")}</button>
         </nav>
+        {["todo", "done", "calendar"].includes(page) && (
+          <button
+            onClick={() => setNewKind(page === "done" ? "done" : "todo")}
+            aria-label={page === "done" ? t("newDone") : t("newTask")}
+            className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] left-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-transform duration-200 active:scale-95 md:bottom-6 md:left-6 dark:text-[#101012]"
+          >
+            <Plus size={26} strokeWidth={2.2} />
+          </button>
+        )}
       </main>
 
       {hasDetail && !mobile && (
@@ -134,6 +146,7 @@ export default function App() {
           <Timer size={14} className="text-accent" /> {fmtClock(left)}
         </a>
       )}
+      {newKind && <NewItem kind={newKind} onClose={() => setNewKind(null)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
       {welcome && <Welcome onClose={closeWelcome} />}
       {status === "error" && null}

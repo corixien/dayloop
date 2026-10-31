@@ -14,6 +14,13 @@ async function swipe(page: any, from: [number, number], to: [number, number], st
 }
 
 /** Minimal stand-in for the Productivity-Tracker API (login, AI rating, create, complete). */
+async function addVia(page: any, kind: "todo" | "done", text: string) {
+  await page.getByRole("button", { name: kind === "todo" ? "Neue Aufgabe" : "Erledigtes eintragen" }).click();
+  await page.locator("[data-newtitle]").fill(text);
+  await page.locator("[data-newtitle]").press("Enter");
+  await page.waitForTimeout(450);
+}
+
 function fakeTracker() {
   const seen: { path: string; body: any }[] = [];
   const server = createServer((req, res) => {
@@ -48,12 +55,12 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
   await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
   await page.goto("/#/todo");
 
-  const add = page.locator("[data-quickadd]");
-  await add.fill("Zahnarzt morgen 15 Uhr !1");
-  await shot(page, "01-quickadd-preview");
-  await add.press("Enter");
-  await add.fill("Milch kaufen");
-  await add.press("Enter");
+  await page.getByRole("button", { name: "Neue Aufgabe" }).click();
+  await page.locator("[data-newtitle]").fill("Zahnarzt morgen 15 Uhr !1");
+  await shot(page, "01-new-todo");
+  await page.locator("[data-newtitle]").press("Enter");
+  await page.waitForTimeout(300);
+  await addVia(page, "todo", "Milch kaufen");
   const row = page.getByRole("button", { name: /Zahnarzt/ });
   await expect(row).toContainText("Morgen 15:00");
   await expect(page.getByRole("heading", { name: /Ohne Deadline/ })).toBeVisible();
@@ -74,18 +81,17 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
   // completing moves the task to Have Done
   await page.getByRole("checkbox", { name: "Milch kaufen" }).click();
   await expect(page.getByRole("button", { name: /Milch kaufen/ })).toHaveCount(0);
-  await page.getByRole("tab", { name: "Have Done" }).click();
+  await page.goto("/#/done");
   await expect(page.getByRole("button", { name: /Milch kaufen/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Heute/ })).toBeVisible();
-  await page.locator("[data-quickadd]").fill("Sport gemacht // 5 km");
-  await page.locator("[data-quickadd]").press("Enter");
+  await addVia(page, "done", "Sport gemacht // 5 km");
   await expect(page.getByRole("button", { name: /Sport gemacht/ })).toContainText("5 km");
   await shot(page, "04-have-done");
 
   // reopening sends it back to Todo
   await page.getByRole("checkbox", { name: "Sport gemacht" }).click();
   await expect(page.getByRole("button", { name: /Sport gemacht/ })).toHaveCount(0);
-  await page.getByRole("tab", { name: "Todo" }).click();
+  await page.goto("/#/todo");
   await expect(page.getByRole("button", { name: /Sport gemacht/ })).toBeVisible();
 
   // calendar: the open deadline shows tomorrow, the completed one today with a check
@@ -144,8 +150,7 @@ test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   await page.goto("/#/todo");
 
   await expect(page.getByRole("navigation", { name: "Tabs" }).getByRole("link", { name: "Todo" })).toBeVisible();
-  await page.locator("[data-quickadd]").fill("Heute Sport 18 Uhr // Trikot mitnehmen");
-  await page.locator("[data-quickadd]").press("Enter");
+  await addVia(page, "todo", "Heute Sport 18 Uhr // Trikot mitnehmen");
   const row = page.getByRole("button", { name: /Sport/ }).first();
   await expect(row).toContainText("Heute 18:00");
   await expect(row).toContainText("Trikot mitnehmen");
@@ -172,7 +177,7 @@ test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   const box = (await page.getByRole("button", { name: /Sport/ }).first().boundingBox())!;
   await swipe(page, [60, box.y + 20], [300, box.y + 20]);
   await page.waitForTimeout(500);
-  await page.getByRole("tab", { name: "Have Done" }).click();
+  await page.getByRole("navigation", { name: "Tabs" }).getByRole("link", { name: "Have Done" }).click();
   await expect(page.getByRole("button", { name: /Sport/ }).first()).toBeVisible();
   await shot(page, "22-mobile-have-done");
 

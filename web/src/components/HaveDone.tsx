@@ -2,13 +2,10 @@ import { Check, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useItems, useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
-import { parseQuickAdd } from "../lib/nlp";
-import { addDoneEntry, doneDay, isDone } from "../lib/tasks";
+import { doneDay, isDone } from "../lib/tasks";
 import { TrackerError, getTracker, markSent, sendToTracker, sentIds } from "../lib/tracker";
 import { TaskRow } from "./TaskRow";
-import { TodoSwitch } from "./TodoView";
-import { Empty, IconButton, cx } from "./ui";
-import { Plus } from "lucide-react";
+import { Empty, IconButton, PageHeader, cx } from "./ui";
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -19,7 +16,6 @@ export function HaveDone({ selectedId, onSelect }: { selectedId: string | null; 
   const language = useSettings().language;
   const today = todayStr(useNow());
   const tasks = useItems("task");
-  const [text, setText] = useState("");
   const [status, setStatus] = useState<{ day: string; kind: "sending" | "ok" | "err"; msg: string } | null>(null);
   const [sent, setSent] = useState(sentIds);
   const tracker = getTracker();
@@ -33,13 +29,6 @@ export function HaveDone({ selectedId, onSelect }: { selectedId: string | null; 
   }, [tasks]);
 
   const label = (day: string) => (day === today ? t("today") : day === addDays(today, -1) ? t("yesterday") : fmtLong(day, lang));
-
-  async function add() {
-    const p = parseQuickAdd(text);
-    if (!p.title) return;
-    await addDoneEntry(p.title, p.notes);
-    setText("");
-  }
 
   async function send(day: string, items: typeof tasks) {
     const cfg = getTracker();
@@ -58,21 +47,8 @@ export function HaveDone({ selectedId, onSelect }: { selectedId: string | null; 
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <TodoSwitch active="done" />
-      <div className="border-b border-line px-4 py-2.5 md:px-6">
-        <div className="flex items-center gap-2 rounded-ctl border border-line bg-raise px-2.5 focus-within:border-accent">
-          <Plus size={16} className="shrink-0 text-faint" />
-          <input
-            data-quickadd
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && void add()}
-            placeholder={t("haveDoneAdd")}
-            className="h-9 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
-          />
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <PageHeader title={t("haveDone")} />
+      <div className="min-h-0 flex-1 overflow-y-auto pb-24">
         {days.length === 0 && <Empty>{t("noneDone")}</Empty>}
         {days.map(([day, items]) => {
           const unsent = items.filter((i) => !sent.has(i.id));
