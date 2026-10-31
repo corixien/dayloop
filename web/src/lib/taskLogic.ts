@@ -1,4 +1,5 @@
 import type { Item } from "./db";
+import { noteStats } from "./notes";
 import { addDays, fmtDate, todayStr } from "./dates";
 
 export type TaskItem = Item<"task">;
@@ -28,3 +29,13 @@ export function groupOf(t: TaskItem, today = todayStr()): Group {
 /** Local calendar day a task was completed on ("YYYY-MM-DD"), for Have Done and the calendar. */
 export const doneDay = (t: Pick<TaskItem, "completedAt" | "updatedAt">) => fmtDate(new Date(t.completedAt ?? t.updatedAt));
 
+
+/** What a task carries beyond its title: checklist progress (notes lines + legacy subtasks) and plain note text. */
+export function extras(t: Pick<TaskItem, "notes" | "subtasks">) {
+  const n = noteStats(t.notes);
+  return {
+    total: n.total + t.subtasks.length,
+    done: n.done + t.subtasks.filter((s) => s.done).length,
+    note: n.first,
+  };
+}

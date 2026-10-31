@@ -31,10 +31,10 @@ export function Sheet({ onClose, children, always }: { onClose: () => void; chil
   const d = drag.current;
   return (
     <div className={always ? "fixed inset-0 z-30" : "fixed inset-0 z-30 md:hidden"}>
-      <div ref={back} onClick={close} className="anim-fade absolute inset-0 bg-black/45" />
+      <div ref={back} onClick={close} className={always ? "anim-fade absolute inset-0 bg-black/20" : "anim-fade absolute inset-0 bg-black/45"} />
       <div
         ref={panel}
-        className="anim-sheet absolute inset-x-0 bottom-0 flex h-[92dvh] flex-col overflow-hidden rounded-t-2xl border-t border-line bg-bg shadow-2xl"
+        className={`anim-sheet absolute inset-x-0 bottom-0 flex ${always ? "h-[78dvh]" : "h-[92dvh]"} flex-col overflow-hidden rounded-t-2xl border-t border-line bg-bg shadow-2xl`}
       >
         <div
           className="flex h-8 shrink-0 touch-none items-center justify-center"

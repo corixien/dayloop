@@ -48,6 +48,12 @@ public class WidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void overlayReady(PluginCall call) {
+        if (getActivity() instanceof OverlayActivity) ((OverlayActivity) getActivity()).reveal();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void pinWidget(PluginCall call) {
         Context ctx = getContext();
         JSObject out = new JSObject();

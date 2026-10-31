@@ -8,6 +8,7 @@ import { buildSnapshot } from "./widgetSnapshot";
 export * from "./widgetSnapshot";
 
 interface WidgetPlugin {
+  overlayReady(): Promise<void>;
   update(snapshot: object): Promise<void>;
   setCredentials(o: { url: string; token: string }): Promise<void>;
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
@@ -82,6 +83,11 @@ export function useWidgetSync() {
       local.db.items.hook("updating").unsubscribe(push);
     };
   }, [lang]);
+}
+
+/** The overlay route has rendered: the native window may show its WebView. */
+export function overlayReady() {
+  void widgetPlugin().overlayReady().catch(() => {});
 }
 
 /** Close the translucent overlay activity (opened from the widget) after pushing pending changes. */

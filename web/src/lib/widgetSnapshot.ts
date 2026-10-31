@@ -1,6 +1,6 @@
 import { addDays, fmtLong, todayStr } from "./dates";
 import { type Lang, translate } from "./i18n";
-import { type TaskItem, compareTasks, doneDay, groupOf, isDone, isOpen } from "./taskLogic";
+import { type TaskItem, compareTasks, doneDay, extras, groupOf, isDone, isOpen } from "./taskLogic";
 
 /** One rendered row of the home screen widget: a day/section header or a task. */
 export interface WRow {
@@ -11,7 +11,15 @@ export interface WRow {
   prio?: number;
   /** repeating: the app must apply the completion (rolls the deadline forward) */
   rep?: boolean;
+  /** has plain note text / has checklist items */
+  n?: boolean;
+  c?: boolean;
 }
+
+const flags = (x: TaskItem): Pick<WRow, "n" | "c"> => {
+  const e = extras(x);
+  return { n: !!e.note, c: e.total > 0 };
+};
 
 export interface WidgetSnapshot {
   lang: Lang;
@@ -37,7 +45,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date()): 
       lastGroup = g;
     }
     const meta = !x.dueDate ? "" : x.dueDate === today ? x.dueTime ?? "" : `${x.dueDate === addDays(today, 1) ? t("tomorrow") : fmtLong(x.dueDate, lang)}${x.dueTime ? ` ${x.dueTime}` : ""}`;
-    todo.push({ k: "t", id: x.id, title: x.title, meta, prio: x.priority, rep: !!x.repeat });
+    todo.push({ k: "t", id: x.id, title: x.title, meta, prio: x.priority, rep: !!x.repeat, ...flags(x) });
   }
 
   const done: WRow[] = [];
@@ -46,7 +54,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date()): 
   for (const [day, items] of [...byDay.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))) {
     done.push({ k: "h", title: day === today ? t("today") : day === addDays(today, -1) ? t("yesterday") : fmtLong(day, lang) });
     for (const x of items.sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt))) {
-      done.push({ k: "t", id: x.id, title: x.title, meta: clock(x.completedAt ?? x.updatedAt), prio: x.priority });
+      done.push({ k: "t", id: x.id, title: x.title, meta: clock(x.completedAt ?? x.updatedAt), prio: x.priority, ...flags(x) });
     }
   }
 

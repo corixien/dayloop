@@ -4,6 +4,7 @@ import { useIsMobile, useLang, useT } from "../lib/app";
 import { fmtLong } from "../lib/dates";
 import { parseQuickAdd } from "../lib/nlp";
 import { addDoneEntry, addTask } from "../lib/tasks";
+import { NotesEditor } from "./NotesEditor";
 import { Sheet } from "./Sheet";
 import { Button, Dialog, Field, Segmented, Select, inputCls } from "./ui";
 
@@ -94,14 +95,7 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
             </div>
           )}
         </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          placeholder={t("addNote")}
-          aria-label={t("note")}
-          className="min-h-16 w-full resize-none rounded-ctl border border-line bg-raise p-2.5 text-[14px] placeholder:text-faint focus:border-accent"
-        />
+        <NotesEditor value={notes} onChange={setNotes} onCommit={setNotes} placeholder={t("addNote")} label={t("note")} />
         {kind === "todo" && (
           <>
             <div className="grid grid-cols-2 gap-3">

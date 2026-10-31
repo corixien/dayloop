@@ -1,6 +1,7 @@
 import type { Task } from "@dayloop/shared";
 import { addDays, todayStr } from "./dates";
 import { local } from "./app";
+import { uncheckAll } from "./notes";
 import { nextDue } from "./repeat";
 import { type TaskItem } from "./taskLogic";
 
@@ -31,6 +32,7 @@ export async function toggleDone(t: TaskItem, today = todayStr()): Promise<void>
       await local.patch("task", t.id, {
         dueDate: next,
         subtasks: t.subtasks.map((s) => ({ ...s, done: false })),
+        notes: uncheckAll(t.notes),
       });
       return;
     }

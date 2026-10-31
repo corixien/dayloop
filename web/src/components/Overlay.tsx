@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { syncClient, useHashRoute, useSettings, useTheme } from "../lib/app";
 import { pomo } from "../lib/pomoStore";
-import { closeOverlay, useWidgetSync } from "../lib/widget";
+import { closeOverlay, overlayReady, useWidgetSync } from "../lib/widget";
 import { NewItem } from "./NewItem";
 import { Sheet } from "./Sheet";
 import { TaskDetail } from "./TaskDetail";
@@ -17,6 +17,7 @@ export function Overlay() {
   useWidgetSync();
   useEffect(() => {
     document.documentElement.classList.add("overlay");
+    overlayReady();
     syncClient.start();
     void syncClient.syncNow();
   }, []);

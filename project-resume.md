@@ -11,3 +11,7 @@ One todo list with deadlines (calendar), Have Done list (by day, sendable to the
 - Phone: production APK installed, user is signed in and the Zahnarzt todo is synced. Widget (todo/have done, checkboxes, plus, settings, overlay sheets) is built and installed; not yet seen on the home screen (user adds it via Settings > Widget hinzufügen or the widget picker).
 - Open: widget check on the device, MCP check from a new Claude session (Horizon runs the new tools, this session had a stale tool list), live check against the real tracker (needs the user's tracker URL/account), release signing, date/time pickers are still native.
 - Local server for tests: `cd server && PORT=3100 PGLITE_DIR=/tmp/dl-e2e-pg npx tsx src/dev.ts`; debug build against it: `CAP_DEBUG=1 VITE_API_URL=http://localhost:3100`, `adb reverse tcp:3100 tcp:3100`.
+
+## Update 2026-10-31
+- Overlay: WebView hidden until `overlayReady()`, lighter backdrop (black/20), sheet 78dvh. Notes are checklist editor (`- ` becomes round checkbox, subtasks migrated into notes). Icons for note/checklist in TaskRow and widget rows. APK built (debug), not installed (phone offline), not tested on device.
+- e2e: port 3100 is taken by matnotes; run `PORT=3190 npm run dev:local -w server` and `E2E_URL=http://localhost:3190 npx playwright test`.

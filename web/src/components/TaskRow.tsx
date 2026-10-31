@@ -2,7 +2,7 @@ import { Bell, Check, ListChecks, Repeat, StickyNote, Trash2 } from "lucide-reac
 import { useRef, useState } from "react";
 import { useLang, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
-import { type TaskItem, toggleDone, trashTask } from "../lib/tasks";
+import { type TaskItem, extras, toggleDone, trashTask } from "../lib/tasks";
 import { Check_, cx } from "./ui";
 
 export function dueLabel(t: TaskItem, lang: string, tr: (k: any) => string, today = todayStr()): { text: string; overdue: boolean } | null {
@@ -33,8 +33,7 @@ export function TaskRow({
   const t = useT();
   const lang = useLang();
   const due = dueLabel(task, lang, t);
-  const subDone = task.subtasks.filter((s) => s.done).length;
-  const noteLine = task.notes.trim().split("\n")[0];
+  const { total, done: subDone, note: noteLine } = extras(task);
   const [leaving, setLeaving] = useState(false);
 
   const content = useRef<HTMLDivElement>(null);
@@ -122,26 +121,28 @@ export function TaskRow({
             <Check_ done={task.done} priority={task.priority} onChange={complete} label={task.title} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className={cx("truncate text-[15px] md:text-[14px]", task.done && "text-faint line-through")}>{task.title}</div>
+            <div className="flex items-center gap-1.5">
+              <span className={cx("truncate text-[15px] md:text-[14px]", task.done && "text-faint line-through")}>{task.title}</span>
+              {noteLine && <StickyNote size={12} className="shrink-0 text-faint" aria-label={t("note")} />}
+              {total > 0 && <ListChecks size={13} className="shrink-0 text-faint" aria-label={t("subtasks")} />}
+            </div>
             {noteLine && (
               <button
                 onClick={(e) => { e.stopPropagation(); onSelect("notes"); }}
                 className="mt-0.5 flex w-full items-center gap-1.5 text-left text-xs text-muted hover:text-fg"
                 aria-label={t("note")}
               >
-                <StickyNote size={12} className="shrink-0" />
                 <span className="truncate">{noteLine}</span>
               </button>
             )}
-            {(due || task.subtasks.length > 0 || task.repeat || meta) && (
+            {(due || total > 0 || task.repeat || meta) && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
                 {due && <span className={cx(due.overdue && "text-danger")}>{due.text}</span>}
                 {task.repeat && <Repeat size={12} aria-label="repeat" />}
                 {task.reminders.length > 0 && <Bell size={12} aria-label="reminder" />}
-                {task.subtasks.length > 0 && (
+                {total > 0 && (
                   <span className="inline-flex items-center gap-1">
-                    <ListChecks size={12} />
-                    {subDone}/{task.subtasks.length}
+                    {subDone}/{total}
                   </span>
                 )}
                 {meta && <span className="text-faint">{meta}</span>}

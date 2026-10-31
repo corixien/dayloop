@@ -1,9 +1,10 @@
-import { Play, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Play, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Repeat } from "@dayloop/shared";
-import { local, uid, useItems, useLang, useT } from "../lib/app";
+import { local, useItems, useLang, useT } from "../lib/app";
 import { weekdayNames } from "../lib/dates";
 import { deleteTaskForever, restoreTask, toggleDone, trashTask } from "../lib/tasks";
+import { NotesEditor } from "./NotesEditor";
 import { Button, Check_, Field, IconButton, Segmented, Select, cx, inputCls } from "./ui";
 
 const REMINDER_OPTIONS = [
@@ -26,11 +27,21 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
 
   const [title, setTitle, commitTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
   const [notes, setNotes, commitNotes] = useDraft(task?.notes ?? "", (v) => patch({ notes: v }));
-  const [newSub, setNewSub] = useState("");
-  const notesEl = useRef<HTMLTextAreaElement>(null);
-  const grow = () => { const el = notesEl.current; if (el) { el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 320)}px`; } };
-  useEffect(() => { if (focusNotes) { const el = notesEl.current; el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); } }, [id, focusNotes, !!task]);
-  useEffect(() => { grow(); }, [notes]);
+  const notesBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusNotes) return;
+    const all = notesBox.current?.querySelectorAll("textarea");
+    const el = all?.[all.length - 1];
+    el?.focus();
+    el?.setSelectionRange(el.value.length, el.value.length);
+  }, [id, focusNotes, !!task]);
+  // subtasks now live in the notes as checklist lines: move old ones over once
+  const legacy = task?.subtasks.length ?? 0;
+  useEffect(() => {
+    if (!task || !legacy) return;
+    const items = task.subtasks.map((s) => `- [${s.done ? "x" : " "}] ${s.title}`);
+    void patch({ notes: [task.notes.trimEnd(), ...items].filter(Boolean).join("\n"), subtasks: [] });
+  }, [id, legacy]);
 
   if (!task) return null;
   const trashed = task.trashedAt !== null;
@@ -76,16 +87,9 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
           aria-label={t("title")}
           className="w-full bg-transparent text-lg font-semibold outline-none"
         />
-        <textarea
-          ref={notesEl}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={commitNotes}
-          rows={2}
-          placeholder={t("addNote")}
-          aria-label={t("note")}
-          className="min-h-16 w-full resize-none rounded-ctl border border-line bg-raise p-2.5 text-[14px] placeholder:text-faint focus:border-accent"
-        />
+        <div ref={notesBox}>
+          <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => v !== task.notes && patch({ notes: v })} placeholder={t("addNote")} label={t("note")} />
+        </div>
 
         {!task.done && (
           <div className="grid grid-cols-2 gap-3">
@@ -185,37 +189,6 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
             </div>
           </>
         )}
-
-        <Field label={t("subtasks")}>
-          <div className="space-y-1">
-            {task.subtasks.map((s) => (
-              <div key={s.id} className="group flex items-center gap-2.5 py-0.5">
-                <Check_ done={s.done} onChange={() => patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, done: !x.done } : x)) })} label={s.title} />
-                <input
-                  defaultValue={s.title}
-                  onBlur={(e) => e.target.value.trim() && e.target.value !== s.title && patch({ subtasks: task.subtasks.map((x) => (x.id === s.id ? { ...x, title: e.target.value.trim() } : x)) })}
-                  className={cx("min-w-0 flex-1 bg-transparent text-[13px] outline-none", s.done && "text-faint line-through")}
-                />
-                <IconButton label={t("delete")} className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100" onClick={() => patch({ subtasks: task.subtasks.filter((x) => x.id !== s.id) })}><X size={13} /></IconButton>
-              </div>
-            ))}
-            <div className="flex items-center gap-2">
-              <Plus size={16} className="text-faint" />
-              <input
-                value={newSub}
-                onChange={(e) => setNewSub(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newSub.trim()) {
-                    void patch({ subtasks: [...task.subtasks, { id: uid(), title: newSub.trim(), done: false }] });
-                    setNewSub("");
-                  }
-                }}
-                placeholder={t("addSubtask")}
-                className="h-7 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
-              />
-            </div>
-          </div>
-        </Field>
 
         {trashed && <Button variant="danger" onClick={() => { void deleteTaskForever(id); onClose(); }}>{t("deleteForever")}</Button>}
       </div>

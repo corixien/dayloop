@@ -24,12 +24,38 @@
         android:paddingRight="6dp"
         android:paddingBottom="7dp">
 
-        <TextView
-            android:id="@+id/title"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="2" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="2" />
+
+            <ImageView
+                android:id="@+id/ic_note"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginLeft="6dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_note"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/ic_list"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginLeft="5dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_list"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/meta"

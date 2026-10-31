@@ -61,6 +61,11 @@ public class WidgetService extends RemoteViewsService {
             v.setTextViewTextSize(R.id.meta, TypedValue.COMPLEX_UNIT_SP, cfg.metaSp());
             v.setTextColor(R.id.meta, muted);
 
+            v.setViewVisibility(R.id.ic_note, r.optBoolean("n", false) ? android.view.View.VISIBLE : android.view.View.GONE);
+            v.setViewVisibility(R.id.ic_list, r.optBoolean("c", false) ? android.view.View.VISIBLE : android.view.View.GONE);
+            v.setInt(R.id.ic_note, "setColorFilter", muted);
+            v.setInt(R.id.ic_list, "setColorFilter", muted);
+
             int prio = r.optInt("prio", 0);
             int tint = doneMode ? muted : prio == 3 ? 0xFFE5484D : prio == 2 ? 0xFFE5930B : prio == 1 ? 0xFF3E63DD : muted;
             v.setImageViewResource(R.id.check, doneMode ? R.drawable.widget_check_on : R.drawable.widget_check_off);

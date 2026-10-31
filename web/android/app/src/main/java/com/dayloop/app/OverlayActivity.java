@@ -13,6 +13,9 @@ public class OverlayActivity extends BridgeActivity {
         registerPlugin(WidgetPlugin.class);
         super.onCreate(savedInstanceState);
         getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
+        // hidden until the overlay route has rendered: the initial load shows the normal app for a moment
+        getBridge().getWebView().setAlpha(0f);
+        getBridge().getWebView().postDelayed(this::reveal, 2500);
         go(getIntent());
     }
 
@@ -28,6 +31,10 @@ public class OverlayActivity extends BridgeActivity {
         String path = d != null && d.getPath() != null ? d.getPath() : "";
         final String url = "https://localhost/#/overlay" + path;
         getBridge().getWebView().post(() -> getBridge().getWebView().loadUrl(url));
+    }
+
+    public void reveal() {
+        runOnUiThread(() -> getBridge().getWebView().setAlpha(1f));
     }
 
     @Override

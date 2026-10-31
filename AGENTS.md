@@ -43,3 +43,8 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Never commit secrets or `.env`. Neon project for Dayloop is its own project; never run tests/migrations against other projects.
 - Device tests: phone is the user's own. Check the foreground app before scripted input; stop if it is not Dayloop.
 - Push straight to `main`, no PRs.
+
+## Notes and checklists
+- Notes are plain text; lines `- [ ] x` / `- [x] x` are checklist items (`web/src/lib/notes.ts`, editor `NotesEditor`). The old `subtasks` field stays in the schema (MCP/import) and is moved into the notes the first time a task is opened. `extras()` in `taskLogic.ts` counts both.
+- The widget snapshot carries `n` (plain note) / `c` (checklist) per row; the widget shows small icons next to the title.
+- Overlay activity keeps its WebView at alpha 0 until the overlay route calls `overlayReady()` (avoids a flash of the normal app).

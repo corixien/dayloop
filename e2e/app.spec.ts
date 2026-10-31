@@ -66,10 +66,10 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
   await expect(page.getByRole("heading", { name: /Ohne Deadline/ })).toBeVisible();
   await shot(page, "02-todo");
 
-  // detail: subtask + custom dropdown for repeat
+  // detail: checklist note + custom dropdown for repeat
   await row.click();
-  await page.getByPlaceholder("Teilaufgabe hinzufügen").fill("Versicherungskarte");
-  await page.getByPlaceholder("Teilaufgabe hinzufügen").press("Enter");
+  await page.getByRole("textbox", { name: "Notiz" }).fill("- Versicherungskarte");
+  await page.getByRole("textbox", { name: "Notiz" }).blur();
   await expect(row).toContainText("0/1");
   await page.getByRole("button", { name: "Wiederholen" }).click();
   await expect(page.getByRole("listbox", { name: "Wiederholen" })).toBeVisible();
@@ -160,6 +160,13 @@ test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   await page.getByRole("button", { name: "Notiz" }).first().click();
   await expect(page.getByRole("textbox", { name: "Notiz" })).toBeFocused();
   await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue("Trikot mitnehmen");
+
+  // "- " turns a line into a round checkbox item inside the notes
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("- Socken");
+  await expect(page.getByRole("checkbox", { name: "Socken" })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Socken" }).click();
+  await expect(page.getByRole("checkbox", { name: "Socken" })).toHaveAttribute("aria-checked", "true");
 
   // custom dropdown instead of the native popup
   await page.getByRole("button", { name: "Wiederholen" }).click();
