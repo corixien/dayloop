@@ -1,7 +1,15 @@
 # AGENTS.md
 
 ## Goal
-Dayloop: TickTick-style tasks (lists, subtasks, priorities, notes, reminders, repeats, Heute/Alle/Eingang, board, matrix; no tags), calendar, habits, pomodoro (default 25/5, adjustable, linkable to tasks). Web (PWA) + Android (Capacitor), offline-first, synced through one server. Claude reads/writes the same data through Website-MCP. DE/EN, light/dark.
+Dayloop: one Todo list with optional deadlines (shown in the calendar), a Have Done list (finished things grouped by day, can be sent to the Productivity-Tracker), calendar, habits, pomodoro (default 25/5, adjustable, linkable to tasks). Web (PWA) + Android (Capacitor), offline-first, synced through one server. Claude reads/writes the same data through Website-MCP (`dayloop_*`, incl. `dayloop_kalender` for planning). DE/EN, light/dark. Deliberately simple: no multiple lists, tags, boards or matrix.
+
+## Product rules
+- Todo = open, non-trashed tasks; Have Done = tasks with `done` grouped by local day of `completedAt`; completing a todo moves it there, reopening moves it back. Typing in Have Done creates an already-done task.
+- Repeating task: completing rolls the deadline forward and leaves a finished copy (so it appears in Have Done/calendar).
+- Calendar: open tasks at their deadline; done tasks at the completion day (check chip), so completing removes the deadline entry.
+- Old data may still carry `listId`/`tags`; the UI ignores them. Rows from older app versions get schema defaults on read (`Local.toItem`).
+- Productivity-Tracker (`lib/tracker.ts`): settings hold URL + username + password in localStorage only (never synced). Paper plane per day in Have Done sends that day's unsent entries as one description to the tracker (`/api/groq` rate -> `/api/tasks` -> `/complete`), sent ids in localStorage. The tracker repo is not modified (CORS reflects any origin).
+- UI: dropdowns use the custom `Select` (no native popup); drawer, sheet and row swipes follow the finger (`Drawer.tsx`, `Sheet.tsx`, `TaskRow.tsx`). Effects must return undefined or a function (a returned Promise crashes React).
 
 ## Stack
 npm workspaces: `shared` (zod schemas + types, single source of truth), `server` (Express 5 + pg, Neon Postgres, deployed on Render, also serves `web/dist`), `web` (React + Vite + Tailwind + Dexie, Capacitor in `web/android`).

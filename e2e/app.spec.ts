@@ -1,84 +1,7 @@
+import { createServer } from "node:http";
 import { expect, test } from "@playwright/test";
 
 const shot = (page: any, name: string) => page.screenshot({ path: `e2e/shots/${name}.png` });
-
-test("core flows on desktop", async ({ page }) => {
-  await page.setViewportSize({ width: 1360, height: 860 });
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-
-  await page.goto("/");
-  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
-
-  // quick add with natural language
-  await page.goto("/#/inbox");
-  const add = page.locator("[data-quickadd]");
-  await add.fill("Zahnarzt morgen 15 Uhr !1");
-  await shot(page, "01-quickadd-preview");
-  await add.press("Enter");
-  await add.fill("Milch kaufen");
-  await add.press("Enter");
-  const row = page.getByRole("button", { name: /Zahnarzt/ });
-  await expect(row).toContainText("Morgen 15:00");
-  await shot(page, "02-inbox");
-
-  // detail panel: edit + subtask + priority
-  await row.click();
-  await page.getByPlaceholder("Teilaufgabe hinzufügen").fill("Versicherungskarte");
-  await page.getByPlaceholder("Teilaufgabe hinzufügen").press("Enter");
-  await expect(row).toContainText("0/1");
-  await shot(page, "03-detail");
-
-  // complete a task
-  await page.getByRole("checkbox", { name: "Milch kaufen" }).click();
-  await expect(page.getByRole("button", { name: /Milch kaufen/ })).toHaveCount(0);
-
-  // list + kanban
-  await page.getByRole("button", { name: "Neue Liste" }).click();
-  await page.getByRole("dialog").getByRole("textbox").fill("Uni");
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page).toHaveURL(/#\/list\//);
-  await page.getByRole("button", { name: "Board" }).click();
-  await shot(page, "04-kanban");
-
-  // calendar
-  await page.goto("/#/calendar");
-  await expect(page.getByRole("button", { name: /Zahnarzt/ }).first()).toBeVisible();
-  await shot(page, "05-calendar-month");
-  await page.getByRole("button", { name: "Woche" }).click();
-  await shot(page, "06-calendar-week");
-
-  // habits
-  await page.goto("/#/habits");
-  await page.getByRole("button", { name: "Neue Gewohnheit" }).first().click();
-  await page.getByRole("dialog").getByRole("textbox").first().fill("Wasser trinken");
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await page.getByRole("checkbox", { name: "Wasser trinken" }).click();
-  await shot(page, "07-habits");
-
-  // pomodoro: default 25 min
-  await page.goto("/#/pomodoro");
-  await expect(page.getByRole("timer")).toContainText("25:00");
-  await page.getByRole("button", { name: "Start" }).click();
-  await page.waitForTimeout(1300);
-  await expect(page.getByRole("timer")).not.toContainText("25:00");
-  await shot(page, "08-pomodoro");
-  await page.getByRole("button", { name: "Pause" }).first().click();
-
-  await page.goto("/#/matrix");
-  await shot(page, "09-matrix");
-  await page.goto("/#/settings");
-  await shot(page, "10-settings");
-
-  // dark mode
-  await page.getByRole("button", { name: "Dunkel", exact: true }).click();
-  await page.goto("/#/today");
-  await page.waitForTimeout(400);
-  await shot(page, "11-dark-today");
-
-  expect(errors).toEqual([]);
-});
 
 async function swipe(page: any, from: [number, number], to: [number, number], steps = 8) {
   const cdp = await page.context().newCDPSession(page);
@@ -90,7 +13,128 @@ async function swipe(page: any, from: [number, number], to: [number, number], st
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
-test("mobile: chips, notes, swipes", async ({ browser }) => {
+/** Minimal stand-in for the Productivity-Tracker API (login, AI rating, create, complete). */
+function fakeTracker() {
+  const seen: { path: string; body: any }[] = [];
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Timezone");
+      res.setHeader("Content-Type", "application/json");
+      if (req.method === "OPTIONS") return void res.writeHead(204).end();
+      seen.push({ path: req.url!, body });
+      if (req.url === "/api/auth/login") return void res.end(JSON.stringify({ token: "t" }));
+      if (req.url === "/api/groq") return void res.end(JSON.stringify({ name: "Lernen und Sport", duration: 75, productivity: 4, difficulty: 3, category: "learning", bonus: false }));
+      if (req.url === "/api/tasks") return void res.writeHead(201).end(JSON.stringify({ id: "x1", name: body.name }));
+      res.end(JSON.stringify({ xpEarned: 17 }));
+    });
+  });
+  return new Promise<{ url: string; seen: typeof seen; close: () => void }>((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve({ url: `http://127.0.0.1:${(server.address() as any).port}`, seen, close: () => server.close() })),
+  );
+}
+
+test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 860 });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  const tracker = await fakeTracker();
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+
+  const add = page.locator("[data-quickadd]");
+  await add.fill("Zahnarzt morgen 15 Uhr !1");
+  await shot(page, "01-quickadd-preview");
+  await add.press("Enter");
+  await add.fill("Milch kaufen");
+  await add.press("Enter");
+  const row = page.getByRole("button", { name: /Zahnarzt/ });
+  await expect(row).toContainText("Morgen 15:00");
+  await expect(page.getByRole("heading", { name: /Ohne Deadline/ })).toBeVisible();
+  await shot(page, "02-todo");
+
+  // detail: subtask + custom dropdown for repeat
+  await row.click();
+  await page.getByPlaceholder("Teilaufgabe hinzufügen").fill("Versicherungskarte");
+  await page.getByPlaceholder("Teilaufgabe hinzufügen").press("Enter");
+  await expect(row).toContainText("0/1");
+  await page.getByRole("button", { name: "Wiederholen" }).click();
+  await expect(page.getByRole("listbox", { name: "Wiederholen" })).toBeVisible();
+  await shot(page, "03-detail-dropdown");
+  await page.getByRole("option", { name: "Wöchentlich" }).click();
+  await expect(page.getByRole("button", { name: "Wiederholen" })).toContainText("Wöchentlich");
+  await page.getByRole("button", { name: "Schließen" }).click();
+
+  // completing moves the task to Have Done
+  await page.getByRole("checkbox", { name: "Milch kaufen" }).click();
+  await expect(page.getByRole("button", { name: /Milch kaufen/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Have Done" }).click();
+  await expect(page.getByRole("button", { name: /Milch kaufen/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Heute/ })).toBeVisible();
+  await page.locator("[data-quickadd]").fill("Sport gemacht // 5 km");
+  await page.locator("[data-quickadd]").press("Enter");
+  await expect(page.getByRole("button", { name: /Sport gemacht/ })).toContainText("5 km");
+  await shot(page, "04-have-done");
+
+  // reopening sends it back to Todo
+  await page.getByRole("checkbox", { name: "Sport gemacht" }).click();
+  await expect(page.getByRole("button", { name: /Sport gemacht/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Todo" }).click();
+  await expect(page.getByRole("button", { name: /Sport gemacht/ })).toBeVisible();
+
+  // calendar: the open deadline shows tomorrow, the completed one today with a check
+  await page.goto("/#/calendar");
+  await expect(page.getByRole("button", { name: /Zahnarzt/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Milch kaufen/ })).toBeVisible();
+  await shot(page, "05-calendar-month");
+
+  // tracker: connect in settings, then the paper plane appears in Have Done
+  await page.goto("/#/done");
+  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden" })).toHaveCount(0);
+  await page.goto("/#/settings");
+  await page.getByPlaceholder("https://").fill(tracker.url);
+  await page.getByLabel("Benutzername").fill("mat");
+  await page.getByLabel("Passwort", { exact: true }).fill("secret123");
+  await page.getByRole("button", { name: "Verbinden" }).click();
+  await expect(page.getByText("Verbunden", { exact: true })).toBeVisible();
+  await shot(page, "10-settings");
+  await page.goto("/#/done");
+  await page.getByRole("button", { name: "An Productivity-Tracker senden" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "+17 XP" })).toBeVisible();
+  expect(tracker.seen.map((s) => s.path)).toEqual(["/api/auth/login", "/api/auth/login", "/api/groq", "/api/tasks", "/api/tasks/x1/complete"]);
+  expect(tracker.seen[2].body.description).toContain("Milch kaufen");
+  await expect(page.getByRole("button", { name: "An Productivity-Tracker senden" })).toHaveCount(0);
+
+  // habits + pomodoro still work
+  await page.goto("/#/habits");
+  await page.getByRole("button", { name: "Neue Gewohnheit" }).first().click();
+  await page.getByRole("dialog").getByRole("textbox").first().fill("Wasser trinken");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("checkbox", { name: "Wasser trinken" }).click();
+  await page.goto("/#/pomodoro");
+  await expect(page.getByRole("timer")).toContainText("25:00");
+  await page.getByRole("button", { name: "Start" }).click();
+  await page.waitForTimeout(1300);
+  await expect(page.getByRole("timer")).not.toContainText("25:00");
+  await shot(page, "08-pomodoro");
+  await page.getByRole("button", { name: "Pause" }).first().click();
+
+  await page.goto("/#/settings");
+  await page.getByRole("button", { name: "Dunkel", exact: true }).click();
+  await page.goto("/#/todo");
+  await page.waitForTimeout(400);
+  await shot(page, "11-dark-todo");
+  expect(errors).toEqual([]);
+  tracker.close();
+});
+
+test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: "de-DE", timezoneId: "Europe/Berlin" });
   const page = await ctx.newPage();
   const errors: string[] = [];
@@ -99,52 +143,50 @@ test("mobile: chips, notes, swipes", async ({ browser }) => {
   await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
   await page.goto("/#/todo");
 
-  // chips instead of a dropdown, Todo is the first tab
-  await expect(page.getByRole("link", { name: "Todo" })).toBeVisible();
-  for (const n of ["Heute", "Alle", "Eingang"]) await expect(page.getByRole("tab", { name: n })).toBeVisible();
-  await page.getByRole("tab", { name: "Eingang" }).click();
-  await page.getByRole("button", { name: "Board" }).click();
-  await expect(page.getByRole("heading", { name: "Ohne Datum" })).toBeVisible();
-  await page.getByRole("button", { name: "Liste", exact: true }).click();
-  await page.getByRole("tab", { name: "Heute" }).click();
-
-  // quick add with a note after //
+  await expect(page.getByRole("navigation", { name: "Tabs" }).getByRole("link", { name: "Todo" })).toBeVisible();
   await page.locator("[data-quickadd]").fill("Heute Sport 18 Uhr // Trikot mitnehmen");
   await page.locator("[data-quickadd]").press("Enter");
   const row = page.getByRole("button", { name: /Sport/ }).first();
   await expect(row).toContainText("Heute 18:00");
   await expect(row).toContainText("Trikot mitnehmen");
-  await shot(page, "20-mobile-today");
+  await shot(page, "20-mobile-todo");
 
-  // tapping the note opens the sheet with the note focused
+  // note tap opens the sheet with the note focused
   await page.getByRole("button", { name: "Notiz" }).first().click();
   await expect(page.getByRole("textbox", { name: "Notiz" })).toBeFocused();
   await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue("Trikot mitnehmen");
-  await shot(page, "21-mobile-detail");
 
-  await page.waitForTimeout(500); // sheet slide-in animation
-  // drag the sheet handle down to dismiss
+  // custom dropdown instead of the native popup
+  await page.getByRole("button", { name: "Wiederholen" }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await shot(page, "21-mobile-dropdown");
+  await page.getByRole("option", { name: "Täglich" }).click();
+  await expect(page.getByRole("button", { name: "Wiederholen" })).toContainText("Täglich");
+
+  // drag the sheet down to close it
+  await page.waitForTimeout(500);
   await swipe(page, [195, 84], [195, 520]);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0, { timeout: 2000 });
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0, { timeout: 3000 });
 
-  // swipe the row right: completes it
+  // swipe the row right: done -> shows up in Have Done (a repeating task leaves a finished copy)
   const box = (await page.getByRole("button", { name: /Sport/ }).first().boundingBox())!;
   await swipe(page, [60, box.y + 20], [300, box.y + 20]);
-  await expect(page.getByRole("button", { name: /Sport/ })).toHaveCount(0, { timeout: 3000 });
+  await page.waitForTimeout(500);
+  await page.getByRole("tab", { name: "Have Done" }).click();
+  await expect(page.getByRole("button", { name: /Sport/ }).first()).toBeVisible();
+  await shot(page, "22-mobile-have-done");
 
   // edge swipe opens the menu, swipe back closes it
-  await swipe(page, [4, 400], [260, 405]);
   const nav = page.getByRole("navigation", { name: "Navigation" });
   const right = async () => { const b = (await nav.boundingBox())!; return Math.round(b.x + b.width); };
+  await swipe(page, [4, 400], [260, 405]);
   await expect.poll(right).toBeGreaterThan(280);
-  await shot(page, "22-mobile-drawer");
   await swipe(page, [250, 400], [20, 405]);
   await expect.poll(right).toBeLessThanOrEqual(2);
 
   // calendar: swiping moves time
   await page.goto("/#/calendar");
-  const title = page.locator("h1,[role=heading]").first();
+  const title = page.locator("[role=heading]").first();
   const before = await title.textContent();
   await swipe(page, [320, 400], [60, 400]);
   await expect(title).not.toHaveText(before!);

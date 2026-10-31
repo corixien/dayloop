@@ -1,5 +1,6 @@
-import { Check, X } from "lucide-react";
-import { type ButtonHTMLAttributes, type ReactNode, useEffect, useRef } from "react";
+import { Check, ChevronDown, X } from "lucide-react";
+import { type ButtonHTMLAttributes, type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export const COLORS: Record<string, string> = {
   gray: "#8d8d98", red: "#e5484d", orange: "#f76b15", amber: "#e5a50b", green: "#30a46c",
@@ -153,5 +154,104 @@ export function PageHeader({ title, children }: { title: ReactNode; children?: R
       )}
       <div className="flex shrink-0 items-center gap-1">{children}</div>
     </header>
+  );
+}
+
+/** Dayloop-style dropdown (replaces the native <select> popup): anchored listbox, keyboard and touch friendly. */
+export function Select<T extends string | number>({
+  value, options, onChange, label, placeholder, className, disabled,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  label: string;
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
+  const [active, setActive] = useState(0);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const current = options.find((o) => o.value === value);
+
+  const show = () => {
+    const r = btn.current!.getBoundingClientRect();
+    const need = Math.min(options.length * 36 + 8, 280);
+    const up = r.bottom + need + 8 > window.innerHeight && r.top > need;
+    setPos({ top: up ? r.top - 4 : r.bottom + 4, left: r.left, width: Math.max(r.width, 160), up });
+    setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    setOpen(true);
+  };
+  const close = () => { setOpen(false); btn.current?.focus(); };
+  const pick = (i: number) => { onChange(options[i].value); close(); };
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => { if (!list.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setOpen(false); };
+    const dismiss = () => setOpen(false);
+    document.addEventListener("pointerdown", away);
+    window.addEventListener("resize", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("scroll", dismiss, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) list.current?.children[active]?.scrollIntoView({ block: "nearest" });
+  }, [open, active]);
+
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        disabled={disabled}
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!open) show();
+            else setActive((a) => Math.max(0, Math.min(options.length - 1, a + (e.key === "ArrowDown" ? 1 : -1))));
+          } else if (open && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick(active); }
+          else if (open && e.key === "Escape") { e.stopPropagation(); close(); }
+        }}
+        className={cx(inputCls, "flex items-center justify-between gap-2 text-left disabled:opacity-50", className)}
+      >
+        <span className={cx("truncate", !current && "text-faint")}>{current?.label ?? placeholder ?? ""}</span>
+        <ChevronDown size={15} className={cx("shrink-0 text-muted transition-transform duration-200", open && "rotate-180")} />
+      </button>
+      {open && pos && createPortal(
+        <ul
+          ref={list}
+          role="listbox"
+          aria-label={label}
+          className="pop fixed z-[60] max-h-[280px] overflow-y-auto rounded-lg border border-line bg-raise p-1 shadow-xl"
+          style={{ left: pos.left, width: pos.width, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
+        >
+          {options.map((o, i) => (
+            <li
+              key={String(o.value)}
+              role="option"
+              aria-selected={o.value === value}
+              onMouseMove={() => setActive(i)}
+              onClick={() => pick(i)}
+              className={cx("flex h-9 cursor-default items-center justify-between gap-2 rounded-md px-2.5 text-[13px]", i === active && "bg-hover", o.value === value && "font-medium text-accent")}
+            >
+              <span className="truncate">{o.label}</span>
+              {o.value === value && <Check size={14} />}
+            </li>
+          ))}
+        </ul>,
+        document.body,
+      )}
+    </>
   );
 }

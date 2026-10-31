@@ -9,11 +9,10 @@ interface Cmd {
   run: () => void;
 }
 
-/** Ctrl/Cmd+K: jump to any view, list or task. */
+/** Ctrl/Cmd+K: jump to any view or task. */
 export function CommandPalette({ onClose, onOpenTask }: { onClose: () => void; onOpenTask: (id: string) => void }) {
   const t = useT();
   const tasks = useItems("task");
-  const lists = useItems("list");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -25,17 +24,15 @@ export function CommandPalette({ onClose, onOpenTask }: { onClose: () => void; o
   };
   const all = useMemo<Cmd[]>(() => {
     const nav: Cmd[] = [
-      ["/inbox", t("inbox")], ["/today", t("today")], ["/next7", t("next7")], ["/all", t("all")], ["/done", t("done")], ["/trash", t("trash")],
-      ["/calendar", t("calendar")], ["/habits", t("habits")], ["/pomodoro", t("pomodoro")], ["/matrix", t("matrix")], ["/settings", t("settings")],
+      ["/todo", t("todoTab")], ["/done", t("haveDone")], ["/calendar", t("calendar")], ["/habits", t("habits")], ["/pomodoro", t("pomodoro")], ["/trash", t("trash")], ["/settings", t("settings")],
     ].map(([to, label]) => ({ id: to, label, hint: t("goTo"), run: go(to) }));
     return [
       ...nav,
-      ...lists.map((l) => ({ id: l.id, label: l.name, hint: t("lists"), run: go(`/list/${l.id}`) })),
       ...tasks.filter((x) => x.trashedAt === null).map((x) => ({
         id: x.id, label: x.title, hint: t("tasks"), run: () => { onOpenTask(x.id); onClose(); },
       })),
     ];
-  }, [tasks, lists, t]);
+  }, [tasks, t]);
 
   const needle = q.trim().toLowerCase();
   const results = (needle ? all.filter((c) => c.label.toLowerCase().includes(needle)) : all.slice(0, 11)).slice(0, 30);

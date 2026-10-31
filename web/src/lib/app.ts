@@ -73,7 +73,7 @@ export function useTheme(theme: Settings["theme"]) {
 }
 
 export function useHashRoute(): [string, (r: string) => void] {
-  const get = () => location.hash.replace(/^#/, "") || "/today";
+  const get = () => location.hash.replace(/^#/, "") || "/todo";
   const [route, setRoute] = useState(get);
   useEffect(() => {
     const on = () => setRoute(get());

@@ -4,7 +4,7 @@ import type { Repeat } from "@dayloop/shared";
 import { local, uid, useItems, useLang, useT } from "../lib/app";
 import { weekdayNames } from "../lib/dates";
 import { deleteTaskForever, restoreTask, toggleDone, trashTask } from "../lib/tasks";
-import { Button, Check_, Field, IconButton, Segmented, cx, inputCls } from "./ui";
+import { Button, Check_, Field, IconButton, Segmented, Select, cx, inputCls } from "./ui";
 
 const REMINDER_OPTIONS = [
   { v: 0, k: "atDue" }, { v: 5, k: "before5" }, { v: 30, k: "before30" }, { v: 60, k: "before1h" }, { v: 1440, k: "before1d" },
@@ -13,7 +13,7 @@ const REMINDER_OPTIONS = [
 /** Edits are written on blur / change, not per keystroke, so sync does not churn. */
 function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, () => void] {
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  useEffect(() => { setDraft(value); }, [value]);
   return [draft, setDraft, () => draft !== value && commit(draft)];
 }
 
@@ -21,7 +21,6 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
   const t = useT();
   const lang = useLang();
   const tasks = useItems("task");
-  const lists = useItems("list");
   const task = tasks.find((x) => x.id === id);
   const patch = (p: object) => local.patch("task", id, p as any);
 
@@ -39,6 +38,11 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
   const wdOrder = [1, 2, 3, 4, 5, 6, 0];
   const repeat = task.repeat;
   const setRepeat = (r: Repeat | null) => patch({ repeat: r });
+  const freqOptions = [
+    { value: "", label: t("noRepeat") },
+    ...(["daily", "weekly", "monthly", "yearly"] as const).map((f) => ({ value: f as string, label: t(f) })),
+  ];
+  const reminderOptions = REMINDER_OPTIONS.filter((o) => !task.reminders.some((r) => r.offsetMin === o.v)).map((o) => ({ value: o.v, label: t(o.k) }));
 
   return (
     <aside className="flex h-full flex-col bg-bg">
@@ -83,14 +87,16 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
           className="min-h-16 w-full resize-none rounded-ctl border border-line bg-raise p-2.5 text-[14px] placeholder:text-faint focus:border-accent"
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("dueDate")}>
-            <input type="date" className={inputCls} value={task.dueDate ?? ""} onChange={(e) => patch({ dueDate: e.target.value || null, dueTime: e.target.value ? task.dueTime : null })} />
-          </Field>
-          <Field label={t("dueTime")}>
-            <input type="time" className={inputCls} disabled={!task.dueDate} value={task.dueTime ?? ""} onChange={(e) => patch({ dueTime: e.target.value || null })} />
-          </Field>
-        </div>
+        {!task.done && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("dueDate")}>
+              <input type="date" className={inputCls} value={task.dueDate ?? ""} onChange={(e) => patch({ dueDate: e.target.value || null, dueTime: e.target.value ? task.dueTime : null })} />
+            </Field>
+            <Field label={t("dueTime")}>
+              <input type="time" className={inputCls} disabled={!task.dueDate} value={task.dueTime ?? ""} onChange={(e) => patch({ dueTime: e.target.value || null })} />
+            </Field>
+          </div>
+        )}
 
         <Field label={t("priority")}>
           <Segmented
@@ -105,85 +111,80 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
           />
         </Field>
 
-        <Field label={t("list")}>
-          <select className={inputCls} value={task.listId ?? ""} onChange={(e) => patch({ listId: e.target.value || null, columnId: null })}>
-            <option value="">{t("inbox")}</option>
-            {lists.filter((l) => !l.archived).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        </Field>
-
-        <Field label={t("repeat")}>
-          <div className="space-y-2">
-            <select
-              className={inputCls}
-              value={repeat?.freq ?? ""}
-              onChange={(e) => {
-                const freq = e.target.value as Repeat["freq"] | "";
-                if (!freq) return setRepeat(null);
-                setRepeat({ freq, interval: repeat?.interval ?? 1, byWeekday: freq === "weekly" ? repeat?.byWeekday : undefined, until: repeat?.until, fromCompletion: repeat?.fromCompletion });
-              }}
-            >
-              <option value="">{t("noRepeat")}</option>
-              {(["daily", "weekly", "monthly", "yearly"] as const).map((f) => <option key={f} value={f}>{t(f)}</option>)}
-            </select>
-            {repeat && (
-              <div className="space-y-2 rounded-ctl border border-line p-2.5">
-                <div className="flex items-center gap-2 text-[13px]">
-                  <span className="text-muted">{t("every")}</span>
-                  <input type="number" min={1} max={365} className={cx(inputCls, "w-16")} value={repeat.interval} onChange={(e) => setRepeat({ ...repeat, interval: Math.max(1, Number(e.target.value) || 1) })} />
-                  <span className="text-muted">{t(({ daily: "intervalDays", weekly: "intervalWeeks", monthly: "intervalMonths", yearly: "intervalYears" } as const)[repeat.freq])}</span>
-                </div>
-                {repeat.freq === "weekly" && (
-                  <div className="flex gap-1">
-                    {wdOrder.map((d, i) => {
-                      const on = repeat.byWeekday?.includes(d);
-                      return (
-                        <button
-                          key={d}
-                          onClick={() => {
-                            const cur = new Set(repeat.byWeekday ?? []);
-                            on ? cur.delete(d) : cur.add(d);
-                            setRepeat({ ...repeat, byWeekday: cur.size ? [...cur].sort() : undefined });
-                          }}
-                          className={cx("h-7 flex-1 rounded text-xs ring-1", on ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}
-                        >
-                          {names[i]}
-                        </button>
-                      );
-                    })}
+        {!task.done && (
+          <>
+            <div className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">{t("repeat")}</span>
+              <div className="space-y-2">
+                <Select
+                  label={t("repeat")}
+                  value={repeat?.freq ?? ""}
+                  options={freqOptions}
+                  onChange={(v) => {
+                    if (!v) return setRepeat(null);
+                    const freq = v as Repeat["freq"];
+                    setRepeat({ freq, interval: repeat?.interval ?? 1, byWeekday: freq === "weekly" ? repeat?.byWeekday : undefined, until: repeat?.until, fromCompletion: repeat?.fromCompletion });
+                  }}
+                />
+                {repeat && (
+                  <div className="space-y-2 rounded-ctl border border-line p-2.5">
+                    <div className="flex items-center gap-2 text-[13px]">
+                      <span className="text-muted">{t("every")}</span>
+                      <input type="number" min={1} max={365} className={cx(inputCls, "w-16")} value={repeat.interval} onChange={(e) => setRepeat({ ...repeat, interval: Math.max(1, Number(e.target.value) || 1) })} />
+                      <span className="text-muted">{t(({ daily: "intervalDays", weekly: "intervalWeeks", monthly: "intervalMonths", yearly: "intervalYears" } as const)[repeat.freq])}</span>
+                    </div>
+                    {repeat.freq === "weekly" && (
+                      <div className="flex gap-1">
+                        {wdOrder.map((d, i) => {
+                          const on = repeat.byWeekday?.includes(d);
+                          return (
+                            <button
+                              key={d}
+                              onClick={() => {
+                                const cur = new Set(repeat.byWeekday ?? []);
+                                on ? cur.delete(d) : cur.add(d);
+                                setRepeat({ ...repeat, byWeekday: cur.size ? [...cur].sort() : undefined });
+                              }}
+                              className={cx("h-8 flex-1 rounded text-xs ring-1", on ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}
+                            >
+                              {names[i]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 text-[13px]">
+                      <input type="checkbox" checked={!!repeat.fromCompletion} onChange={(e) => setRepeat({ ...repeat, fromCompletion: e.target.checked })} />
+                      {t("fromCompletion")}
+                    </label>
                   </div>
                 )}
-                <label className="flex items-center gap-2 text-[13px]">
-                  <input type="checkbox" checked={!!repeat.fromCompletion} onChange={(e) => setRepeat({ ...repeat, fromCompletion: e.target.checked })} />
-                  {t("fromCompletion")}
-                </label>
-                <Field label={t("until")}>
-                  <input type="date" className={inputCls} value={repeat.until ?? ""} onChange={(e) => setRepeat({ ...repeat, until: e.target.value || null })} />
-                </Field>
               </div>
-            )}
-          </div>
-        </Field>
+            </div>
 
-        <Field label={t("reminders")}>
-          <div className="space-y-1.5">
-            {task.reminders.map((r, i) => (
-              <div key={i} className="flex items-center justify-between rounded-ctl border border-line px-2.5 py-1 text-[13px]">
-                {t(REMINDER_OPTIONS.find((o) => o.v === r.offsetMin)?.k ?? "atDue")}
-                <IconButton label={t("delete")} className="size-6" onClick={() => patch({ reminders: task.reminders.filter((_, j) => j !== i) })}><X size={13} /></IconButton>
+            <div className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">{t("reminders")}</span>
+              <div className="space-y-1.5">
+                {task.reminders.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-ctl border border-line px-2.5 py-1 text-[13px]">
+                    {t(REMINDER_OPTIONS.find((o) => o.v === r.offsetMin)?.k ?? "atDue")}
+                    <IconButton label={t("delete")} className="size-6" onClick={() => patch({ reminders: task.reminders.filter((_, j) => j !== i) })}><X size={13} /></IconButton>
+                  </div>
+                ))}
+                {reminderOptions.length > 0 && (
+                  <Select
+                    label={t("addReminder")}
+                    disabled={!task.dueDate}
+                    value={-1}
+                    placeholder={`+ ${t("addReminder")}`}
+                    options={reminderOptions}
+                    onChange={(v) => patch({ reminders: [...task.reminders, { offsetMin: v }] })}
+                  />
+                )}
               </div>
-            ))}
-            <select
-              className={inputCls}
-              disabled={!task.dueDate}
-              value=""
-              onChange={(e) => e.target.value !== "" && patch({ reminders: [...task.reminders, { offsetMin: Number(e.target.value) }] })}
-            >
-              <option value="">+ {t("addReminder")}</option>
-              {REMINDER_OPTIONS.filter((o) => !task.reminders.some((r) => r.offsetMin === o.v)).map((o) => <option key={o.v} value={o.v}>{t(o.k)}</option>)}
-            </select>
-          </div>
-        </Field>
+            </div>
+          </>
+        )}
 
         <Field label={t("subtasks")}>
           <div className="space-y-1">
@@ -214,10 +215,6 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
               />
             </div>
           </div>
-        </Field>
-
-        <Field label={t("estimate")}>
-          <input type="number" min={0} max={100} className={cx(inputCls, "w-20")} value={task.estimate} onChange={(e) => patch({ estimate: Math.max(0, Number(e.target.value) || 0) })} />
         </Field>
 
         {trashed && <Button variant="danger" onClick={() => { void deleteTaskForever(id); onClose(); }}>{t("deleteForever")}</Button>}

@@ -8,9 +8,9 @@ const NOW = new Date(2026, 9, 28, 10, 0);
 
 describe("quick add", () => {
   it("parses german", () => {
-    const p = parseQuickAdd("Zahnarzt morgen 15 Uhr !1 ~Gesundheit", NOW);
+    const p = parseQuickAdd("Zahnarzt morgen 15 Uhr !1", NOW);
     expect(p).toMatchObject({
-      title: "Zahnarzt", dueDate: "2026-10-29", dueTime: "15:00", priority: 3, list: "Gesundheit",
+      title: "Zahnarzt", dueDate: "2026-10-29", dueTime: "15:00", priority: 3,
     });
   });
   it("parses english, weekdays and repeats", () => {

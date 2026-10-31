@@ -20,11 +20,12 @@ const ACTION_AT = 96;
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 export function TaskRow({
-  task, selected, listName, onSelect, draggable, onDragStart,
+  task, selected, meta, onSelect, draggable, onDragStart,
 }: {
   task: TaskItem;
   selected: boolean;
-  listName?: string;
+  /** small trailing text in the meta line, e.g. completion time */
+  meta?: string;
   onSelect: (focus?: "notes") => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -132,7 +133,7 @@ export function TaskRow({
                 <span className="truncate">{noteLine}</span>
               </button>
             )}
-            {(due || task.subtasks.length > 0 || task.repeat || listName) && (
+            {(due || task.subtasks.length > 0 || task.repeat || meta) && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
                 {due && <span className={cx(due.overdue && "text-danger")}>{due.text}</span>}
                 {task.repeat && <Repeat size={12} aria-label="repeat" />}
@@ -143,7 +144,7 @@ export function TaskRow({
                     {subDone}/{task.subtasks.length}
                   </span>
                 )}
-                {listName && <span className="text-faint">{listName}</span>}
+                {meta && <span className="text-faint">{meta}</span>}
               </div>
             )}
           </div>

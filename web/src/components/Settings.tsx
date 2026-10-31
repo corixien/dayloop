@@ -2,6 +2,7 @@ import { Copy, Download, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { local, saveSettings, syncClient, uid, useItems, useSettings, useSyncStatus, useT } from "../lib/app";
 import { parseTickTickCsv } from "../lib/importTick";
+import { type TrackerConfig, TrackerError, clearTracker, getTracker, saveTracker, trackerLogin } from "../lib/tracker";
 import { tasksToIcs } from "../lib/ics";
 import { Button, Field, PageHeader, Segmented, inputCls } from "./ui";
 import { AuthPanel } from "./AuthPanel";
@@ -40,25 +41,9 @@ export function Settings() {
   async function importCsv(f: File) {
     try {
       const rows = parseTickTickCsv(await f.text());
-      const lists = new Map((await local.all("list")).map((l) => [l.name.toLowerCase(), l.id]));
-      const folders = new Map((await local.all("folder")).map((x) => [x.name.toLowerCase(), x.id]));
       for (const r of rows) {
-        let listId: string | null = null;
-        if (r.list) {
-          listId = lists.get(r.list.toLowerCase()) ?? null;
-          if (!listId) {
-            let folderId: string | null = null;
-            if (r.folder) {
-              folderId = folders.get(r.folder.toLowerCase()) ?? null;
-              if (!folderId) { folderId = uid(); await local.put("folder", folderId, { name: r.folder, order: Date.now() }); folders.set(r.folder.toLowerCase(), folderId); }
-            }
-            listId = uid();
-            await local.put("list", listId, { name: r.list, folderId, order: Date.now() });
-            lists.set(r.list.toLowerCase(), listId);
-          }
-        }
         await local.put("task", uid(), {
-          title: r.title, notes: r.notes, listId, priority: r.priority, dueDate: r.dueDate, dueTime: r.dueTime,
+          title: r.title, notes: r.notes, priority: r.priority, dueDate: r.dueDate, dueTime: r.dueTime,
           done: r.done, completedAt: r.completedAt, repeat: r.repeat, reminders: r.reminders, order: Date.now(),
           subtasks: r.subtasks.map((x) => ({ id: uid(), ...x })),
         });
@@ -108,25 +93,14 @@ export function Settings() {
             <Field label={t("weekStart")}><Segmented value={s.weekStart} onChange={(v) => void saveSettings({ weekStart: v })} options={[{ value: 1, label: t("monday") }, { value: 0, label: t("sunday") }]} /></Field>
           </Section>
 
-          <Section title={t("defaultLists")}>
-            <p className="text-[13px] text-muted">{t("restoreHint")}</p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {(["today", "all", "inbox"] as const).map((k) => (
-                <label key={k} className="flex items-center gap-2 text-[13px]">
-                  <input type="checkbox" checked={!s.hiddenSmart.includes(k)}
-                    onChange={(e) => void saveSettings({ hiddenSmart: e.target.checked ? s.hiddenSmart.filter((x) => x !== k) : [...s.hiddenSmart, k] })} />
-                  {t(k)}
-                </label>
-              ))}
-            </div>
-          </Section>
-
           <Section title={t("notifications")}>
             <Field label={t("defaultReminderHour")}><input type="number" min={0} max={23} className={`${inputCls} w-20`} value={s.defaultReminderHour} onChange={(e) => void saveSettings({ defaultReminderHour: num(e.target.value, 0, 23) })} /></Field>
             {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
               <Button onClick={() => void Notification.requestPermission().then(() => setMsg(""))}>{t("enableNotifications")}</Button>
             )}
           </Section>
+
+          <TrackerSection />
 
           {syncClient.session && <Tokens />}
 
@@ -136,7 +110,7 @@ export function Settings() {
               <Button onClick={() => download("dayloop.ics", tasksToIcs(tasks), "text/calendar")}><Download size={14} /> {t("exportIcs")}</Button>
               <Button onClick={async () => {
                 const dump: Record<string, unknown[]> = {};
-                for (const ty of ["folder", "list", "task", "habit", "habitlog", "pomodoro", "settings"] as const) dump[ty] = await local.all(ty);
+                for (const ty of ["task", "habit", "habitlog", "pomodoro", "settings"] as const) dump[ty] = await local.all(ty);
                 download("dayloop.json", JSON.stringify(dump, null, 2), "application/json");
               }}><Download size={14} /> {t("exportJson")}</Button>
             </div>
@@ -183,6 +157,47 @@ function Tokens() {
           <Button variant="danger" onClick={async () => { await syncClient.api(`/api/tokens/${r.id}`, { method: "DELETE" }); void load(); }}><Trash2 size={14} /> {t("revoke")}</Button>
         </div>
       ))}
+    </Section>
+  );
+}
+
+function TrackerSection() {
+  const t = useT();
+  const [cfg, setCfg] = useState<TrackerConfig>(() => getTracker() ?? { url: "", username: "", password: "" });
+  const [connected, setConnected] = useState(() => !!getTracker());
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function connect() {
+    setBusy(true);
+    setMsg("");
+    try {
+      const c = { ...cfg, url: cfg.url.trim().replace(/\/+$/, "") };
+      await trackerLogin(c);
+      saveTracker(c);
+      setConnected(true);
+      setMsg(t("trackerConnected"));
+    } catch (e) {
+      const code = e instanceof TrackerError ? e.code : "other";
+      setMsg(code === "auth" ? t("trackerErrAuth") : code === "network" ? t("trackerErrNet") : t("trackerErr"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title={t("tracker")}>
+      <p className="text-[13px] text-muted">{t("trackerHelp")}</p>
+      <Field label={t("trackerUrl")}><input className={inputCls} value={cfg.url} placeholder="https://" autoCapitalize="none" onChange={(e) => setCfg({ ...cfg, url: e.target.value })} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={t("trackerUser")}><input className={inputCls} value={cfg.username} autoCapitalize="none" autoComplete="off" onChange={(e) => setCfg({ ...cfg, username: e.target.value })} /></Field>
+        <Field label={t("trackerPass")}><input type="password" className={inputCls} value={cfg.password} autoComplete="off" onChange={(e) => setCfg({ ...cfg, password: e.target.value })} /></Field>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="primary" disabled={busy || !cfg.url || !cfg.username || !cfg.password} onClick={() => void connect()}>{t("trackerConnect")}</Button>
+        {connected && <Button variant="danger" onClick={() => { clearTracker(); setConnected(false); setCfg({ url: "", username: "", password: "" }); setMsg(""); }}>{t("trackerRemove")}</Button>}
+        {msg && <span role="status" className="text-[13px] text-muted">{msg}</span>}
+      </div>
     </Section>
   );
 }

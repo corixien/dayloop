@@ -4,30 +4,20 @@ import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT
 import { pomo, usePomo } from "./lib/pomoStore";
 import { useReminders } from "./lib/useReminders";
 import { useWidgetSync } from "./lib/widget";
-import type { View } from "./lib/tasks";
 import { AuthPanel } from "./components/AuthPanel";
 import { Calendar } from "./components/Calendar";
 import { CommandPalette } from "./components/CommandPalette";
 import { Habits } from "./components/Habits";
-import { Matrix } from "./components/Matrix";
+import { Trash } from "./components/Trash";
+import { HaveDone } from "./components/HaveDone";
+import { TodoView } from "./components/TodoView";
 import { Pomodoro, fmtClock } from "./components/Pomodoro";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
-import { TaskView } from "./components/TaskView";
-import { TodoPage } from "./components/TodoPage";
 import { Drawer } from "./components/Drawer";
 import { Sheet } from "./components/Sheet";
 import { Button, Dialog, cx } from "./components/ui";
-
-const SMART = ["inbox", "today", "next7", "all", "done", "trash"] as const;
-
-function parseView(route: string): View | null {
-  const [, a, b] = route.split("/");
-  if ((SMART as readonly string[]).includes(a)) return { kind: "smart", id: a as (typeof SMART)[number] };
-  if (a === "list" && b) return { kind: "list", id: b };
-  return null;
-}
 
 function Welcome({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -87,26 +77,24 @@ export default function App() {
   }, []);
 
   const closeWelcome = () => { localStorage.setItem("dl_welcomed", "1"); setWelcome(false); };
-  const view = parseView(route);
-  const page = route.split("/")[1];
-  const hasDetail = selected !== null && page !== "settings" && page !== "pomodoro" && page !== "habits";
+  const page = route.split("/")[1] || "todo";
+  const hasDetail = selected !== null && ["todo", "done", "calendar", "trash"].includes(page);
 
   const tabs = [
-    { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab") },
+    { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab"), also: "/done" },
     { to: "/calendar", icon: <CalIcon size={19} />, label: t("calendar") },
     { to: "/habits", icon: <Flame size={19} />, label: t("habits") },
     { to: "/pomodoro", icon: <Timer size={19} />, label: t("pomodoro") },
   ];
 
   let main;
-  if (view) main = <TaskView view={view} selectedId={selected} onSelect={select} />;
-  else if (page === "todo") main = <TodoPage selectedId={selected} onSelect={select} openMenu={() => setDrawer(true)} />;
+  if (page === "done") main = <HaveDone selectedId={selected} onSelect={select} />;
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro") main = <Pomodoro />;
-  else if (page === "matrix") main = <Matrix selectedId={selected} onSelect={select} />;
   else if (page === "settings") main = <Settings />;
-  else main = <TaskView view={{ kind: "smart", id: "today" }} selectedId={selected} onSelect={select} />;
+  else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;
+  else main = <TodoView selectedId={selected} onSelect={select} />;
 
   return (
     <div className="flex h-dvh overflow-hidden bg-bg text-fg">
@@ -121,8 +109,8 @@ export default function App() {
         <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
         <nav className="grid shrink-0 grid-cols-5 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (
-            <a key={x.to} href={`#${x.to}`} aria-current={route === x.to ? "page" : undefined}
-              className={cx("flex h-14 flex-col items-center justify-center gap-0.5 text-[10px]", route === x.to ? "text-accent" : "text-muted")}>
+            <a key={x.to} href={`#${x.to}`} aria-current={route === x.to || route === (x as { also?: string }).also ? "page" : undefined}
+              className={cx("flex h-14 flex-col items-center justify-center gap-0.5 text-[10px]", route === x.to || route === (x as { also?: string }).also ? "text-accent" : "text-muted")}>
               {x.icon}{x.label}
             </a>
           ))}
@@ -146,7 +134,7 @@ export default function App() {
           <Timer size={14} className="text-accent" /> {fmtClock(left)}
         </a>
       )}
-      {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!view && page !== "calendar" && page !== "matrix") go("/all"); setSelected(id); }} />}
+      {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
       {welcome && <Welcome onClose={closeWelcome} />}
       {status === "error" && null}
     </div>

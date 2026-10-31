@@ -1,6 +1,6 @@
 # Dayloop
 
-Tasks, habits, calendar and pomodoro in one app. Web and Android, offline-first, synced. Claude can read and change your data through an MCP server.
+One todo list with deadlines, a Have Done list, calendar, habits and pomodoro in one app. Web and Android, offline-first, synced. Claude can read and change your data through an MCP server.
 
 ## Run locally
 ```bash
@@ -33,3 +33,6 @@ Features: native reminders (alarms survive restarts), home screen widget "Heute"
 
 ## E2E
 `npm run build -w web && npm run dev:local` (PORT=3100) then `npx playwright test` (uses installed Chrome).
+
+## Productivity-Tracker
+Settings > Productivity-Tracker: enter the tracker URL and your account. Have Done then shows a paper plane per day; it sends that day's finished entries to the tracker's AI, which creates and completes one task with XP. Credentials stay on the device.

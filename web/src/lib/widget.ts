@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { local, useSettings } from "./app";
 import { todayStr } from "./dates";
 import { isNative } from "./native";
-import { compareTasks, matches } from "./tasks";
+import { compareTasks, isOpen } from "./tasks";
 
 const MAX = 6;
 
@@ -16,12 +16,12 @@ export function useWidgetSync() {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         const today = todayStr();
-        const open = (await local.all("task")).filter((t) => matches(t, { kind: "smart", id: "today" }, today)).sort(compareTasks);
+        const open = (await local.all("task")).filter(isOpen).sort(compareTasks);
         const { registerPlugin } = await import("@capacitor/core");
         const w = registerPlugin<{ update(o: object): Promise<void> }>("DayloopWidget");
         await w.update({
-          title: lang === "de" ? "Heute" : "Today",
-          items: open.slice(0, MAX).map((t) => (t.dueTime ? `${t.dueTime}  ${t.title}` : t.title)),
+          title: "Todo",
+          items: open.slice(0, MAX).map((t) => (t.dueDate && t.dueDate <= today ? `${t.dueTime ?? ""}  ${t.title}`.trim() : t.dueDate ? `${t.dueDate.slice(8)}.${t.dueDate.slice(5, 7)}.  ${t.title}` : t.title)),
           more: Math.max(0, open.length - MAX),
         });
       }, 800);

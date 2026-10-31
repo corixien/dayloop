@@ -1,10 +1,10 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { local, useItems, useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, addMonths, fmtLong, fmtMonth, monthGrid, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
 import { occurrences } from "../lib/repeat";
 import { useSwipe } from "../lib/swipe";
-import { type TaskItem, addTask } from "../lib/tasks";
+import { type TaskItem, addTask, doneDay } from "../lib/tasks";
 import { Button, Dialog, IconButton, PageHeader, Segmented, cx, inputCls } from "./ui";
 
 type Mode = "month" | "week" | "day";
@@ -19,13 +19,16 @@ const prioColor = (p: number) => (p === 3 ? "var(--color-p3)" : p === 2 ? "var(-
 function Chip({ ev, onSelect, selected }: { ev: Ev; onSelect: (id: string) => void; selected: boolean }) {
   return (
     <button
-      draggable
+      draggable={!ev.task.done}
       onDragStart={(e) => e.dataTransfer.setData("text/task", ev.task.id)}
       onClick={(e) => { e.stopPropagation(); onSelect(ev.task.id); }}
-      className={cx("flex w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-1 ring-accent" : "", ev.task.done && "opacity-50 line-through")}
-      style={{ background: `color-mix(in srgb, ${prioColor(ev.task.priority)} 14%, transparent)`, color: "var(--fg)", borderLeft: `2px solid ${prioColor(ev.task.priority)}` }}
+      className={cx("flex w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-1 ring-accent" : "")}
+      style={ev.task.done
+        ? { background: "var(--hover)", color: "var(--muted)", borderLeft: "2px solid var(--faint)" }
+        : { background: `color-mix(in srgb, ${prioColor(ev.task.priority)} 14%, transparent)`, color: "var(--fg)", borderLeft: `2px solid ${prioColor(ev.task.priority)}` }}
     >
-      {ev.task.dueTime && <span className="text-muted">{ev.task.dueTime}</span>}
+      {ev.task.done && <Check size={10} className="shrink-0" />}
+      {!ev.task.done && ev.task.dueTime && <span className="text-muted">{ev.task.dueTime}</span>}
       <span className="truncate">{ev.task.title}</span>
     </button>
   );
@@ -57,11 +60,17 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
     const map = new Map<string, Ev[]>();
     const push = (task: TaskItem, date: string) => map.set(date, [...(map.get(date) ?? []), { task, date }]);
     for (const task of tasks) {
-      if (!task.dueDate || task.trashedAt !== null) continue;
-      if (task.repeat && !task.done) occurrences(task.dueDate, task.repeat, from, to).forEach((d) => push(task, d));
-      else if (task.dueDate >= from && task.dueDate <= to) push(task, task.dueDate);
+      if (task.trashedAt !== null) continue;
+      if (task.done) {
+        // a finished task leaves its deadline and shows up on the day it was completed
+        const d = doneDay(task);
+        if (d >= from && d <= to) push(task, d);
+      } else if (task.dueDate) {
+        if (task.repeat) occurrences(task.dueDate, task.repeat, from, to).forEach((d) => push(task, d));
+        else if (task.dueDate >= from && task.dueDate <= to) push(task, task.dueDate);
+      }
     }
-    for (const v of map.values()) v.sort((a, b) => (a.task.dueTime ?? "").localeCompare(b.task.dueTime ?? ""));
+    for (const v of map.values()) v.sort((a, b) => Number(a.task.done) - Number(b.task.done) || (a.task.dueTime ?? "").localeCompare(b.task.dueTime ?? ""));
     return map;
   }, [tasks, days]);
 
@@ -137,7 +146,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
               <div key={d} className="flex-1 border-l border-line px-1 py-1.5">
                 <div className={cx("text-center text-xs", d === today ? "font-semibold text-accent" : "text-muted")}>{fmtLong(d, lang)}</div>
                 <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={() => setCreate({ date: d, time: null })}>
-                  {(events.get(d) ?? []).filter((e) => !e.task.dueTime).map((ev) => <Chip key={ev.task.id} ev={ev} onSelect={onSelect} selected={selectedId === ev.task.id} />)}
+                  {(events.get(d) ?? []).filter((e) => e.task.done || !e.task.dueTime).map((ev) => <Chip key={ev.task.id} ev={ev} onSelect={onSelect} selected={selectedId === ev.task.id} />)}
                 </div>
               </div>
             ))}
@@ -150,7 +159,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
                 ))}
               </div>
               {days.map((d) => {
-                const evs = (events.get(d) ?? []).filter((e) => e.task.dueTime);
+                const evs = (events.get(d) ?? []).filter((e) => !e.task.done && e.task.dueTime);
                 return (
                   <div
                     key={d}

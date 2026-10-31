@@ -4,7 +4,7 @@ import { useItems, useNow, useSettings, useT } from "../lib/app";
 import { addDays, fmtDate, todayStr, weekdayNames } from "../lib/dates";
 import { type Phase } from "../lib/pomo";
 import { pomo, usePomo } from "../lib/pomoStore";
-import { Button, PageHeader, Segmented, cx, inputCls } from "./ui";
+import { Button, PageHeader, Segmented, Select, cx } from "./ui";
 
 export const fmtClock = (ms: number) => {
   const s = Math.ceil(ms / 1000);
@@ -74,10 +74,14 @@ export function Pomodoro() {
             )}
             <Button className="size-10 px-0" onClick={() => pomo.skip()} aria-label={t("skip")} title={t("skip")}><SkipForward size={16} /></Button>
           </div>
-          <select className={cx(inputCls, "max-w-xs")} value={state.taskId ?? ""} onChange={(e) => pomo.setTask(e.target.value || null)} aria-label={t("noTaskLinked")}>
-            <option value="">{t("noTaskLinked")}</option>
-            {tasks.map((x) => <option key={x.id} value={x.id}>{x.title}{x.estimate ? ` (${stats.byTask.get(x.id) ?? 0}/${x.estimate})` : ""}</option>)}
-          </select>
+          <div className="w-full max-w-xs">
+            <Select
+              label={t("noTaskLinked")}
+              value={state.taskId ?? ""}
+              options={[{ value: "", label: t("noTaskLinked") }, ...tasks.map((x) => ({ value: x.id, label: x.title }))]}
+              onChange={(v) => pomo.setTask(v || null)}
+            />
+          </div>
           {linked && <p className="-mt-3 text-xs text-muted">{stats.byTask.get(linked.id) ?? 0} {t("sessions")}</p>}
 
           <div className="grid w-full grid-cols-2 gap-2 text-center">
