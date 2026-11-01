@@ -1,7 +1,7 @@
 import { Check, ChevronLeft, ChevronRight, Flame, ListChecks } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { local, useItems, useLang, useNow, useSettings, useT } from "../lib/app";
-import { addDays, addMonths, fmtDate, fmtLong, fmtMonth, monthGrid, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
+import { addDays, addMonths, fmtDate, fmtLong, fmtMonth, monthGrid, parseDate, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
 import { habitCounts } from "../lib/habits";
 import { doneItems } from "../lib/notes";
 import { occurrences } from "../lib/repeat";
@@ -176,7 +176,11 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
           const head = (events.get(d) ?? []).filter((e) => e.habit || (!e.timing && !e.task?.dueTime));
           return (
             <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5">
-              <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full truncate text-center text-xs", d === today ? "font-semibold text-accent" : "text-muted")}>{fmtLong(d, lang)}</button>
+              <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full text-center text-xs leading-tight", d === today ? "font-semibold text-accent" : "text-muted")}>
+                {mode === "week"
+                  ? <><span className="block">{new Intl.DateTimeFormat(lang, { weekday: "short" }).format(parseDate(d))}</span><span className="block text-sm tabular-nums">{Number(d.slice(8))}</span></>
+                  : <span className="block truncate">{fmtLong(d, lang)}</span>}
+              </button>
               <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={(e) => (mode === "week" ? onZoom("day", d, e.currentTarget.parentElement!) : onCreate({ date: d, time: null }))}>
                 {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
