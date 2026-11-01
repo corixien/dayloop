@@ -307,7 +307,44 @@ test("regressions: note autosave, priority label, completions in calendar, habit
   // custom focus length
   await page.goto("/#/pomodoro");
   await page.getByRole("button", { name: "Eigene" }).click();
-  await page.getByRole("textbox").or(page.getByRole("spinbutton")).first().fill("7");
+  const minutes = page.getByRole("textbox", { name: "Eigene Zeit (Minuten)" });
+  await minutes.fill("");
+  await expect(page.getByRole("button", { name: "Übernehmen" })).toBeDisabled();
+  await minutes.fill("7");
   await page.getByRole("button", { name: "Übernehmen" }).click();
   await expect(page.getByRole("timer")).toContainText("07:00");
+});
+
+test("dropdown scrolls by touch", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  for (let i = 1; i <= 12; i++) await addVia(page, "todo", `Aufgabe ${i}`);
+  await page.goto("/#/pomodoro");
+  await page.getByRole("button", { name: "Keine Aufgabe verknüpft" }).click();
+  const list = page.getByRole("listbox");
+  await expect(list).toBeVisible();
+  const box = (await list.boundingBox())!;
+  await swipe(page, [box.x + 100, box.y + box.height - 20], [box.x + 100, box.y + 20]);
+  await expect(list).toBeVisible();
+  expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+});
+
+test("long pinch skips a level", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  // month view, spread a lot: month -> week -> day in one gesture, around the current month
+  await page.goto("/#/calendar");
+  await page.getByRole("button", { name: "Monat" }).first().click();
+  await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(30);
+  await page.waitForTimeout(600); // let the switch animation finish
+  const cdp = await page.context().newCDPSession(page);
+  const two = (a: number) => [{ x: 195 - a, y: 400, id: 1 }, { x: 195 + a, y: 400, id: 2 }];
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(15) });
+  for (const a of [25, 40, 60, 90, 120, 150, 180]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) }); await page.waitForTimeout(50); }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(4);
 });

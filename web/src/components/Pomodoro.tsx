@@ -20,7 +20,9 @@ export function Pomodoro() {
   const sessions = useItems("pomodoro");
   const today = todayStr(now);
   const [customOpen, setCustomOpen] = useState(false);
-  const [customMin, setCustomMin] = useState(45);
+  const [customText, setCustomText] = useState("45");
+  const customMin = Number(customText);
+  const customOk = Number.isInteger(customMin) && customMin >= 1 && customMin <= 240;
 
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
 
@@ -117,15 +119,18 @@ export function Pomodoro() {
       </div>
       {customOpen && (
         <Dialog title={t("customTime")} onClose={() => setCustomOpen(false)}>
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {[10, 15, 20, 30, 45, 60, 90].map((m) => (
-              <button key={m} onClick={() => setCustomMin(m)} className={cx("h-8 rounded-ctl px-3 text-[13px] ring-1", customMin === m ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}>{m}</button>
-            ))}
-          </div>
-          <input type="number" min={1} max={240} className={inputCls} value={customMin} onChange={(e) => setCustomMin(Math.max(1, Math.min(240, Number(e.target.value) || 1)))} aria-label={t("customTime")} />
+          <input
+            inputMode="numeric"
+            autoFocus
+            className={inputCls}
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            onKeyDown={(e) => { if (e.key === "Enter" && customOk) { pomo.setCustom(customMin); setCustomOpen(false); } }}
+            aria-label={t("customTime")}
+          />
           <div className="mt-3 flex justify-end gap-2">
             <Button onClick={() => setCustomOpen(false)}>{t("cancel")}</Button>
-            <Button variant="primary" onClick={() => { pomo.setCustom(customMin); setCustomOpen(false); }}>{t("setBtn")}</Button>
+            <Button variant="primary" disabled={!customOk} onClick={() => { pomo.setCustom(customMin); setCustomOpen(false); }}>{t("setBtn")}</Button>
           </div>
         </Dialog>
       )}

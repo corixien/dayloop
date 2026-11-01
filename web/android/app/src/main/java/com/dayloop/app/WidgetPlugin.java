@@ -85,6 +85,13 @@ public class WidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void soundPlaying(PluginCall call) {
+        JSObject out = new JSObject();
+        out.put("playing", FocusNative.previewPlaying());
+        call.resolve(out);
+    }
+
+    @PluginMethod
     public void stopSound(PluginCall call) {
         FocusNative.stopPreview();
         call.resolve();

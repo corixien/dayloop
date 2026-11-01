@@ -193,13 +193,20 @@ export function Select<T extends string | number>({
     if (!open) return;
     const away = (e: Event) => { if (!list.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setOpen(false); };
     const dismiss = () => setOpen(false);
+    // the list itself scrolls (drag, scrollIntoView): only scrolling elsewhere moves the anchor away
+    // (and a scroll right after opening is the browser scrolling the tapped button into view)
+    const t0 = Date.now();
+    const outside = (e: Event) => {
+      if (Date.now() - t0 < 350 || list.current?.contains(e.target as Node) || e.target === list.current) return;
+      setOpen(false);
+    };
     document.addEventListener("pointerdown", away);
     window.addEventListener("resize", dismiss);
-    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("scroll", outside, true);
     return () => {
       document.removeEventListener("pointerdown", away);
       window.removeEventListener("resize", dismiss);
-      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("scroll", outside, true);
     };
   }, [open]);
 

@@ -19,6 +19,7 @@ interface WidgetPlugin {
   listSounds(): Promise<{ sounds: { title: string; uri: string; kind: string }[] }>;
   playSound(o: { uri: string }): Promise<void>;
   stopSound(): Promise<void>;
+  soundPlaying(): Promise<{ playing: boolean }>;
   keepAwake(o: { on: boolean }): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }

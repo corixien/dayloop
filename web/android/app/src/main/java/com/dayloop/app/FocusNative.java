@@ -99,6 +99,10 @@ final class FocusNative {
         preview = play(ctx, soundUri(ctx, uri), 0);
     }
 
+    static boolean previewPlaying() {
+        return preview != null && preview.isPlaying();
+    }
+
     static void stopPreview() {
         if (preview != null) { preview.stop(); preview = null; }
     }

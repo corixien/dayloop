@@ -218,17 +218,28 @@ function FocusSound() {
   const t = useT();
   const [sounds, setSounds] = useState<{ title: string; uri: string; kind: string }[] | null>(null);
   const [uri, setUri] = useState(getSound()?.uri ?? "");
+  const [playing, setPlaying] = useState(false);
   useEffect(() => {
     if (!isNative()) return;
     void widgetPlugin().listSounds().then((r) => setSounds(r.sounds)).catch(() => setSounds([]));
     return () => void widgetPlugin().stopSound().catch(() => {});
   }, []);
+  // the sound ends by itself: follow the native player so the button flips back
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => void widgetPlugin().soundPlaying().then((r) => { if (!r.playing) setPlaying(false); }).catch(() => setPlaying(false)), 400);
+    return () => clearInterval(id);
+  }, [playing]);
   if (!isNative() || !sounds) return null;
+  const play = (u: string) => { void widgetPlugin().playSound({ uri: u }); setPlaying(true); };
+  const toggle = () => {
+    if (playing) { void widgetPlugin().stopSound(); setPlaying(false); } else play(uri);
+  };
   const pick = (u: string) => {
     setUri(u);
     const s = sounds.find((x) => x.uri === u);
     saveSound(s ? { uri: s.uri, title: s.title } : null);
-    void widgetPlugin().playSound({ uri: u });
+    play(u);
   };
   return (
     <Field label={t("focusSound")} group>
@@ -236,7 +247,7 @@ function FocusSound() {
         <div className="min-w-0 flex-1">
           <Select label={t("focusSound")} value={uri} onChange={pick} options={[{ value: "", label: t("soundDefault") }, ...sounds.map((x) => ({ value: x.uri, label: x.title }))]} />
         </div>
-        <Button onClick={() => void widgetPlugin().playSound({ uri })}>{t("soundPreview")}</Button>
+        <Button onClick={toggle}>{playing ? t("soundStop") : t("soundPreview")}</Button>
       </div>
     </Field>
   );

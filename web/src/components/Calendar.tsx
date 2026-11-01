@@ -177,7 +177,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
           return (
             <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5">
               <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full truncate text-center text-xs", d === today ? "font-semibold text-accent" : "text-muted")}>{fmtLong(d, lang)}</button>
-              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={() => onCreate({ date: d, time: null })}>
+              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={(e) => (mode === "week" ? onZoom("day", d, e.currentTarget.parentElement!) : onCreate({ date: d, time: null }))}>
                 {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
               </div>
@@ -212,7 +212,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 data-date={d}
                 className="relative min-w-0 flex-1 basis-0 border-l border-line"
                 style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR - 1}px, var(--line) ${HOUR - 1}px, var(--line) ${HOUR}px)` }}
-                onClick={(e) => onCreate({ date: d, time: timeFromY(e) })}
+                onClick={(e) => (mode === "week" ? onZoom("day", d, e.currentTarget) : onCreate({ date: d, time: timeFromY(e) }))}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => drop(e, d, timeFromY(e))}
               >
@@ -309,48 +309,69 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    let d0 = 0, started = false, dir: "in" | "out" = "in", cx = 0, cy = 0;
+    let d0 = 0, started = false, dir: "in" | "out" = "in", cx = 0, cy = 0, level: Mode = "month", lastZoom: Zoom | null = null;
+    const bound: EventTarget[] = [];
     const dist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const start = (e: TouchEvent) => {
       if (e.touches.length !== 2 || S.current.zoom) return;
-      d0 = dist(e); started = false;
+      d0 = dist(e); started = false; level = S.current.mode;
+      // a level switch replaces the touched elements; their touch events then no longer bubble to the wrapper,
+      // so follow the fingers on the touched elements themselves
+      for (const t of [e.touches[0].target, e.touches[1].target]) {
+        if (bound.includes(t)) continue;
+        t.addEventListener("touchmove", move as EventListener, { passive: false });
+        t.addEventListener("touchend", end as EventListener, { passive: true });
+        t.addEventListener("touchcancel", end as EventListener, { passive: true });
+        bound.push(t);
+      }
       cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     };
-    const move = (e: TouchEvent) => {
+    function move(e: TouchEvent) {
       if (!d0 || e.touches.length !== 2) return;
       e.preventDefault();
       const s = dist(e) / d0;
       if (!started) {
         if (Math.abs(s - 1) < 0.05) return;
         dir = s > 1 ? "in" : "out";
-        const i = MODES.indexOf(S.current.mode) + (dir === "in" ? -1 : 1);
+        const i = MODES.indexOf(level) + (dir === "in" ? -1 : 1);
         if (i < 0 || i >= MODES.length) { d0 = 0; return; }
-        const hit = dir === "in" ? (document.elementFromPoint(cx, cy) as HTMLElement | null)?.closest<HTMLElement>("[data-date]")?.dataset.date : undefined;
-        const box = el.getBoundingClientRect();
+        const box = wrap.current!.getBoundingClientRect();
         started = true;
         prog.current = 0;
-        setZoom({ to: MODES[i], anchor: hit ?? S.current.anchor, dir, ox: cx - box.left, oy: cy - box.top });
+        // always into the month/week/day that is showing, not the one under the fingers
+        lastZoom = { to: MODES[i], anchor: S.current.anchor, dir, ox: cx - box.left, oy: cy - box.top };
+        setZoom(lastZoom);
         return;
       }
-      paint(dir === "in" ? clamp((s - 1) / 0.7, 0, 1) : clamp((1 - s) / 0.4, 0, 1), false);
-    };
-    const end = () => {
-      if (!d0) return;
+      const p = dir === "in" ? clamp((s - 1) / 0.7, 0, 1) : clamp((1 - s) / 0.4, 0, 1);
+      paint(p, false);
+      if (p >= 1 && lastZoom) {
+        // a long pinch continues into the next level: switch now (identical picture), then measure from here
+        setFx("none"); setAnchor(lastZoom.anchor); setMode(lastZoom.to); setZoom(null);
+        level = lastZoom.to; lastZoom = null;
+        prog.current = 0; started = false; d0 = dist(e);
+      }
+    }
+    function unbind() {
+      for (const t of bound.splice(0)) {
+        t.removeEventListener("touchmove", move as EventListener);
+        t.removeEventListener("touchend", end as EventListener);
+        t.removeEventListener("touchcancel", end as EventListener);
+      }
+    }
+    function end() {
+      if (!d0) { unbind(); return; }
       d0 = 0;
+      unbind();
       if (!started) return;
       started = false;
       finish(prog.current > 0.35);
-    };
+    }
     el.addEventListener("touchstart", start, { passive: true });
-    el.addEventListener("touchmove", move, { passive: false });
-    el.addEventListener("touchend", end, { passive: true });
-    el.addEventListener("touchcancel", end, { passive: true });
     return () => {
       el.removeEventListener("touchstart", start);
-      el.removeEventListener("touchmove", move);
-      el.removeEventListener("touchend", end);
-      el.removeEventListener("touchcancel", end);
+      unbind();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
