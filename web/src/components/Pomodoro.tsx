@@ -1,10 +1,10 @@
-import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { Moon, Pause, Play, RotateCcw, SkipForward } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useItems, useNow, useSettings, useT } from "../lib/app";
 import { addDays, fmtDate, todayStr, weekdayNames } from "../lib/dates";
 import { type Phase } from "../lib/pomo";
 import { pomo, usePomo } from "../lib/pomoStore";
-import { Button, PageHeader, Segmented, Select, cx } from "./ui";
+import { Button, Dialog, PageHeader, Segmented, Select, cx, inputCls } from "./ui";
 
 export const fmtClock = (ms: number) => {
   const s = Math.ceil(ms / 1000);
@@ -19,6 +19,8 @@ export function Pomodoro() {
   const tasks = useItems("task").filter((x) => !x.done && x.trashedAt === null);
   const sessions = useItems("pomodoro");
   const today = todayStr(now);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customMin, setCustomMin] = useState(45);
 
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
 
@@ -50,10 +52,10 @@ export function Pomodoro() {
       <PageHeader title={t("pomodoro")} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-md flex-col items-center gap-6 px-4 py-8">
-          <Segmented<Phase>
-            value={state.phase}
-            onChange={(p) => state.status === "idle" && pomo.setPhase(p)}
-            options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }]}
+          <Segmented<Phase | "custom">
+            value={state.custom ? "custom" : state.phase}
+            onChange={(p) => { if (state.status !== "idle") return; if (p === "custom") setCustomOpen(true); else pomo.setPhase(p); }}
+            options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }, { value: "custom", label: state.custom ? `${Math.round(state.plannedSec / 60)} ${t("minutesShort")}` : t("custom") }]}
           />
           <div className="relative grid size-[280px] place-items-center" role="timer" aria-label={label}>
             <svg viewBox="0 0 280 280" className="absolute inset-0 -rotate-90">
@@ -74,6 +76,9 @@ export function Pomodoro() {
             )}
             <Button className="size-10 px-0" onClick={() => pomo.skip()} aria-label={t("skip")} title={t("skip")}><SkipForward size={16} /></Button>
           </div>
+          {state.status === "running" && (
+            <Button className="h-9 gap-2 px-4" onClick={() => { location.hash = "#/zen"; }}><Moon size={15} /> {t("zen")}</Button>
+          )}
           <div className="w-full max-w-xs">
             <Select
               label={t("noTaskLinked")}
@@ -110,6 +115,20 @@ export function Pomodoro() {
           </div>
         </div>
       </div>
+      {customOpen && (
+        <Dialog title={t("customTime")} onClose={() => setCustomOpen(false)}>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {[10, 15, 20, 30, 45, 60, 90].map((m) => (
+              <button key={m} onClick={() => setCustomMin(m)} className={cx("h-8 rounded-ctl px-3 text-[13px] ring-1", customMin === m ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}>{m}</button>
+            ))}
+          </div>
+          <input type="number" min={1} max={240} className={inputCls} value={customMin} onChange={(e) => setCustomMin(Math.max(1, Math.min(240, Number(e.target.value) || 1)))} aria-label={t("customTime")} />
+          <div className="mt-3 flex justify-end gap-2">
+            <Button onClick={() => setCustomOpen(false)}>{t("cancel")}</Button>
+            <Button variant="primary" onClick={() => { pomo.setCustom(customMin); setCustomOpen(false); }}>{t("setBtn")}</Button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

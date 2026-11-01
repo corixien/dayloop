@@ -130,7 +130,7 @@ export class SyncClient {
       this.kv.set(SESSION_KEY, JSON.stringify(this.session));
       return r.accessToken;
     } catch (e) {
-      if (e instanceof AuthError && e.status === 401) {
+      if (e instanceof AuthError && e.status === 401 && e.code === "invalid_refresh") {
         await this.logout(false);
       }
       throw e;

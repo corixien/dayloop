@@ -51,3 +51,9 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Calendar pinch (spread = closer: month > week > day) is handled in `Calendar.tsx`; `useSwipe` ignores multi-touch.
 - Have Done: each entry has its own send button (tracker); the widget shows it too (`WRow.s`: 0 off, 1 send, 2 sent) and runs it through the overlay route `/overlay/track/<id>`. Tapping empty widget space (footer row, background) opens the app.
 - Overlay activity keeps its WebView at alpha 0 until the overlay route calls `overlayReady()` (avoids a flash of the normal app).
+
+## Calendar, focus, release
+- Calendar (`Calendar.tsx`): `Body` renders one time frame; zooming (pinch, tapping a day/week, the Tag/Woche/Monat switch) cross-fades two `Body` layers scaled around the touch point (`paint`/`finish`). Finished todos and ticked checklist items sit at their completion time in the day/week grid (lane layout), habit completions in the all-day row, all color coded. Month cell tap = week, day number tap = day.
+- Focus timer (`pomoStore.ts`): custom length (`state.custom`, next phase is normal), zen mode (`#/zen`, black screen filling purple, keeps screen on via `keepAwake`), Android side in `FocusNative`/`FocusAlarmReceiver`: live notification (chronometer countdown, promoted ongoing on Android 16 / One UI 8, tap opens overlay route `/overlay/focus`), exact end alarm that plays the chosen system sound (`listSounds`, device-local setting `dl_sound`). The widget overlay and the app share the timer through localStorage.
+- Drafts (`TaskDetail.useDraft`): title/notes autosave 600 ms after typing, on blur and on unmount.
+- Release APK: `cd web/android && ./gradlew assembleRelease`; signing config reads `~/.dayloop-release/keystore.properties` (outside the repo, back it up: without the key updates cannot be installed over existing installs). Debug and release builds have different signatures. The native app defaults to `https://dayloop.onrender.com`.

@@ -102,7 +102,7 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
               <Field label={t("dueDate")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
               <Field label={t("dueTime")}><input type="time" className={inputCls} disabled={!date && !parsed?.dueDate} value={time} onChange={(e) => setTime(e.target.value)} /></Field>
             </div>
-            <Field label={t("priority")}>
+            <Field label={t("priority")} group>
               <Segmented
                 value={priority}
                 onChange={setPriority}

@@ -15,6 +15,11 @@ interface WidgetPlugin {
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
   finishOverlay(): Promise<void>;
   openApp(): Promise<void>;
+  focusSync(o: object): Promise<void>;
+  listSounds(): Promise<{ sounds: { title: string; uri: string; kind: string }[] }>;
+  playSound(o: { uri: string }): Promise<void>;
+  stopSound(): Promise<void>;
+  keepAwake(o: { on: boolean }): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }
 export const widgetPlugin = () => registerPlugin<WidgetPlugin>("DayloopWidget");

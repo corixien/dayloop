@@ -14,6 +14,8 @@ export interface PomoState {
   taskId: string | null;
   /** work sessions completed in the current cycle */
   round: number;
+  /** a one-off custom duration (the next phase uses the normal settings again) */
+  custom?: boolean;
 }
 
 type Cfg = Pick<Settings, "workMin" | "breakMin" | "longBreakMin" | "longBreakEvery" | "autoStart">;

@@ -13,6 +13,7 @@ import { Trash } from "./components/Trash";
 import { HaveDone } from "./components/HaveDone";
 import { TodoView } from "./components/TodoView";
 import { Pomodoro, fmtClock } from "./components/Pomodoro";
+import { Zen } from "./components/Zen";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
@@ -108,7 +109,7 @@ export default function App() {
   if (page === "done") main = <HaveDone selectedId={selected} onSelect={select} />;
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
-  else if (page === "pomodoro") main = <Pomodoro />;
+  else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
   else if (page === "settings") main = <Settings />;
   else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;
   else main = <TodoView selectedId={selected} onSelect={select} />;
@@ -155,11 +156,12 @@ export default function App() {
         </Sheet>
       )}
 
-      {state?.status === "running" && page !== "pomodoro" && (
+      {state?.status === "running" && page !== "pomodoro" && page !== "zen" && (
         <a href="#/pomodoro" className="fixed bottom-20 left-4 z-20 flex items-center gap-2 rounded-full border border-line bg-raise px-3 py-1.5 text-[13px] font-medium tabular-nums shadow-lg md:bottom-4">
           <Timer size={14} className="text-accent" /> {fmtClock(left)}
         </a>
       )}
+      {page === "zen" && <Zen />}
       {newKind && <NewItem kind={newKind} onClose={() => setNewKind(null)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
       {welcome && <Welcome onClose={closeWelcome} />}

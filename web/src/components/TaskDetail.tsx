@@ -11,11 +11,36 @@ const REMINDER_OPTIONS = [
   { v: 0, k: "atDue" }, { v: 5, k: "before5" }, { v: 30, k: "before30" }, { v: 60, k: "before1h" }, { v: 1440, k: "before1d" },
 ] as const;
 
-/** Edits are written on blur / change, not per keystroke, so sync does not churn. */
-function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, () => void] {
+/**
+ * Local copy of a field that is written back shortly after typing stops, when focus leaves, and when the
+ * panel closes or unmounts (swiping the sheet away never fires a blur). External changes only replace the
+ * copy while nothing is being edited.
+ */
+function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, (v?: T) => void] {
   const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value]);
-  return [draft, setDraft, () => draft !== value && commit(draft)];
+  const live = useRef({ draft, value, commit });
+  live.current = { draft, value, commit };
+  const dirty = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => { if (!dirty.current) setDraft(value); }, [value]);
+  const flush = (v?: T) => {
+    clearTimeout(timer.current);
+    if (!dirty.current && v === undefined) return;
+    dirty.current = false;
+    const next = v === undefined ? live.current.draft : v;
+    if (v !== undefined) setDraft(v);
+    if (next !== live.current.value) live.current.commit(next);
+  };
+  const set = (v: T) => {
+    dirty.current = true;
+    setDraft(v);
+    live.current.draft = v;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => flush(), 600);
+  };
+  useEffect(() => () => flush(), []);
+  return [draft, set, flush];
 }
 
 export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; onClose: () => void; onFocus: (taskId: string) => void; focusNotes?: boolean }) {
@@ -25,8 +50,8 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
   const task = tasks.find((x) => x.id === id);
   const patch = (p: object) => local.patch("task", id, p as any);
 
-  const [title, setTitle, commitTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
-  const [notes, setNotes, commitNotes] = useDraft(task?.notes ?? "", (v) => patch({ notes: v }));
+  const [title, setTitle, flushTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
+  const [notes, setNotes, flushNotes] = useDraft(task?.notes ?? "", (v) => patch({ notes: v }));
   const notesBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!focusNotes) return;
@@ -82,13 +107,13 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onBlur={commitTitle}
+          onBlur={() => flushTitle()}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
           aria-label={t("title")}
           className="w-full bg-transparent text-lg font-semibold outline-none"
         />
         <div ref={notesBox}>
-          <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => v !== task.notes && patch({ notes: v })} placeholder={t("addNote")} label={t("note")} />
+          <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => flushNotes(v)} placeholder={t("addNote")} label={t("note")} />
         </div>
 
         {!task.done && (
@@ -102,7 +127,7 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
           </div>
         )}
 
-        <Field label={t("priority")}>
+        <Field label={t("priority")} group>
           <Segmented
             value={task.priority}
             onChange={(v) => patch({ priority: v })}

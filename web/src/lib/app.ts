@@ -11,11 +11,14 @@ const kv = {
   remove: (k: string) => localStorage.removeItem(k),
 };
 
+/** The Android app has no same-origin server: it talks to the hosted one unless changed in Settings. */
+const DEFAULT_SERVER = (window as any).Capacitor?.isNativePlatform?.() ? "https://dayloop.onrender.com" : "";
+
 export const local = new Local("dayloop");
 export const syncClient = new SyncClient(
   local,
   kv,
-  (localStorage.getItem("dl_server") ?? (import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/+$/, ""),
+  (localStorage.getItem("dl_server") ?? (import.meta.env.VITE_API_URL as string | undefined) ?? DEFAULT_SERVER).replace(/\/+$/, ""),
 );
 
 export const uid = () => crypto.randomUUID();

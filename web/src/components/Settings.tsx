@@ -4,8 +4,10 @@ import { local, saveSettings, syncClient, uid, useItems, useSettings, useSyncSta
 import { parseTickTickCsv } from "../lib/importTick";
 import { type TrackerConfig, TrackerError, clearTracker, getTracker, saveTracker, trackerLogin } from "../lib/tracker";
 import { tasksToIcs } from "../lib/ics";
+import { isNative } from "../lib/native";
+import { getSound, saveSound } from "../lib/pomoNative";
 import { widgetPlugin } from "../lib/widget";
-import { Button, Field, PageHeader, Segmented, inputCls } from "./ui";
+import { Button, Field, PageHeader, Segmented, Select, inputCls } from "./ui";
 import { AuthPanel } from "./AuthPanel";
 
 interface TokenRow { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null }
@@ -85,6 +87,7 @@ export function Settings() {
               <Field label={t("longBreakMin")}><input type="number" className={inputCls} value={s.longBreakMin} onChange={(e) => void saveSettings({ longBreakMin: num(e.target.value, 1, 120) })} /></Field>
             </div>
             <Field label={t("longBreakEvery")}><input type="number" className={`${inputCls} w-20`} value={s.longBreakEvery} onChange={(e) => void saveSettings({ longBreakEvery: num(e.target.value, 0, 12) })} /></Field>
+            <FocusSound />
             <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={s.autoStart} onChange={(e) => void saveSettings({ autoStart: e.target.checked })} /> {t("autoStart")}</label>
           </Section>
 
@@ -207,5 +210,34 @@ function TrackerSection() {
         {msg && <span role="status" className="text-[13px] text-muted">{msg}</span>}
       </div>
     </Section>
+  );
+}
+
+/** Android: pick the sound that rings when a focus round ends from the sounds installed on the phone. */
+function FocusSound() {
+  const t = useT();
+  const [sounds, setSounds] = useState<{ title: string; uri: string; kind: string }[] | null>(null);
+  const [uri, setUri] = useState(getSound()?.uri ?? "");
+  useEffect(() => {
+    if (!isNative()) return;
+    void widgetPlugin().listSounds().then((r) => setSounds(r.sounds)).catch(() => setSounds([]));
+    return () => void widgetPlugin().stopSound().catch(() => {});
+  }, []);
+  if (!isNative() || !sounds) return null;
+  const pick = (u: string) => {
+    setUri(u);
+    const s = sounds.find((x) => x.uri === u);
+    saveSound(s ? { uri: s.uri, title: s.title } : null);
+    void widgetPlugin().playSound({ uri: u });
+  };
+  return (
+    <Field label={t("focusSound")} group>
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <Select label={t("focusSound")} value={uri} onChange={pick} options={[{ value: "", label: t("soundDefault") }, ...sounds.map((x) => ({ value: x.uri, label: x.title }))]} />
+        </div>
+        <Button onClick={() => void widgetPlugin().playSound({ uri })}>{t("soundPreview")}</Button>
+      </div>
+    </Field>
   );
 }

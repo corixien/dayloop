@@ -147,12 +147,12 @@ function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => void })
     <Dialog title={habit ? t("edit") : t("newHabit")} onClose={onClose}>
       <div className="space-y-4">
         <Field label={t("name")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label={t("color")}><ColorPicker value={color} onChange={setColor} /></Field>
+        <Field label={t("color")} group><ColorPicker value={color} onChange={setColor} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("habitTarget")}><input type="number" min={1} max={100} className={inputCls} value={target} onChange={(e) => setTarget(Math.max(1, Number(e.target.value) || 1))} /></Field>
           <Field label={t("habitUnit")}><input className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Glas" /></Field>
         </div>
-        <Field label={t("habitDays")}>
+        <Field label={t("habitDays")} group>
           <div className="flex gap-1">
             {order.map((d, i) => (
               <button key={d} onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}

@@ -45,12 +45,14 @@ export function IconButton({ label, className, ...p }: ButtonHTMLAttributes<HTML
 export const inputCls =
   "h-8 w-full rounded-ctl border border-line bg-raise px-2.5 text-[13px] placeholder:text-faint focus:border-accent";
 
-export function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/** Labeled form row. `group`: for button groups (a <label> would forward taps next to them to the first button). */
+export function Field({ label, children, className, group }: { label: string; children: ReactNode; className?: string; group?: boolean }) {
+  const Tag = group ? "div" : "label";
   return (
-    <label className={cx("block", className)}>
+    <Tag className={cx("block", className)}>
       <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
       {children}
-    </label>
+    </Tag>
   );
 }
 

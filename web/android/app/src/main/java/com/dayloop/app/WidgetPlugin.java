@@ -56,6 +56,51 @@ public class WidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Focus timer state for the live notification and the end alarm. */
+    @PluginMethod
+    public void focusSync(PluginCall call) {
+        try {
+            FocusNative.sync(getContext(), call.getData());
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @PluginMethod
+    public void listSounds(PluginCall call) {
+        try {
+            JSObject out = new JSObject();
+            out.put("sounds", FocusNative.list(getContext()));
+            call.resolve(out);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @PluginMethod
+    public void playSound(PluginCall call) {
+        FocusNative.playPreview(getContext(), call.getString("uri", ""));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopSound(PluginCall call) {
+        FocusNative.stopPreview();
+        call.resolve();
+    }
+
+    /** Keep the screen on (zen mode). */
+    @PluginMethod
+    public void keepAwake(PluginCall call) {
+        final boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+            if (on) getActivity().getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getActivity().getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        });
+        call.resolve();
+    }
+
     @PluginMethod
     public void overlayReady(PluginCall call) {
         if (getActivity() instanceof OverlayActivity) ((OverlayActivity) getActivity()).reveal();

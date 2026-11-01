@@ -259,3 +259,55 @@ test("calendar: ticked checklist items appear color coded, pinch changes the tim
   await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(6);
   await shot(page, "40-calendar-week");
 });
+
+test("regressions: note autosave, priority label, completions in calendar, habits, zoom taps, custom focus", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Autosave Test");
+
+  // typing a note and swiping the sheet away without blur must still save
+  await page.getByRole("button", { name: /Autosave Test/ }).first().click();
+  await page.getByRole("textbox", { name: "Notiz" }).click();
+  await page.keyboard.type("Hallo Welt");
+  await page.waitForTimeout(500);
+  await swipe(page, [195, 84], [195, 520]);
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0, { timeout: 3000 });
+  await page.getByRole("button", { name: /Autosave Test/ }).first().click();
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue("Hallo Welt");
+
+  // tapping the label next to the priority buttons must not change the priority
+  await page.getByRole("button", { name: "Hoch" }).click();
+  await page.getByText("Priorität", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Hoch" })).toHaveClass(/bg-raise/);
+
+  // habit done today shows in the calendar
+  await page.goto("/#/habits");
+  await page.getByRole("button", { name: "Neue Gewohnheit" }).click();
+  await page.getByRole("textbox").first().fill("Wasser trinken");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("checkbox", { name: "Wasser trinken" }).click();
+
+  // a todo without deadline, completed now, sits at the completion time in the day grid
+  await page.goto("/#/todo");
+  await page.getByRole("checkbox", { name: "Autosave Test" }).click();
+  await page.waitForTimeout(500);
+  await page.goto("/#/calendar");
+  await expect(page.locator(".overflow-y-auto").getByRole("button", { name: /Autosave Test/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Wasser trinken/ })).toBeVisible();
+
+  // month -> tap a day = zoom into that week
+  await page.getByRole("button", { name: "Monat" }).first().click();
+  await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(30);
+  await page.locator("[data-date]").nth(10).click();
+  await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(20);
+  await shot(page, "41-zoom-week");
+
+  // custom focus length
+  await page.goto("/#/pomodoro");
+  await page.getByRole("button", { name: "Eigene" }).click();
+  await page.getByRole("textbox").or(page.getByRole("spinbutton")).first().fill("7");
+  await page.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(page.getByRole("timer")).toContainText("07:00");
+});
