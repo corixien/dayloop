@@ -80,6 +80,24 @@ public class WidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Is Dayloop the selected digital assistant (power-button long press)? */
+    @PluginMethod
+    public void assistantActive(PluginCall call) {
+        String cur = android.provider.Settings.Secure.getString(getContext().getContentResolver(), "assistant");
+        JSObject out = new JSObject();
+        out.put("active", cur != null && cur.startsWith(getContext().getPackageName() + "/"));
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void openAssistantSettings(PluginCall call) {
+        Context ctx = getContext();
+        android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { ctx.startActivity(i); }
+        catch (Exception e) { ctx.startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); }
+        call.resolve();
+    }
+
     @PluginMethod
     public void listSounds(PluginCall call) {
         try {

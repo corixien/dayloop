@@ -8,6 +8,7 @@ import { useWidgetSync } from "./lib/widget";
 import { AuthPanel } from "./components/AuthPanel";
 import { Calendar } from "./components/Calendar";
 import { CommandPalette } from "./components/CommandPalette";
+import { AssistantPanel } from "./components/Assistant";
 import { Motivation } from "./components/Motivation";
 import { Habits } from "./components/Habits";
 import { Trash } from "./components/Trash";
@@ -22,7 +23,7 @@ import { TaskDetail } from "./components/TaskDetail";
 import { Drawer } from "./components/Drawer";
 import { NewItem } from "./components/NewItem";
 import { Sheet } from "./components/Sheet";
-import { Button, Dialog, cx } from "./components/ui";
+import { Button, Dialog, PageHeader, cx } from "./components/ui";
 
 function Welcome({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -112,6 +113,7 @@ export default function App() {
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
+  else if (page === "assistant") main = <div className="flex h-full min-h-0 flex-col"><PageHeader title={t("assistant")} /><div className="mx-auto w-full max-w-md overflow-y-auto pt-6"><AssistantPanel /></div></div>;
   else if (page === "motivation") main = <Motivation />;
   else if (page === "settings") main = <Settings />;
   else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;

@@ -4,6 +4,7 @@ import { local, saveSettings, syncClient, uid, useItems, useSettings, useSyncSta
 import { parseTickTickCsv } from "../lib/importTick";
 import { type TrackerConfig, TrackerError, clearTracker, getTracker, saveTracker, trackerLogin } from "../lib/tracker";
 import { tasksToIcs } from "../lib/ics";
+import { getGroqKey, saveGroqKey } from "../lib/assistant";
 import { isNative } from "../lib/native";
 import { getSound, saveSound } from "../lib/pomoNative";
 import { widgetPlugin } from "../lib/widget";
@@ -110,6 +111,8 @@ export function Settings() {
               <Button onClick={() => void Notification.requestPermission().then(() => setMsg(""))}>{t("enableNotifications")}</Button>
             )}
           </Section>
+
+          <AssistantSection />
 
           <TrackerSection />
 
@@ -250,5 +253,28 @@ function FocusSound() {
         <Button onClick={toggle}>{playing ? t("soundStop") : t("soundPreview")}</Button>
       </div>
     </Field>
+  );
+}
+
+function AssistantSection() {
+  const t = useT();
+  const native = isNative();
+  const [key, setKey] = useState(getGroqKey);
+  const [msg, setMsg] = useState("");
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    if (native) void widgetPlugin().assistantActive().then((r) => setActive(r.active)).catch(() => {});
+  }, [native]);
+  return (
+    <Section title={t("assistant")}>
+      <p className="text-[13px] text-muted">{t("aHelp")}</p>
+      <Field label={t("aGroqKey")}><input type="password" className={inputCls} value={key} autoComplete="off" autoCapitalize="none" placeholder="gsk_…" onChange={(e) => { setKey(e.target.value); setMsg(""); }} /></Field>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="primary" onClick={() => { saveGroqKey(key); setMsg(t("aKeySaved")); }}>{t("save")}</Button>
+        {native && <Button onClick={() => void widgetPlugin().openAssistantSettings()}>{t("aSetDefault")}</Button>}
+        {msg && <span role="status" className="text-[13px] text-muted">{msg}</span>}
+      </div>
+      {active && <p className="text-[13px] text-muted">{t("aActive")}</p>}
+    </Section>
   );
 }

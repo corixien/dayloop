@@ -23,6 +23,8 @@ interface WidgetPlugin {
   keepAwake(o: { on: boolean }): Promise<void>;
   alarmRinging(): Promise<{ ringing: boolean }>;
   stopAlarm(): Promise<void>;
+  assistantActive(): Promise<{ active: boolean }>;
+  openAssistantSettings(): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }
 export const widgetPlugin = () => registerPlugin<WidgetPlugin>("DayloopWidget");

@@ -4,6 +4,7 @@ import { local, syncClient, useHashRoute, useSettings, useT, useTheme } from "..
 import { getTracker, markSent, sendToTracker, trackerErrorKey } from "../lib/tracker";
 import { closeOverlay, openInApp, overlayReady, useWidgetSync } from "../lib/widget";
 import { pomo, usePomo } from "../lib/pomoStore";
+import { AssistantPanel } from "./Assistant";
 import { AlarmPopup } from "./AlarmPopup";
 import { NewItem } from "./NewItem";
 import { Sheet } from "./Sheet";
@@ -35,6 +36,7 @@ export function Overlay() {
     );
   }
   if (kind === "focus") return <FocusPopup />;
+  if (kind === "assistant") return <AssistantSheet />;
   if (kind === "alarm") return <AlarmPopup onClose={() => void closeOverlay()} />;
   if (kind === "track" && arg) return <TrackSend id={arg} />;
   if (kind === "new") return <NewItem kind={arg === "done" ? "done" : "todo"} bare onClose={() => void closeOverlay()} />;
@@ -100,6 +102,15 @@ function FocusPopup() {
           <button onClick={close} className="text-[13px] text-muted">{t("close")}</button>
         </div>
       )}
+    </Sheet>
+  );
+}
+
+/** Power-button assistant: a small sheet over whatever app was open, already listening. */
+function AssistantSheet() {
+  return (
+    <Sheet always fit onClose={() => void closeOverlay()}>
+      {() => <AssistantPanel autoStart />}
     </Sheet>
   );
 }
