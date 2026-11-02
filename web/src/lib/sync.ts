@@ -120,10 +120,25 @@ export class SyncClient {
     if (wipe) await this.local.clear();
   }
 
+  private refreshing: Promise<string> | null = null;
+
+  /** Another WebView (widget overlay) shares the stored session and may have rotated the refresh token. */
+  private storedSession(): Session | null {
+    try { return JSON.parse(this.kv.get(SESSION_KEY) ?? "null"); } catch { return null; }
+  }
+
   private async token(): Promise<string> {
+    if (!this.session) throw new AuthError("signedout", 401);
+    const stored = this.storedSession();
+    if (stored && stored.userId === this.session.userId && stored.expiresAt > this.session.expiresAt) this.session = stored;
     const s = this.session;
-    if (!s) throw new AuthError("signedout", 401);
     if (Date.now() < s.expiresAt) return s.accessToken;
+    // one refresh at a time: the refresh token rotates, concurrent calls would invalidate each other
+    this.refreshing ??= this.refresh(s).finally(() => { this.refreshing = null; });
+    return this.refreshing;
+  }
+
+  private async refresh(s: Session): Promise<string> {
     try {
       const r = await this.authCall("/api/auth/refresh", { refreshToken: s.refreshToken });
       this.session = { ...s, accessToken: r.accessToken, refreshToken: r.refreshToken, expiresAt: Date.now() + r.expiresIn * 1000 - 30_000 };
@@ -131,6 +146,13 @@ export class SyncClient {
       return r.accessToken;
     } catch (e) {
       if (e instanceof AuthError && e.status === 401 && e.code === "invalid_refresh") {
+        // rotated by another WebView in the meantime: use that session instead of signing out
+        const stored = this.storedSession();
+        if (stored && stored.userId === s.userId && stored.refreshToken !== s.refreshToken) {
+          this.session = stored;
+          if (Date.now() < stored.expiresAt) return stored.accessToken;
+          return this.refresh(stored);
+        }
         await this.logout(false);
       }
       throw e;
@@ -145,6 +167,13 @@ export class SyncClient {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new AuthError((json as any).error ?? "error", res.status);
     return json as T;
+  }
+
+  /** Authorized GET returning text (podcast feeds through the server proxy). */
+  async fetchText(path: string): Promise<string> {
+    const res = await this.doFetch(this.baseUrl + path, { headers: { Authorization: `Bearer ${await this.token()}` } });
+    if (!res.ok) throw new AuthError(((await res.json().catch(() => ({}))) as any).error ?? "error", res.status);
+    return res.text();
   }
 
   // ---- sync ----

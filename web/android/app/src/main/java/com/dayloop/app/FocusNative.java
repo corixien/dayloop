@@ -32,6 +32,7 @@ final class FocusNative {
         nm.createNotificationChannel(live);
         NotificationChannel done = new NotificationChannel(CH_DONE, "Fokus beendet", NotificationManager.IMPORTANCE_HIGH);
         done.setSound(null, null);
+        done.enableVibration(false);
         nm.createNotificationChannel(done);
     }
 
@@ -70,6 +71,7 @@ final class FocusNative {
             alarm.putExtra("uri", o.optString("soundUri", ""));
             alarm.putExtra("title", o.optString("doneTitle", "Fokus beendet"));
             alarm.putExtra("text", o.optString("doneText", ""));
+            alarm.putExtra("stop", o.optString("stopLabel", "Stop"));
             PendingIntent pi2 = PendingIntent.getBroadcast(ctx, REQ_ALARM, alarm, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endsAt, pi2);
         } else {

@@ -18,7 +18,7 @@ const de = {
   urgent: "Dringend", important: "Wichtig", q1: "Sofort erledigen", q2: "Einplanen", q3: "Abgeben", q4: "Später / streichen",
   newHabit: "Neue Gewohnheit", habitTarget: "Ziel pro Tag", habitUnit: "Einheit", habitDays: "Aktive Tage", streak: "Serie",
   bestStreak: "Beste Serie", total: "Gesamt", rate30: "30 Tage", noHabits: "Noch keine Gewohnheiten", archive: "Archivieren", reminderTime: "Erinnerung um",
-  focus: "Fokus", shortBreak: "Pause", longBreak: "Lange Pause", start: "Start", pause: "Pause", resume: "Weiter", reset: "Zurücksetzen", skip: "Überspringen", custom: "Eigene", customTime: "Eigene Zeit (Minuten)", zen: "Fokus-Modus", focusSound: "Fokus-Ton", soundDefault: "Standard-Alarm", soundPreview: "Anhören", soundStop: "Stopp", pausedLabel: "Pausiert", focusDone: "Fokus beendet", breakDone: "Pause vorbei", timeForBreak: "Zeit für eine Pause.", backToWork: "Weiter geht's.", setBtn: "Übernehmen",
+  focus: "Fokus", shortBreak: "Pause", longBreak: "Lange Pause", start: "Start", pause: "Pause", resume: "Weiter", reset: "Zurücksetzen", skip: "Überspringen", custom: "Eigene", customTime: "Eigene Zeit (Minuten)", zen: "Fokus-Modus", focusSound: "Fokus-Ton", soundDefault: "Standard-Alarm", soundPreview: "Anhören", soundStop: "Stopp", pausedLabel: "Pausiert", focusDone: "Fokus beendet", breakDone: "Pause vorbei", timeForBreak: "Zeit für eine Pause.", backToWork: "Weiter geht's.", setBtn: "Übernehmen", stopAlarm: "Alarm stoppen",
   noTaskLinked: "Keine Aufgabe verknüpft", sessionsToday: "Sessions heute", focusToday: "Fokuszeit heute", focusWeek: "Letzte 7 Tage",
   workMin: "Fokus (Min.)", breakMin: "Pause (Min.)", longBreakMin: "Lange Pause (Min.)", longBreakEvery: "Lange Pause nach … Sessions", autoStart: "Nächste Phase automatisch starten",
   language: "Sprache", theme: "Design", themeSystem: "System", themeLight: "Hell", themeDark: "Dunkel", weekStart: "Wochenbeginn", monday: "Montag", sunday: "Sonntag",
@@ -42,6 +42,10 @@ const de = {
   trackerErrAuth: "Anmeldung beim Tracker fehlgeschlagen", trackerErrNet: "Tracker nicht erreichbar", trackerErrAi: "Die KI des Trackers ist gerade nicht verfügbar", trackerErrRate: "Zu viele Anfragen, versuche es gleich noch einmal",
   trackerErr: "Senden fehlgeschlagen", trackerSending: "Sende…", calEarly: "Vor Deadline", calOn: "Am Tag", calLate: "Später", calNoDue: "Ohne Deadline", deadlines: "Deadlines",
   note: "Notiz", addNote: "Notiz hinzufügen…", todoTab: "Todo", hide: "Ausblenden", defaultLists: "Standardlisten", restoreHint: "Ausgeblendete Listen kannst du hier wieder einblenden.", localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
+  motivation: "Motivation", mTexts: "Texte", mAudio: "Audio", mPodcasts: "Podcasts", mNewText: "Neuer Text", mTextTitle: "Titel", mTextBody: "Was dich in schwachen Momenten aufbaut …",
+  mUploadFile: "Datei hochladen", mNoTexts: "Noch keine Texte. Schreib dir auf, was dich motiviert, oder lade eine Textdatei hoch.", mNoAudio: "Noch kein Audio. Lade eigene Aufnahmen oder Dateien hoch.",
+  mSearch: "Podcast suchen", mSubscribed: "Meine Podcasts", mSuggestions: "Vorschläge", mSubscribe: "Hinzufügen", mUnsubscribe: "Entfernen", mEpisodes: "Folgen", mLoadErr: "Feed konnte nicht geladen werden.",
+  mNoResults: "Nichts gefunden.", mMore: "Mehr anzeigen", mBack: "Zurück", mNeedLogin: "Podcasts laden über den Server: bitte anmelden.",
 } as const;
 
 export type Key = keyof typeof de;
@@ -66,7 +70,7 @@ const en: Record<Key, string> = {
   urgent: "Urgent", important: "Important", q1: "Do first", q2: "Schedule", q3: "Delegate", q4: "Later / drop",
   newHabit: "New habit", habitTarget: "Target per day", habitUnit: "Unit", habitDays: "Active days", streak: "Streak",
   bestStreak: "Best streak", total: "Total", rate30: "30 days", noHabits: "No habits yet", archive: "Archive", reminderTime: "Remind at",
-  focus: "Focus", shortBreak: "Break", longBreak: "Long break", start: "Start", pause: "Pause", resume: "Resume", reset: "Reset", skip: "Skip", custom: "Custom", customTime: "Custom time (minutes)", zen: "Focus mode", focusSound: "Focus sound", soundDefault: "Default alarm", soundPreview: "Preview", soundStop: "Stop", pausedLabel: "Paused", focusDone: "Focus finished", breakDone: "Break over", timeForBreak: "Time for a break.", backToWork: "Back to work.", setBtn: "Apply",
+  focus: "Focus", shortBreak: "Break", longBreak: "Long break", start: "Start", pause: "Pause", resume: "Resume", reset: "Reset", skip: "Skip", custom: "Custom", customTime: "Custom time (minutes)", zen: "Focus mode", focusSound: "Focus sound", soundDefault: "Default alarm", soundPreview: "Preview", soundStop: "Stop", pausedLabel: "Paused", focusDone: "Focus finished", breakDone: "Break over", timeForBreak: "Time for a break.", backToWork: "Back to work.", setBtn: "Apply", stopAlarm: "Stop alarm",
   noTaskLinked: "No task linked", sessionsToday: "Sessions today", focusToday: "Focus time today", focusWeek: "Last 7 days",
   workMin: "Focus (min)", breakMin: "Break (min)", longBreakMin: "Long break (min)", longBreakEvery: "Long break after … sessions", autoStart: "Start next phase automatically",
   language: "Language", theme: "Theme", themeSystem: "System", themeLight: "Light", themeDark: "Dark", weekStart: "Week starts on", monday: "Monday", sunday: "Sunday",
@@ -90,6 +94,10 @@ const en: Record<Key, string> = {
   trackerErrAuth: "Tracker login failed", trackerErrNet: "Tracker not reachable", trackerErrAi: "The tracker's AI is unavailable right now", trackerErrRate: "Too many requests, try again in a moment",
   trackerErr: "Sending failed", trackerSending: "Sending…", calEarly: "Before deadline", calOn: "On the day", calLate: "Late", calNoDue: "No deadline", deadlines: "Deadlines",
   note: "Note", addNote: "Add a note…", todoTab: "Todo", hide: "Hide", defaultLists: "Default lists", restoreHint: "Hidden lists can be shown again here.", localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
+  motivation: "Motivation", mTexts: "Texts", mAudio: "Audio", mPodcasts: "Podcasts", mNewText: "New text", mTextTitle: "Title", mTextBody: "What lifts you up on weak days …",
+  mUploadFile: "Upload file", mNoTexts: "No texts yet. Write down what motivates you, or upload a text file.", mNoAudio: "No audio yet. Upload your own recordings or files.",
+  mSearch: "Search podcasts", mSubscribed: "My podcasts", mSuggestions: "Suggestions", mSubscribe: "Add", mUnsubscribe: "Remove", mEpisodes: "Episodes", mLoadErr: "Could not load the feed.",
+  mNoResults: "Nothing found.", mMore: "Show more", mBack: "Back", mNeedLogin: "Podcasts load through the server: please sign in.",
 };
 
 export const dict = { de, en };

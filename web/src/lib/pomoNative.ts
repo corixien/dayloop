@@ -33,6 +33,7 @@ export async function syncFocusNative(s: PomoState, lang: Lang) {
       clock: clock(remaining(s, Date.now())),
       doneTitle: work ? t("focusDone") : t("breakDone"),
       doneText: work ? t("timeForBreak") : t("backToWork"),
+      stopLabel: t("stopAlarm"),
       soundUri: getSound()?.uri ?? "",
     });
   } catch (e) {

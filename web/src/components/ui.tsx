@@ -57,8 +57,8 @@ export function Field({ label, children, className, group }: { label: string; ch
 }
 
 /** Round checkbox colored by priority. */
-export function Check_({ done, priority = 0, onChange, label }: { done: boolean; priority?: number; onChange: () => void; label: string }) {
-  const col = priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)";
+export function Check_({ done, priority = 0, onChange, label, size = 18, color }: { done: boolean; priority?: number; onChange: () => void; label: string; size?: number; color?: string }) {
+  const col = color ?? priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)";
   return (
     <button
       role="checkbox"
@@ -68,10 +68,10 @@ export function Check_({ done, priority = 0, onChange, label }: { done: boolean;
         e.stopPropagation();
         onChange();
       }}
-      className="grid size-[18px] shrink-0 place-items-center rounded-full border-[1.5px] transition-colors"
-      style={{ borderColor: col, background: done ? col : "transparent" }}
+      className="grid shrink-0 place-items-center rounded-full border-[1.5px] transition-colors"
+      style={{ width: size, height: size, borderColor: col, background: done ? col : "transparent" }}
     >
-      {done && <Check size={11} strokeWidth={3} className="text-white" />}
+      {done && <Check size={Math.round(size * 0.62)} strokeWidth={3} className="text-white" />}
     </button>
   );
 }

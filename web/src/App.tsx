@@ -8,11 +8,13 @@ import { useWidgetSync } from "./lib/widget";
 import { AuthPanel } from "./components/AuthPanel";
 import { Calendar } from "./components/Calendar";
 import { CommandPalette } from "./components/CommandPalette";
+import { Motivation } from "./components/Motivation";
 import { Habits } from "./components/Habits";
 import { Trash } from "./components/Trash";
 import { HaveDone } from "./components/HaveDone";
 import { TodoView } from "./components/TodoView";
 import { Pomodoro, fmtClock } from "./components/Pomodoro";
+import { AlarmHost } from "./components/AlarmPopup";
 import { Zen } from "./components/Zen";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
@@ -110,6 +112,7 @@ export default function App() {
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
+  else if (page === "motivation") main = <Motivation />;
   else if (page === "settings") main = <Settings />;
   else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;
   else main = <TodoView selectedId={selected} onSelect={select} />;
@@ -162,6 +165,7 @@ export default function App() {
         </a>
       )}
       {page === "zen" && <Zen />}
+      <AlarmHost />
       {newKind && <NewItem kind={newKind} onClose={() => setNewKind(null)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
       {welcome && <Welcome onClose={closeWelcome} />}

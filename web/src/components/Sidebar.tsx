@@ -1,4 +1,4 @@
-import { Calendar, CheckCheck, Flame, ListTodo, Search, Settings, Timer, Trash2 } from "lucide-react";
+import { Calendar, CheckCheck, Flame, ListTodo, Sparkles, Search, Settings, Timer, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useItems, useNow, useSyncStatus, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
@@ -45,6 +45,7 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
         </div>
       </div>
       <div className="space-y-px border-t border-line p-2 safe-bottom">
+        <Item to="/motivation" route={route} label={t("motivation")} icon={<Sparkles size={sz} />} onNavigate={onNavigate} />
         <Item to="/trash" route={route} label={t("trash")} icon={<Trash2 size={sz} />} onNavigate={onNavigate} />
         <Item to="/settings" route={route} label={t("settings")} icon={<Settings size={sz} />} onNavigate={onNavigate} />
         <div className="flex items-center gap-2 px-2.5 pt-1 text-[11px] text-muted" role="status">

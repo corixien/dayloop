@@ -32,6 +32,7 @@
         </receiver>
 
         <receiver android:name=".FocusAlarmReceiver" android:exported="false" />
+        <service android:name=".FocusRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
 
         <service
             android:name=".WidgetService"
@@ -84,4 +85,9 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 </manifest>

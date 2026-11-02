@@ -126,6 +126,31 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
             </Field>
           </div>
         )}
+        {!task.done && (
+          <>
+          <div className="block">
+            <span className="mb-1 block text-xs font-medium text-muted">{t("reminders")}</span>
+            <div className="space-y-1.5">
+              {task.reminders.map((r, i) => (
+                <div key={i} className="flex items-center justify-between rounded-ctl border border-line px-2.5 py-1 text-[13px]">
+                  {t(REMINDER_OPTIONS.find((o) => o.v === r.offsetMin)?.k ?? "atDue")}
+                  <IconButton label={t("delete")} className="size-6" onClick={() => patch({ reminders: task.reminders.filter((_, j) => j !== i) })}><X size={13} /></IconButton>
+                </div>
+              ))}
+              {reminderOptions.length > 0 && (
+                <Select
+                  label={t("addReminder")}
+                  disabled={!task.dueDate}
+                  value={-1}
+                  placeholder={`+ ${t("addReminder")}`}
+                  options={reminderOptions}
+                  onChange={(v) => patch({ reminders: [...task.reminders, { offsetMin: v }] })}
+                />
+              )}
+            </div>
+          </div>
+          </>
+        )}
 
         <Field label={t("priority")} group>
           <Segmented
@@ -187,28 +212,6 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
                       {t("fromCompletion")}
                     </label>
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div className="block">
-              <span className="mb-1 block text-xs font-medium text-muted">{t("reminders")}</span>
-              <div className="space-y-1.5">
-                {task.reminders.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-ctl border border-line px-2.5 py-1 text-[13px]">
-                    {t(REMINDER_OPTIONS.find((o) => o.v === r.offsetMin)?.k ?? "atDue")}
-                    <IconButton label={t("delete")} className="size-6" onClick={() => patch({ reminders: task.reminders.filter((_, j) => j !== i) })}><X size={13} /></IconButton>
-                  </div>
-                ))}
-                {reminderOptions.length > 0 && (
-                  <Select
-                    label={t("addReminder")}
-                    disabled={!task.dueDate}
-                    value={-1}
-                    placeholder={`+ ${t("addReminder")}`}
-                    options={reminderOptions}
-                    onChange={(v) => patch({ reminders: [...task.reminders, { offsetMin: v }] })}
-                  />
                 )}
               </div>
             </div>

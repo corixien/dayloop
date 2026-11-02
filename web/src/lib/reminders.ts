@@ -25,13 +25,15 @@ export function upcomingReminders(
   const toDay = addDays(opts.todayStr, Math.ceil(opts.horizonMs / (24 * HOUR)) + 1);
 
   for (const t of tasks) {
-    if (t.done || t.trashedAt !== null || !t.dueDate || t.reminders.length === 0) continue;
+    if (t.done || t.trashedAt !== null || !t.dueDate) continue;
+    // every deadline also reminds 24 h ahead, besides the chosen reminders
+    const offsets = [...new Set([...t.reminders.map((r) => r.offsetMin), 1440])];
     const dates = t.repeat ? occurrences(t.dueDate, t.repeat, fromDay, toDay) : [t.dueDate];
     for (const date of dates) {
-      for (const r of t.reminders) {
-        const at = dueMs(date, t.dueTime, opts.allDayHour) - r.offsetMin * 60_000;
+      for (const offsetMin of offsets) {
+        const at = dueMs(date, t.dueTime, opts.allDayHour) - offsetMin * 60_000;
         if (at > opts.now && at <= end) {
-          out.push({ key: `task:${t.id}:${date}:${r.offsetMin}`, at, title: t.title, body: t.dueTime ? `${date} ${t.dueTime}` : date });
+          out.push({ key: `task:${t.id}:${date}:${offsetMin}`, at, title: t.title, body: t.dueTime ? `${date} ${t.dueTime}` : date });
         }
       }
     }

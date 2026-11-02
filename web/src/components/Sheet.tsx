@@ -2,15 +2,22 @@ import { type ReactNode, useRef, useState } from "react";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-/** Bottom sheet: slides up, drag the handle area down (or fling) to dismiss. */
-export function Sheet({ onClose, children, always, fit }: { onClose: () => void; children: (close: () => void) => ReactNode; always?: boolean; fit?: boolean }) {
+/** Bottom sheet: slides up, drag the handle area down (or fling) to dismiss. With `onExpand`, dragging it up grows it and hands over. */
+export function Sheet({ onClose, children, always, fit, onExpand }: { onClose: () => void; children: (close: () => void) => ReactNode; always?: boolean; fit?: boolean; onExpand?: () => void }) {
   const panel = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
   const drag = useRef({ y0: 0, t0: 0, dy: 0, v: 0, lastY: 0, lastT: 0, on: false });
 
   const set = (dy: number, animate: boolean) => {
+    if (dy < 0 && panel.current) {
+      // pulled up: the sheet grows towards the top of the screen
+      panel.current.style.transition = animate ? `height 220ms ${EASE}` : "none";
+      panel.current.style.height = `min(calc(78dvh + ${-dy}px), 100dvh)`;
+      return;
+    }
     if (panel.current) {
+      panel.current.style.removeProperty("height");
       panel.current.style.transition = animate ? `transform 280ms ${EASE}` : "none";
       panel.current.style.transform = `translateY(${dy}px)`;
     }
@@ -46,7 +53,7 @@ export function Sheet({ onClose, children, always, fit }: { onClose: () => void;
           onTouchMove={(e) => {
             if (!d.on) return;
             const t = e.touches[0];
-            d.dy = Math.max(0, t.clientY - d.y0);
+            d.dy = onExpand ? t.clientY - d.y0 : Math.max(0, t.clientY - d.y0);
             const dt = e.timeStamp - d.lastT;
             if (dt > 0) d.v = (t.clientY - d.lastY) / dt;
             d.lastY = t.clientY; d.lastT = e.timeStamp;
@@ -55,7 +62,10 @@ export function Sheet({ onClose, children, always, fit }: { onClose: () => void;
           onTouchEnd={() => {
             if (!d.on) return;
             d.on = false;
-            if (d.dy > 140 || d.v > 0.6) close();
+            if (onExpand && (d.dy < -90 || d.v < -0.6) && d.dy < 0) {
+              if (panel.current) { panel.current.style.transition = `height 200ms ${EASE}`; panel.current.style.height = "100dvh"; }
+              setTimeout(onExpand, 180);
+            } else if (d.dy > 140 || d.v > 0.6) close();
             else set(0, true);
           }}
         >

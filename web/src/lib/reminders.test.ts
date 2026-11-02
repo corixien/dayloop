@@ -19,10 +19,19 @@ describe("reminders", () => {
       ["a", dueMs("2026-10-30", "14:30")], ["a", dueMs("2026-10-30", "15:00")], ["b", dueMs("2026-10-31", null, 9)],
     ]);
   });
+  it("reminds 24 h before every deadline, even without chosen reminders, at the daily hour for date-only ones", () => {
+    const r = upcomingReminders([
+      task("e", { dueDate: "2026-10-31" }),
+      task("f", { dueDate: "2026-10-31", dueTime: "18:00", reminders: [{ offsetMin: 1440 }] }),
+    ], [], new Map(), { ...opts, now: new Date(2026, 9, 29, 12, 0).getTime() });
+    expect(r.map((x) => [x.key, x.at])).toEqual([
+      ["task:e:2026-10-31:1440", dueMs("2026-10-30", null, 9)], ["task:f:2026-10-31:1440", dueMs("2026-10-30", "18:00")],
+    ]);
+  });
   it("expands repeating tasks and habit reminders (skipping completed days)", () => {
     const rep = task("r", { dueDate: "2026-10-30", dueTime: "08:00", repeat: { freq: "daily", interval: 1 }, reminders: [{ offsetMin: 0 }] });
     const r = upcomingReminders([rep], [], new Map(), opts);
-    expect(r.map((x) => x.key)).toEqual(["task:r:2026-10-31:0", "task:r:2026-11-01:0"]);
+    expect(r.map((x) => x.key).filter((k) => k.endsWith(":0"))).toEqual(["task:r:2026-10-31:0", "task:r:2026-11-01:0"]);
     const habit = { id: "h", ...parseData("habit", { name: "Lesen", startDate: "2026-10-01", reminderTime: "20:00" }) };
     const done = new Map([["h", new Map([["2026-10-30", 1]])]]);
     expect(upcomingReminders([], [habit], done, opts).map((x) => x.key)).toEqual(["habit:h:2026-10-31"]);

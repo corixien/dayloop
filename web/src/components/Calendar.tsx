@@ -36,16 +36,16 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const evColor = (ev: Ev) => (ev.habit ? colorOf(ev.habit.color) : ev.timing ? TIMING_COLOR[ev.timing] : prioColor(ev.task!.priority));
 const evTitle = (ev: Ev) => (ev.habit ? ev.habit.name : ev.sub ? `${ev.sub} · ${ev.task!.title}` : ev.task!.title);
 
-function Chip({ ev, onSelect, selected }: { ev: Ev; onSelect: (id: string) => void; selected: boolean }) {
+function Chip({ ev, onSelect, selected, inert }: { ev: Ev; onSelect: (id: string) => void; selected: boolean; inert?: boolean }) {
   const c = evColor(ev);
   const finished = !!ev.timing || !!ev.habit;
   const Icon = ev.habit ? Flame : ev.sub ? ListChecks : Check;
   return (
     <button
-      draggable={!!ev.task && !ev.task.done && !ev.sub}
+      draggable={!inert && !!ev.task && !ev.task.done && !ev.sub}
       onDragStart={(e) => ev.task && e.dataTransfer.setData("text/task", ev.task.id)}
       onClick={(e) => { e.stopPropagation(); if (ev.task) onSelect(ev.task.id); }}
-      className={cx("flex h-full w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-1 ring-accent" : "")}
+      className={cx("flex h-full w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-1 ring-accent" : "", inert && "pointer-events-none")}
       title={evTitle(ev)}
       style={{ background: `color-mix(in srgb, ${c} 15%, transparent)`, color: "var(--fg)", borderLeft: `2px solid ${c}` }}
     >
@@ -176,13 +176,13 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
           const head = (events.get(d) ?? []).filter((e) => e.habit || (!e.timing && !e.task?.dueTime));
           return (
             <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5">
-              <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full text-center text-xs leading-tight", d === today ? "font-semibold text-accent" : "text-muted")}>
+              <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full rounded text-center text-xs leading-tight", mode === "week" && "py-1 hover:bg-hover", d === today ? "font-semibold text-accent" : "text-muted")}>
                 {mode === "week"
                   ? <><span className="block">{new Intl.DateTimeFormat(lang, { weekday: "short" }).format(parseDate(d))}</span><span className="block text-sm tabular-nums">{Number(d.slice(8))}</span></>
                   : <span className="block truncate">{fmtLong(d, lang)}</span>}
               </button>
-              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={(e) => (mode === "week" ? onZoom("day", d, e.currentTarget.parentElement!) : onCreate({ date: d, time: null }))}>
-                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
+              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })}>
+                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week"} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
               </div>
             </div>
@@ -216,13 +216,13 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 data-date={d}
                 className="relative min-w-0 flex-1 basis-0 border-l border-line"
                 style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR - 1}px, var(--line) ${HOUR - 1}px, var(--line) ${HOUR}px)` }}
-                onClick={(e) => (mode === "week" ? onZoom("day", d, e.currentTarget) : onCreate({ date: d, time: timeFromY(e) }))}
+                onClick={mode === "week" ? undefined : (e) => onCreate({ date: d, time: timeFromY(e) })}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => drop(e, d, timeFromY(e))}
               >
                 {placed.map(({ e, top, lane }, i) => (
                   <div key={i} className="absolute px-px" style={{ top, height: CHIP_H, left: `${(lane / n) * 100}%`, width: `${100 / n}%` }}>
-                    <Chip ev={e} onSelect={onSelect} selected={selectedId === e.task?.id} />
+                    <Chip ev={e} inert={mode === "week"} onSelect={onSelect} selected={selectedId === e.task?.id} />
                   </div>
                 ))}
                 {d === today && (
@@ -309,16 +309,38 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
     requestAnimationFrame(() => requestAnimationFrame(() => finish(true)));
   };
 
-  // pinch: spread = closer (month > week > day), together = wider; the frames follow the fingers
+  // The day a zoom-in lands on: today if it is in view, else the day the view is anchored to.
+  const W = useRef(weekStart);
+  W.current = weekStart;
+  const focusDay = (m: Mode, a: string) => {
+    const [from, to] = m === "month" ? [`${a.slice(0, 7)}-01`, `${a.slice(0, 7)}-31`] : m === "week" ? [startOfWeek(a, W.current), addDays(startOfWeek(a, W.current), 6)] : [a, a];
+    return today >= from && today <= to ? today : a;
+  };
+
+  // pinch: spread = closer (month > week > day), together = wider; the frames follow the fingers.
+  // One gesture can go in and out repeatedly: crossing the starting distance flips the direction.
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    let d0 = 0, started = false, dir: "in" | "out" = "in", cx = 0, cy = 0, level: Mode = "month", lastZoom: Zoom | null = null;
+    let d0 = 0, started = false, dir: "in" | "out" = "in", lvl: Mode = "month", anc = "", next: Zoom | null = null;
     const bound: EventTarget[] = [];
     const dist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const begin = (d: "in" | "out") => {
+      const i = MODES.indexOf(lvl) + (d === "in" ? -1 : 1);
+      if (i < 0 || i >= MODES.length) return false;
+      const target = d === "in" ? focusDay(lvl, anc) : anc;
+      const box = wrap.current!.getBoundingClientRect();
+      const cells = cur.current?.querySelectorAll(`[data-date="${target}"]`);
+      const c = cells && cells.length ? cells[cells.length - 1].getBoundingClientRect() : null;
+      started = true; dir = d;
+      prog.current = 0;
+      next = { to: MODES[i], anchor: target, dir: d, ox: c ? c.left + c.width / 2 - box.left : box.width / 2, oy: c ? c.top + c.height / 2 - box.top : box.height / 2 };
+      setZoom(next);
+      return true;
+    };
     const start = (e: TouchEvent) => {
       if (e.touches.length !== 2 || S.current.zoom) return;
-      d0 = dist(e); started = false; level = S.current.mode;
+      d0 = dist(e); started = false; next = null; lvl = S.current.mode; anc = S.current.anchor;
       // a level switch replaces the touched elements; their touch events then no longer bubble to the wrapper,
       // so follow the fingers on the touched elements themselves
       for (const t of [e.touches[0].target, e.touches[1].target]) {
@@ -328,32 +350,30 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
         t.addEventListener("touchcancel", end as EventListener, { passive: true });
         bound.push(t);
       }
-      cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     };
     function move(e: TouchEvent) {
       if (!d0 || e.touches.length !== 2) return;
       e.preventDefault();
       const s = dist(e) / d0;
+      if (started && ((dir === "in" && s < 1) || (dir === "out" && s > 1))) {
+        // fingers turned around past the starting distance: hand over to the opposite zoom without lifting
+        started = false; next = null; prog.current = 0;
+        if (begin(dir === "in" ? "out" : "in")) return;
+        setZoom(null);
+        d0 = dist(e);
+        return;
+      }
       if (!started) {
         if (Math.abs(s - 1) < 0.05) return;
-        dir = s > 1 ? "in" : "out";
-        const i = MODES.indexOf(level) + (dir === "in" ? -1 : 1);
-        if (i < 0 || i >= MODES.length) { d0 = 0; return; }
-        const box = wrap.current!.getBoundingClientRect();
-        started = true;
-        prog.current = 0;
-        // always into the month/week/day that is showing, not the one under the fingers
-        lastZoom = { to: MODES[i], anchor: S.current.anchor, dir, ox: cx - box.left, oy: cy - box.top };
-        setZoom(lastZoom);
+        if (!begin(s > 1 ? "in" : "out")) d0 = dist(e); // at the first/last level: re-measure so turning back responds at once
         return;
       }
       const p = dir === "in" ? clamp((s - 1) / 0.7, 0, 1) : clamp((1 - s) / 0.4, 0, 1);
       paint(p, false);
-      if (p >= 1 && lastZoom) {
+      if (p >= 1 && next) {
         // a long pinch continues into the next level: switch now (identical picture), then measure from here
-        setFx("none"); setAnchor(lastZoom.anchor); setMode(lastZoom.to); setZoom(null);
-        level = lastZoom.to; lastZoom = null;
+        setFx("none"); setAnchor(next.anchor); setMode(next.to); setZoom(null);
+        lvl = next.to; anc = next.anchor; next = null;
         prog.current = 0; started = false; d0 = dist(e);
       }
     }
@@ -382,7 +402,8 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   const step = (d: 1 | -1) => {
     if (zoom) return;
     setFx(d > 0 ? "in-right" : "in-left");
-    setAnchor(mode === "month" ? addMonths(anchor, d) : addDays(anchor, d * (mode === "week" ? 7 : 1)));
+    // month/week steps land on the first day of the period, so zooming back in is predictable
+    setAnchor(mode === "month" ? `${addMonths(anchor, d).slice(0, 7)}-01` : mode === "week" ? addDays(startOfWeek(anchor, weekStart), d * 7) : addDays(anchor, d));
   };
   useSwipe(() => wrap.current, { ignoreLeftEdge: 32, onLeft: () => step(1), onRight: () => step(-1) }, [mode, anchor, zoom]);
 

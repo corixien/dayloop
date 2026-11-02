@@ -57,3 +57,9 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Focus timer (`pomoStore.ts`): custom length (`state.custom`, next phase is normal), zen mode (`#/zen`, black screen filling purple, keeps screen on via `keepAwake`), Android side in `FocusNative`/`FocusAlarmReceiver`: live notification (chronometer countdown, promoted ongoing on Android 16 / One UI 8, tap opens overlay route `/overlay/focus`), exact end alarm that plays the chosen system sound (`listSounds`, device-local setting `dl_sound`). The widget overlay and the app share the timer through localStorage.
 - Drafts (`TaskDetail.useDraft`): title/notes autosave 600 ms after typing, on blur and on unmount.
 - Release APK: `cd web/android && ./gradlew assembleRelease`; signing config reads `~/.dayloop-release/keystore.properties` (outside the repo, back it up: without the key updates cannot be installed over existing installs). Debug and release builds have different signatures. The native app defaults to `https://dayloop.onrender.com`.
+
+## Additions 2026-11-02
+- Todo is one list without sections: `sortOpen` (taskLogic) puts deadlines within 24 h (or overdue) first, then priority, deadline, order. Every deadline also reminds 24 h before (`reminders.ts`).
+- Timer end: AlarmManager -> `FocusAlarmReceiver` -> `FocusRingService` (looping alarm until stopped, 30 min cap, heads-up + full-screen intent to `/overlay/alarm`); web side `AlarmPopup`/`AlarmHost`.
+- Refresh tokens stay valid 120 s after rotation (server) and `SyncClient` refreshes once at a time and rereads the shared session: do not revert, it prevents random logouts.
+- Motivation page: local-only IndexedDB (`lib/motivation.ts`); podcast feeds go through `GET /api/feed` (auth, public hosts only).

@@ -46,7 +46,7 @@ export function Pomodoro() {
   const label = state.phase === "work" ? t("focus") : state.phase === "break" ? t("shortBreak") : t("longBreak");
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
   const max = Math.max(30, ...days.map((d) => stats.byDay.get(d) ?? 0));
-  const names = weekdayNames(useSettings().language, 1);
+  const names = weekdayNames(settings.language, 1);
   const linked = tasks.find((x) => x.id === state.taskId);
 
   return (

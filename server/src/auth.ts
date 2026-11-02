@@ -8,6 +8,7 @@ const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) =>
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const ACCESS_TTL_S = 15 * 60;
+const REFRESH_GRACE_S = 120;
 const REFRESH_TTL_MS = 90 * 24 * 3600 * 1000;
 export const TOKEN_PREFIX = "dl_";
 
@@ -49,10 +50,14 @@ export class Auth {
     return { accessToken: this.signAccess(userId), refreshToken, expiresIn: ACCESS_TTL_S };
   }
 
-  /** Rotating refresh: the presented token is consumed. */
+  /**
+   * Rotating refresh. The presented token stays valid for a short grace period: a client that lost the response
+   * (flaky mobile network) or two app WebViews refreshing at once would otherwise be locked out.
+   */
   async refresh(token: string) {
     const r = await this.db.query<{ user_id: string }>(
-      "delete from sessions where token_hash=$1 and expires_at > now() returning user_id",
+      `update sessions set expires_at = least(expires_at, now() + interval '${REFRESH_GRACE_S} seconds')
+       where token_hash=$1 and expires_at > now() returning user_id`,
       [sha256(token)],
     );
     if (!r.rows[0]) return null;

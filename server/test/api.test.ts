@@ -3,6 +3,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { type Db, migrate } from "../src/db.js";
+import { isPrivateIp } from "../src/feed.js";
 
 function pgliteDb(): Db {
   const pg = new PGlite();
@@ -51,8 +52,12 @@ describe("auth", () => {
     const u = await user("r@example.com");
     const r1 = await api.post("/api/auth/refresh").send({ refreshToken: u.r.refreshToken });
     expect(r1.status).toBe(200);
-    expect((await api.post("/api/auth/refresh").send({ refreshToken: u.r.refreshToken })).status).toBe(401);
+    // a lost response or a second WebView may present the old token again shortly after rotation
+    expect((await api.post("/api/auth/refresh").send({ refreshToken: u.r.refreshToken })).status).toBe(200);
     expect((await api.post("/api/auth/refresh").send({ refreshToken: r1.body.refreshToken })).status).toBe(200);
+    expect((await api.post("/api/auth/refresh").send({ refreshToken: "x".repeat(43) })).status).toBe(401);
+    await db.query("update sessions set expires_at = now() - interval '1 second' where user_id=$1", [u.id]);
+    expect((await api.post("/api/auth/refresh").send({ refreshToken: r1.body.refreshToken })).status).toBe(401);
   });
 
   it("requires auth", async () => {
@@ -220,5 +225,18 @@ describe("api tokens and REST items (MCP path)", () => {
     ac.abort();
     server.closeAllConnections();
     server.close();
+  });
+});
+
+describe("feed proxy", () => {
+  it("requires auth and refuses private targets", async () => {
+    expect((await api.get("/api/feed").query({ url: "https://example.com/feed.xml" })).status).toBe(401);
+    const u = await user("feed@example.com");
+    expect((await api.get("/api/feed").set(u.h).query({ url: "not a url" })).status).toBe(400);
+    expect((await api.get("/api/feed").set(u.h).query({ url: "http://127.0.0.1:1/x" })).status).toBe(400);
+    expect((await api.get("/api/feed").set(u.h).query({ url: "http://169.254.169.254/latest" })).status).toBe(400);
+    expect((await api.get("/api/feed").set(u.h).query({ url: "file:///etc/passwd" })).status).toBe(400);
+    for (const ip of ["10.0.0.1", "192.168.1.5", "172.20.0.1", "::1", "fd00::1", "::ffff:127.0.0.1"]) expect(isPrivateIp(ip)).toBe(true);
+    for (const ip of ["8.8.8.8", "93.184.216.34", "2606:4700::1111"]) expect(isPrivateIp(ip)).toBe(false);
   });
 });

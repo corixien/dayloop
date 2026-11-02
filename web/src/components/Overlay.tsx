@@ -4,6 +4,7 @@ import { local, syncClient, useHashRoute, useSettings, useT, useTheme } from "..
 import { getTracker, markSent, sendToTracker, trackerErrorKey } from "../lib/tracker";
 import { closeOverlay, openInApp, overlayReady, useWidgetSync } from "../lib/widget";
 import { pomo, usePomo } from "../lib/pomoStore";
+import { AlarmPopup } from "./AlarmPopup";
 import { NewItem } from "./NewItem";
 import { Sheet } from "./Sheet";
 import { Button } from "./ui";
@@ -28,12 +29,13 @@ export function Overlay() {
   const [, , kind, arg] = route.split("/");
   if (kind === "task" && arg) {
     return (
-      <Sheet always onClose={() => void closeOverlay()}>
+      <Sheet always onClose={() => void closeOverlay()} onExpand={() => void local.get("task", arg).then((x) => openInApp(x?.done ? "/done" : "/todo"))}>
         {(close) => <TaskDetail id={arg} onClose={close} onFocus={(id) => void openInApp("/pomodoro", id)} />}
       </Sheet>
     );
   }
   if (kind === "focus") return <FocusPopup />;
+  if (kind === "alarm") return <AlarmPopup onClose={() => void closeOverlay()} />;
   if (kind === "track" && arg) return <TrackSend id={arg} />;
   if (kind === "new") return <NewItem kind={arg === "done" ? "done" : "todo"} bare onClose={() => void closeOverlay()} />;
   return null;

@@ -7,7 +7,7 @@ const NOW = new Date(2026, 9, 31, 12, 0);
 const task = (id: string, extra: object): TaskItem => ({ id, updatedAt: 1, ...parseData("task", { title: id, ...extra }) });
 
 describe("widget snapshot", () => {
-  it("groups todos by deadline and Have Done by day", () => {
+  it("lists todos in one list (due within 24 h first) and Have Done by day", () => {
     const yesterday = new Date(2026, 9, 30, 20, 15).getTime();
     const today = new Date(2026, 9, 31, 9, 5).getTime();
     const s = buildSnapshot([
@@ -21,7 +21,7 @@ describe("widget snapshot", () => {
       task("gone", { trashedAt: 5 }),
     ], "de", NOW);
 
-    expect(s.todo.filter((r) => r.k === "h").map((r) => r.title)).toEqual(["Überfällig", "Heute", "Morgen", "Später", "Ohne Deadline"]);
+    expect(s.todo.map((r) => r.id)).toEqual(["over", "now", "rep", "later", "none"]);
     expect(s.todo.find((r) => r.id === "now")).toMatchObject({ meta: "15:00" });
     expect(s.todo.find((r) => r.id === "over")).toMatchObject({ prio: 3 });
     expect(s.todo.find((r) => r.id === "rep")).toMatchObject({ rep: true });

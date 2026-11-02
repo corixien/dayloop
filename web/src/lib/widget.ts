@@ -21,6 +21,8 @@ interface WidgetPlugin {
   stopSound(): Promise<void>;
   soundPlaying(): Promise<{ playing: boolean }>;
   keepAwake(o: { on: boolean }): Promise<void>;
+  alarmRinging(): Promise<{ ringing: boolean }>;
+  stopAlarm(): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }
 export const widgetPlugin = () => registerPlugin<WidgetPlugin>("DayloopWidget");
@@ -58,7 +60,7 @@ export async function applyPendingWidgetActions() {
 
 /** Native only: keep the home screen widget in step with the data and apply what was done in it. */
 export function useWidgetSync() {
-  const lang = useSettings().language;
+  const { language: lang, defaultReminderHour: hour } = useSettings();
   useEffect(() => {
     if (!isNative()) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -66,7 +68,7 @@ export function useWidgetSync() {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         try {
-          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null));
+          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null, hour));
           await ensureCredentials();
         } catch (e) {
           console.warn("widget sync", e);
@@ -92,7 +94,7 @@ export function useWidgetSync() {
       local.db.items.hook("creating").unsubscribe(push);
       local.db.items.hook("updating").unsubscribe(push);
     };
-  }, [lang]);
+  }, [lang, hour]);
 }
 
 /** The overlay route has rendered: the native window may show its WebView. */

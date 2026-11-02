@@ -37,6 +37,10 @@ public class OverlayActivity extends BridgeActivity {
     private void go(Intent intent) {
         Uri d = intent.getData();
         String path = d != null && d.getPath() != null ? d.getPath() : "";
+        if (path.startsWith("/alarm")) {
+            // the end-of-timer pop-up shows over the lock screen and wakes the display
+            if (android.os.Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
+        }
         final String url = "https://localhost/#/overlay" + path;
         getBridge().getWebView().post(() -> getBridge().getWebView().loadUrl(url));
     }

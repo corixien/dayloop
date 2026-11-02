@@ -10,6 +10,7 @@ import { z } from "zod";
 import { type ItemType, isItemType, syncRequestSchema, type Change } from "@dayloop/shared";
 import { Auth, type AuthedRequest, hashPassword, verifyPassword } from "./auth.js";
 import type { Db } from "./db.js";
+import { fetchFeed } from "./feed.js";
 import { Store } from "./store.js";
 
 export interface AppOptions {
@@ -192,6 +193,18 @@ export function createApp(opts: AppOptions) {
     if (!type) return;
     const ok = await store.remove(uid(req), type, String(req.params.id));
     res.status(ok ? 200 : 404).json({ ok });
+  });
+
+  // RSS proxy for the podcast reader (feeds are not CORS-enabled).
+  app.get("/api/feed", requireAuth, async (req, res) => {
+    const url = z.string().url().max(1000).safeParse(req.query.url);
+    if (!url.success) return void res.status(400).json({ error: "invalid_url" });
+    try {
+      res.type("application/xml").send(await fetchFeed(url.data));
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "upstream";
+      res.status(code === "blocked" || code === "bad_url" ? 400 : 502).json({ error: code });
+    }
   });
 
   // Built web app (single deploy, same origin) with SPA fallback.

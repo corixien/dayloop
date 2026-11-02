@@ -63,7 +63,9 @@ test("desktop: todo with deadlines, have done, calendar, tracker", async ({ page
   await addVia(page, "todo", "Milch kaufen");
   const row = page.getByRole("button", { name: /Zahnarzt/ });
   await expect(row).toContainText("Morgen 15:00");
-  await expect(page.getByRole("heading", { name: /Ohne Deadline/ })).toBeVisible();
+  // one list without sections: the dated one (due within 24 h) is on top
+  await expect(page.getByRole("heading", { name: /Ohne Deadline/ })).toHaveCount(0);
+  expect(await page.getByRole("button", { name: /Zahnarzt|Milch/ }).allTextContents().then((a) => a.findIndex((x) => x.includes("Zahnarzt")))).toBe(0);
   await shot(page, "02-todo");
 
   // detail: checklist note + custom dropdown for repeat
@@ -346,5 +348,40 @@ test("long pinch skips a level", async ({ page }) => {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(15) });
   for (const a of [25, 40, 60, 90, 120, 150, 180]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) }); await page.waitForTimeout(50); }
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(4);
+});
+
+test("pinch goes in and out in one gesture, week tasks are not tappable", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Heute Aufgabe heute 10 Uhr");
+  await page.goto("/#/calendar");
+  await page.getByRole("button", { name: "Monat" }).first().click();
+  await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(30);
+  await page.waitForTimeout(600);
+  const cdp = await page.context().newCDPSession(page);
+  const two = (a: number) => [{ x: 195 - a, y: 400, id: 1 }, { x: 195 + a, y: 400, id: 2 }];
+  const move = async (list: number[]) => { for (const a of list) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) }); await page.waitForTimeout(40); } };
+  // spread (month -> week), then close again without lifting (week -> month)
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(40) });
+  await move([50, 65, 80, 100, 120]);
+  await move([100, 80, 60, 45, 30, 20]);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeGreaterThan(30);
+  // spread again: lands on the current week, today's day column is in it
+  await page.waitForTimeout(600);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(15) });
+  await move([25, 40]);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(20);
+  const today = new Date(); const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  await expect(page.locator(`[data-date="${iso}"]`).first()).toBeVisible();
+  // week view: a task chip does not open the task; the weekday header zooms into the day
+  const chip = page.getByTitle("Aufgabe").first();
+  await expect(chip).toBeVisible();
+  expect(await chip.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe("none");
+  await page.locator(`[data-date="${iso}"] button`).first().click();
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(4);
 });

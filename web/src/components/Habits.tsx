@@ -40,25 +40,25 @@ export function Habits() {
           const n = c.get(today) ?? 0;
           const active = isActive(h, today);
           return (
-            <div key={h.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-              <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: colorOf(h.color) }} />
+            <div key={h.id} className="flex items-center gap-4 border-b border-line/60 px-4 py-5 md:px-6">
+              <span className="size-3 shrink-0 rounded-[4px]" style={{ background: colorOf(h.color) }} />
               <button onClick={() => setOpen(h)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{h.name}</span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted"><Flame size={13} className={s.current > 0 ? "text-p2" : ""} />{s.current}</span>
-                {h.target > 1 && <span className="shrink-0 text-xs tabular-nums text-muted">{n}/{h.target}{h.unit ? ` ${h.unit}` : ""}</span>}
+                <span className="min-w-0 flex-1 truncate text-lg font-medium">{h.name}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-[15px] tabular-nums text-muted"><Flame size={16} className={s.current > 0 ? "text-p2" : ""} />{s.current}</span>
+                {h.target > 1 && <span className="shrink-0 text-[15px] tabular-nums text-muted">{n}/{h.target}{h.unit ? ` ${h.unit}` : ""}</span>}
               </button>
               <div className="hidden gap-1 sm:flex" aria-hidden>
                 {last7.map((d) => {
                   const ok = (c.get(d) ?? 0) >= h.target;
-                  return <span key={d} className={cx("size-2.5 rounded-full", ok ? "" : isActive(h, d) ? "bg-line" : "bg-line/40")} style={ok ? { background: colorOf(h.color) } : undefined} />;
+                  return <span key={d} className={cx("size-3 rounded-full", ok ? "" : isActive(h, d) ? "bg-line" : "bg-line/40")} style={ok ? { background: colorOf(h.color) } : undefined} />;
                 })}
               </div>
               {h.target === 1 ? (
-                <Check_ done={n >= 1} onChange={() => void setCount(h.id, today, n >= 1 ? 0 : 1)} label={h.name} />
+                <Check_ size={30} color={colorOf(h.color)} done={n >= 1} onChange={() => void setCount(h.id, today, n >= 1 ? 0 : 1)} label={h.name} />
               ) : (
-                <div className="flex items-center gap-1">
-                  <Button className="size-8 px-0" onClick={() => void setCount(h.id, today, n - 1)} disabled={n === 0} aria-label="-">−</Button>
-                  <Button className="size-8 px-0" variant={n >= h.target ? "primary" : "default"} onClick={() => void setCount(h.id, today, n + 1)} aria-label="+">+</Button>
+                <div className="flex items-center gap-1.5">
+                  <Button className="size-10 px-0 text-lg" onClick={() => void setCount(h.id, today, n - 1)} disabled={n === 0} aria-label="-">−</Button>
+                  <Button className="size-10 px-0 text-lg" variant={n >= h.target ? "primary" : "default"} onClick={() => void setCount(h.id, today, n + 1)} aria-label="+">+</Button>
                 </div>
               )}
               {!active && <span className="sr-only">inactive today</span>}

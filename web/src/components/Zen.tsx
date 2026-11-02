@@ -1,11 +1,13 @@
+import { X } from "lucide-react";
 import { useEffect } from "react";
-import { useSettings } from "../lib/app";
+import { useSettings, useT } from "../lib/app";
 import { isNative } from "../lib/native";
 import { pomo, usePomo } from "../lib/pomoStore";
 import { widgetPlugin } from "../lib/widget";
 
 /** Minimal focus view: a black screen that fills with purple from the bottom as the timer runs. Back leaves it. */
 export function Zen() {
+  const t = useT();
   const settings = useSettings();
   const { state, left } = usePomo();
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
@@ -24,6 +26,13 @@ export function Zen() {
   return (
     <div className="fixed inset-0 z-[100] bg-black" role="timer" aria-label="focus">
       <div className="absolute inset-x-0 bottom-0 bg-[#7b61ff]" style={{ height: `${frac * 100}%`, transition: "height 1s linear" }} />
+      <button
+        onClick={() => history.back()}
+        aria-label={t("close")}
+        className="absolute left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] grid size-10 place-items-center rounded-full border border-white/25 bg-black/30 text-white/60 active:bg-white/15"
+      >
+        <X size={18} />
+      </button>
     </div>
   );
 }

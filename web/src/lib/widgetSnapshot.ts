@@ -1,6 +1,6 @@
 import { addDays, fmtLong, todayStr } from "./dates";
 import { type Lang, translate } from "./i18n";
-import { type TaskItem, compareTasks, doneDay, extras, groupOf, isDone, isOpen } from "./taskLogic";
+import { type TaskItem, doneDay, extras, isDone, sortOpen } from "./taskLogic";
 
 /** One rendered row of the home screen widget: a day/section header or a task. */
 export interface WRow {
@@ -37,18 +37,12 @@ const MAX_ROWS = 80;
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
 /** Pure: everything the native widget needs, already formatted. */
-export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), tracker: TrackerState = null): WidgetSnapshot {
+export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), tracker: TrackerState = null, hour = 9): WidgetSnapshot {
   const t = (k: Parameters<typeof translate>[1]) => translate(lang, k);
   const today = todayStr(now);
 
   const todo: WRow[] = [];
-  let lastGroup = "";
-  for (const x of tasks.filter(isOpen).sort(compareTasks)) {
-    const g = groupOf(x, today);
-    if (g !== lastGroup) {
-      todo.push({ k: "h", title: t(g) });
-      lastGroup = g;
-    }
+  for (const x of sortOpen(tasks, now.getTime(), hour)) {
     const meta = !x.dueDate ? "" : x.dueDate === today ? x.dueTime ?? "" : `${x.dueDate === addDays(today, 1) ? t("tomorrow") : fmtLong(x.dueDate, lang)}${x.dueTime ? ` ${x.dueTime}` : ""}`;
     todo.push({ k: "t", id: x.id, title: x.title, meta, prio: x.priority, rep: !!x.repeat, ...flags(x, tracker) });
   }

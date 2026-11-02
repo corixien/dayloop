@@ -68,6 +68,19 @@ public class WidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void alarmRinging(PluginCall call) {
+        JSObject out = new JSObject();
+        out.put("ringing", FocusRingService.isRinging());
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void stopAlarm(PluginCall call) {
+        FocusRingService.stop(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
     public void listSounds(PluginCall call) {
         try {
             JSObject out = new JSObject();
