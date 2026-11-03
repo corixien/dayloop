@@ -2,7 +2,8 @@
 const GROQ = "https://api.groq.com/openai/v1";
 const KEY = "dl_groq";
 export const WHISPER = "whisper-large-v3-turbo";
-export const CHAT_MODEL = "llama-3.3-70b-versatile";
+/** Tried in order; a model Groq retired answers 404 and the next one is used (llama-3.3-70b-versatile was shut down). */
+export const CHAT_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
 
 export const getGroqKey = () => localStorage.getItem(KEY) ?? "";
 export const saveGroqKey = (k: string) => (k.trim() ? localStorage.setItem(KEY, k.trim()) : localStorage.removeItem(KEY));
@@ -57,16 +58,23 @@ export async function runAssistant(
   const f = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
   const messages: Msg[] = [{ role: "system", content: systemPrompt(opts.lang, opts.now ?? new Date()) }, { role: "user", content: input }];
   const actions: string[] = [];
+  let model = 0;
   for (let round = 0; round < 5; round++) {
-    const body = JSON.stringify({
-      model: CHAT_MODEL, temperature: 0.2, messages, tool_choice: "auto",
-      tools: tools.defs.map((d) => ({ type: "function", function: d })),
-    });
     let r: any;
-    // the model sometimes writes a malformed tool call (HTTP 400 tool_use_failed): asking again usually works
+    // a malformed tool call (HTTP 400 tool_use_failed) usually works on a second try; an unknown model (404) moves on to the next one
     for (let attempt = 0; ; attempt++) {
+      const body = JSON.stringify({
+        model: CHAT_MODELS[model], temperature: 0.2, messages, tool_choice: "auto",
+        ...(CHAT_MODELS[model].startsWith("openai/") ? { reasoning_effort: "low" } : {}),
+        tools: tools.defs.map((d) => ({ type: "function", function: d })),
+      });
       try { r = await groq("/chat/completions", key, { method: "POST", headers: { "Content-Type": "application/json" }, body }, f); break; }
-      catch (e) { if (!(e instanceof AssistantError && e.detail.includes("tool_use_failed") && attempt < 2)) throw e; }
+      catch (e) {
+        if (!(e instanceof AssistantError)) throw e;
+        if (e.detail.startsWith("404") && model < CHAT_MODELS.length - 1) { model++; continue; }
+        if (e.detail.includes("tool_use_failed") && attempt < 3) continue;
+        throw e;
+      }
     }
     const msg: Msg | undefined = r.choices?.[0]?.message;
     if (!msg) throw new AssistantError("other");

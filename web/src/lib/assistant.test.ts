@@ -29,6 +29,17 @@ describe("assistant", () => {
     expect(bodies[1].messages.at(-1).content).toContain("not_found");
   });
 
+  it("falls back to the next model when one is gone (404)", async () => {
+    const models: string[] = [];
+    const f = (async (_u: string, init: RequestInit) => {
+      const m = JSON.parse(String(init.body)).model;
+      models.push(m);
+      return models.length === 1 ? new Response(JSON.stringify({ error: { code: "model_not_found", message: "gone" } }), { status: 404 }) : reply({ content: "ok" });
+    }) as unknown as typeof fetch;
+    expect((await runAssistant("x", { defs: [], run: async () => 0 }, "k", { lang: "de", fetch: f })).text).toBe("ok");
+    expect(models).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+  });
+
   it("maps auth errors", async () => {
     const f = (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch;
     await expect(runAssistant("x", { defs: [], run: async () => 0 }, "bad", { lang: "de", fetch: f })).rejects.toMatchObject({ code: "auth" });

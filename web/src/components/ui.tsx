@@ -76,7 +76,7 @@ export function Check_({ done, priority = 0, onChange, label, size = 18, color }
   );
 }
 
-export function Dialog({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Dialog({ title, onClose, children, wide, titleClass }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; titleClass?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -93,7 +93,7 @@ export function Dialog({ title, onClose, children, wide }: { title: string; onCl
         className={cx("pop max-h-[90dvh] w-full overflow-auto rounded-xl border border-line bg-raise shadow-xl", wide ? "max-w-xl" : "max-w-sm")}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="text-sm font-semibold">{title}</h2>
+          <h2 className={cx("text-sm font-semibold", titleClass)}>{title}</h2>
           <IconButton label="×" onClick={onClose} className="-mr-2 size-7">
             <X size={16} />
           </IconButton>

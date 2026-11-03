@@ -95,7 +95,7 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
   }
   if (!editing) {
     return (
-      <Dialog title={saved.title || t("mTexts")} onClose={onClose} wide>
+      <Dialog title={saved.title || t("mTexts")} titleClass="text-2xl leading-snug" onClose={onClose} wide>
         <article className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-[17px] leading-relaxed">{saved.body}</article>
         <div className="mt-4 flex justify-end">
           <IconButton label={t("edit")} onClick={() => setEditing(true)}><Pencil size={17} /></IconButton>
