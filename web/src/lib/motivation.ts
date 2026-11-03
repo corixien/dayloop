@@ -1,9 +1,14 @@
 import Dexie, { type Table } from "dexie";
+import { Capacitor } from "@capacitor/core";
 import { syncClient } from "./app";
+import { isNative } from "./native";
+import { widgetPlugin } from "./widget";
 
 export interface MText { id?: number; title: string; body: string; createdAt: number }
 export interface MAudio { id?: number; name: string; blob: Blob; createdAt: number }
 export interface MFeed { url: string; title: string; image: string; author: string }
+/** An episode saved on this device: a file in the app folder (Android) or a blob (browser). */
+export interface Download { id: string; title: string; feed: string; path?: string; blob?: Blob; size: number; createdAt: number }
 export interface Episode { title: string; audio: string; date: number; duration: string }
 
 /** Personal motivation material lives on this device only (audio files are too big to sync). */
@@ -11,9 +16,11 @@ class MotivationDb extends Dexie {
   texts!: Table<MText, number>;
   audios!: Table<MAudio, number>;
   feeds!: Table<MFeed, string>;
+  downloads!: Table<Download, string>;
   constructor() {
     super("dayloop-motivation");
     this.version(1).stores({ texts: "++id, createdAt", audios: "++id, createdAt", feeds: "url" });
+    this.version(2).stores({ downloads: "id, createdAt" });
   }
 }
 export const mdb = new MotivationDb();
@@ -70,4 +77,42 @@ export function fmtDuration(d: string): string {
   if (!s) return "";
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
   return h ? `${h}:${String(m).padStart(2, "0")}` + ` h` : `${m} min`;
+}
+
+
+const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+export const downloadId = (audioUrl: string) => hash(audioUrl);
+
+/** Save an episode for offline listening. Android downloads natively (no CORS limits); the browser needs a CORS-enabled host. */
+export async function downloadEpisode(ep: Episode, feed: string): Promise<Download> {
+  const id = downloadId(ep.audio);
+  const ext = /\.(mp3|m4a|aac|ogg|opus|wav)(\?|$)/i.exec(ep.audio)?.[1]?.toLowerCase() ?? "mp3";
+  let rec: Download;
+  if (isNative()) {
+    const r = await widgetPlugin().downloadFile({ url: ep.audio, name: `${id}.${ext}` });
+    rec = { id, title: ep.title, feed, path: r.path, size: r.size, createdAt: Date.now() };
+  } else {
+    const res = await fetch(ep.audio);
+    if (!res.ok) throw new Error("download");
+    const blob = await res.blob();
+    rec = { id, title: ep.title, feed, blob, size: blob.size, createdAt: Date.now() };
+  }
+  await mdb.downloads.put(rec);
+  return rec;
+}
+
+export async function removeDownload(d: Download) {
+  if (d.path) await widgetPlugin().deleteFile({ path: d.path }).catch(() => {});
+  await mdb.downloads.delete(d.id);
+}
+
+/** Playable URL of a saved episode (the caller revokes blob URLs it creates). */
+export const downloadSrc = (d: Download) => (d.path ? Capacitor.convertFileSrc(`file://${d.path}`) : URL.createObjectURL(d.blob!));
+
+export const fmtSize = (b: number) => (b > 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
+
+/** Accepts a pasted RSS URL: read its title and make a feed entry. */
+export async function feedFromUrl(url: string): Promise<MFeed> {
+  const f = await loadFeed(url);
+  return { url, title: f.title || url, image: f.image, author: "" };
 }

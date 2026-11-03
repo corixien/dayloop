@@ -42,10 +42,10 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
           <Item to="/calendar" route={route} label={t("calendar")} icon={<Calendar size={sz} />} onNavigate={onNavigate} />
           <Item to="/habits" route={route} label={t("habits")} icon={<Flame size={sz} />} onNavigate={onNavigate} />
           <Item to="/pomodoro" route={route} label={t("pomodoro")} icon={<Timer size={sz} />} onNavigate={onNavigate} />
+          <Item to="/motivation" route={route} label={t("motivation")} icon={<Sparkles size={sz} />} onNavigate={onNavigate} />
         </div>
       </div>
       <div className="space-y-px border-t border-line p-2 safe-bottom">
-        <Item to="/motivation" route={route} label={t("motivation")} icon={<Sparkles size={sz} />} onNavigate={onNavigate} />
         <Item to="/assistant" route={route} label={t("assistant")} icon={<Mic size={sz} />} onNavigate={onNavigate} />
         <Item to="/trash" route={route} label={t("trash")} icon={<Trash2 size={sz} />} onNavigate={onNavigate} />
         <Item to="/settings" route={route} label={t("settings")} icon={<Settings size={sz} />} onNavigate={onNavigate} />

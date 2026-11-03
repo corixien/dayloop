@@ -1,5 +1,5 @@
 import { BellOff, Play, SkipForward } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { isNative } from "../lib/native";
 import { useSettings, useT } from "../lib/app";
 import { pomo, usePomo } from "../lib/pomoStore";
@@ -8,8 +8,8 @@ import { Sheet } from "./Sheet";
 import { Button } from "./ui";
 
 /** Polls the native end-of-timer alarm (it rings until stopped, also from its notification). */
-export function useAlarmRinging(): boolean {
-  const [on, setOn] = useState(false);
+export function useAlarmRinging(): boolean | null {
+  const [on, setOn] = useState<boolean | null>(null);
   useEffect(() => {
     if (!isNative()) return;
     const poll = () => {
@@ -30,15 +30,8 @@ export function AlarmPopup({ onClose }: { onClose: () => void }) {
   const t = useT();
   const settings = useSettings();
   const { state } = usePomo();
-  const ringing = useAlarmRinging();
-  const seen = useRef(false);
+  const ringing = useAlarmRinging() !== false;
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
-  useEffect(() => {
-    if (ringing) { seen.current = true; return; }
-    // stopped elsewhere (notification), or opened when nothing rings
-    const id = setTimeout(onClose, seen.current ? 300 : 2500);
-    return () => clearTimeout(id);
-  }, [ringing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const next = state?.phase ?? "break";
   const workDone = next !== "work";
@@ -52,11 +45,13 @@ export function AlarmPopup({ onClose }: { onClose: () => void }) {
             <div className="text-2xl font-semibold">{workDone ? t("focusDone") : t("breakDone")}</div>
             <div className="mt-1 text-sm text-muted">{workDone ? t("timeForBreak") : t("backToWork")}</div>
           </div>
+          {/* the pop-up stays after stopping (the next phase may still be started): it leaves by swiping it down */}
           <button
             onClick={() => { void stopAlarm(); }}
-            className="flex h-20 w-full items-center justify-center gap-3 rounded-2xl bg-accent text-lg font-semibold text-white active:scale-[0.98] dark:text-[#101012]"
+            disabled={!ringing}
+            className="flex h-20 w-full items-center justify-center gap-3 rounded-2xl bg-accent text-lg font-semibold text-white transition-opacity active:scale-[0.98] disabled:opacity-40 dark:text-[#101012]"
           >
-            <BellOff size={24} /> {t("stopAlarm")}
+            <BellOff size={24} /> {ringing ? t("stopAlarm") : t("alarmStopped")}
           </button>
           {!running && (
             <Button className="h-12 w-full gap-2" onClick={() => { void stopAlarm(); pomo.start(); close(); }}>
@@ -75,11 +70,11 @@ export function AlarmPopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** In the running app: show the pop-up while the alarm rings. */
+/** In the running app: the pop-up appears when the alarm starts and stays until dismissed. */
 export function AlarmHost() {
   const ringing = useAlarmRinging();
-  const [hidden, setHidden] = useState(false);
-  useEffect(() => { if (!ringing) setHidden(false); }, [ringing]);
-  if (!ringing || hidden) return null;
-  return <div className="relative z-[120]"><AlarmPopup onClose={() => setHidden(true)} /></div>;
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (ringing) setShown(true); }, [ringing]);
+  if (!shown) return null;
+  return <div className="relative z-[120]"><AlarmPopup onClose={() => setShown(false)} /></div>;
 }

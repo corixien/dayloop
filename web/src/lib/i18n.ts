@@ -44,11 +44,13 @@ const de = {
   note: "Notiz", addNote: "Notiz hinzufügen…", todoTab: "Todo", hide: "Ausblenden", defaultLists: "Standardlisten", restoreHint: "Ausgeblendete Listen kannst du hier wieder einblenden.", localOnly: "Nur lokal", deleteListConfirm: "Liste löschen? Die Aufgaben wandern in den Papierkorb.", habitToday: "Heute", times: "mal",
   motivation: "Motivation", mTexts: "Texte", mAudio: "Audio", mPodcasts: "Podcasts", mNewText: "Neuer Text", mTextTitle: "Titel", mTextBody: "Was dich in schwachen Momenten aufbaut …",
   mUploadFile: "Datei hochladen", mNoTexts: "Noch keine Texte. Schreib dir auf, was dich motiviert, oder lade eine Textdatei hoch.", mNoAudio: "Noch kein Audio. Lade eigene Aufnahmen oder Dateien hoch.",
-  mSearch: "Podcast suchen", mSubscribed: "Meine Podcasts", mSuggestions: "Vorschläge", mSubscribe: "Hinzufügen", mUnsubscribe: "Entfernen", mEpisodes: "Folgen", mLoadErr: "Feed konnte nicht geladen werden.",
+  mSearch: "Podcast suchen oder RSS-Link einfügen", mSubscribed: "Meine Podcasts", mSuggestions: "Vorschläge", mSubscribe: "Hinzufügen", mUnsubscribe: "Entfernen", mEpisodes: "Folgen", mLoadErr: "Feed konnte nicht geladen werden.",
   mNoResults: "Nichts gefunden.", mMore: "Mehr anzeigen", mBack: "Zurück", mNeedLogin: "Podcasts laden über den Server: bitte anmelden.",
   assistant: "Assistent", aNoKey: "Für den Assistenten fehlt der Groq-API-Key (Einstellungen > Assistent).", aMic: "Sprechen", aTap: "Tippen zum Sprechen", aListening: "Ich höre zu …", aThinking: "Moment …", aType: "Oder schreib es hier …",
   aNothingHeard: "Ich habe nichts verstanden.", aDone: "Erledigt.", aError: "Das hat nicht geklappt.", aMicDenied: "Mikrofon-Zugriff fehlt.", aErr_auth: "Groq-API-Key ungültig.", aErr_network: "Keine Verbindung.", aErr_rate: "Groq-Limit erreicht, gleich nochmal versuchen.", aErr_other: "Das hat nicht geklappt.",
   aGroqKey: "Groq-API-Key", aKeySaved: "Gespeichert", aSetDefault: "Als Assistent festlegen", aActive: "Dayloop ist als digitaler Assistent aktiv.", aHelp: "Sprich Aufgaben, Habits, Kalender und Timer. Antworten kommen nur als Text. Der Key bleibt auf diesem Gerät. Zum Starten per Power-Taste: Dayloop als digitalen Assistenten wählen und unter Einstellungen > Erweiterte Funktionen > Seitentaste „Lange drücken“ auf „Digitaler Assistent“ stellen.",
+  mDownloaded: "Heruntergeladen", mOwnAudio: "Eigene Dateien", mDownload: "Herunterladen", mSaved: "Gespeichert (tippen zum Löschen)", mDlFailed: "Download fehlgeschlagen.",
+  alarmStopped: "Alarm gestoppt",
 } as const;
 
 export type Key = keyof typeof de;
@@ -99,11 +101,13 @@ const en: Record<Key, string> = {
   note: "Note", addNote: "Add a note…", todoTab: "Todo", hide: "Hide", defaultLists: "Default lists", restoreHint: "Hidden lists can be shown again here.", localOnly: "Local only", deleteListConfirm: "Delete list? Its tasks move to the trash.", habitToday: "Today", times: "times",
   motivation: "Motivation", mTexts: "Texts", mAudio: "Audio", mPodcasts: "Podcasts", mNewText: "New text", mTextTitle: "Title", mTextBody: "What lifts you up on weak days …",
   mUploadFile: "Upload file", mNoTexts: "No texts yet. Write down what motivates you, or upload a text file.", mNoAudio: "No audio yet. Upload your own recordings or files.",
-  mSearch: "Search podcasts", mSubscribed: "My podcasts", mSuggestions: "Suggestions", mSubscribe: "Add", mUnsubscribe: "Remove", mEpisodes: "Episodes", mLoadErr: "Could not load the feed.",
+  mSearch: "Search podcasts or paste an RSS link", mSubscribed: "My podcasts", mSuggestions: "Suggestions", mSubscribe: "Add", mUnsubscribe: "Remove", mEpisodes: "Episodes", mLoadErr: "Could not load the feed.",
   mNoResults: "Nothing found.", mMore: "Show more", mBack: "Back", mNeedLogin: "Podcasts load through the server: please sign in.",
   assistant: "Assistant", aNoKey: "The assistant needs a Groq API key (Settings > Assistant).", aMic: "Speak", aTap: "Tap to speak", aListening: "Listening …", aThinking: "One moment …", aType: "Or type it here …",
   aNothingHeard: "I did not catch that.", aDone: "Done.", aError: "That did not work.", aMicDenied: "Microphone access is missing.", aErr_auth: "Groq API key invalid.", aErr_network: "No connection.", aErr_rate: "Groq limit reached, try again shortly.", aErr_other: "That did not work.",
   aGroqKey: "Groq API key", aKeySaved: "Saved", aSetDefault: "Set as assistant", aActive: "Dayloop is the active digital assistant.", aHelp: "Speak tasks, habits, calendar and timer. Answers come as text only. The key stays on this device. To start with the power button: choose Dayloop as digital assistant and set Settings > Advanced features > Side key > Press and hold to \"Digital assistant\".",
+  mDownloaded: "Downloaded", mOwnAudio: "Own files", mDownload: "Download", mSaved: "Saved (tap to delete)", mDlFailed: "Download failed.",
+  alarmStopped: "Alarm stopped",
 };
 
 export const dict = { de, en };

@@ -98,6 +98,74 @@ public class WidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Podcast episode for offline listening: streamed to the app's files folder on a worker thread. */
+    @PluginMethod
+    public void downloadFile(final PluginCall call) {
+        final String url = call.getString("url", "");
+        final String name = call.getString("name", "file").replaceAll("[^A-Za-z0-9._-]", "_");
+        new Thread(() -> {
+            java.net.HttpURLConnection c = null;
+            try {
+                java.io.File dir = new java.io.File(getContext().getFilesDir(), "podcasts");
+                dir.mkdirs();
+                java.io.File part = new java.io.File(dir, name + ".part");
+                String u = url;
+                for (int i = 0; i < 6; i++) {
+                    c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
+                    c.setInstanceFollowRedirects(false);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    c.setRequestProperty("User-Agent", "Dayloop/1.0");
+                    int code = c.getResponseCode();
+                    if (code >= 300 && code < 400 && c.getHeaderField("Location") != null) {
+                        u = new java.net.URL(new java.net.URL(u), c.getHeaderField("Location")).toString();
+                        c.disconnect();
+                        continue;
+                    }
+                    break;
+                }
+                if (c == null || c.getResponseCode() != 200) throw new Exception("http " + (c == null ? 0 : c.getResponseCode()));
+                long total = c.getContentLengthLong(), got = 0, lastNote = 0;
+                try (java.io.InputStream in = c.getInputStream(); java.io.FileOutputStream out = new java.io.FileOutputStream(part)) {
+                    byte[] buf = new byte[64 * 1024];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        out.write(buf, 0, n);
+                        got += n;
+                        if (total > 0 && got - lastNote > 512 * 1024) {
+                            lastNote = got;
+                            JSObject p = new JSObject();
+                            p.put("name", name);
+                            p.put("pct", (int) (got * 100 / total));
+                            notifyListeners("dlProgress", p);
+                        }
+                    }
+                }
+                java.io.File done = new java.io.File(dir, name);
+                if (done.exists()) done.delete();
+                part.renameTo(done);
+                JSObject out = new JSObject();
+                out.put("path", done.getAbsolutePath());
+                out.put("size", done.length());
+                call.resolve(out);
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }).start();
+    }
+
+    @PluginMethod
+    public void deleteFile(PluginCall call) {
+        try {
+            java.io.File f = new java.io.File(call.getString("path", "")).getCanonicalFile();
+            // only inside the app's podcast folder
+            if (f.getPath().startsWith(new java.io.File(getContext().getFilesDir(), "podcasts").getCanonicalPath() + "/")) f.delete();
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
     @PluginMethod
     public void listSounds(PluginCall call) {
         try {

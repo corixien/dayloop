@@ -24,6 +24,9 @@ interface WidgetPlugin {
   alarmRinging(): Promise<{ ringing: boolean }>;
   stopAlarm(): Promise<void>;
   assistantActive(): Promise<{ active: boolean }>;
+  downloadFile(o: { url: string; name: string }): Promise<{ path: string; size: number }>;
+  deleteFile(o: { path: string }): Promise<void>;
+  addListener(event: string, cb: (d: any) => void): Promise<{ remove: () => Promise<void> }>;
   openAssistantSettings(): Promise<void>;
   pinWidget(): Promise<{ supported: boolean }>;
 }

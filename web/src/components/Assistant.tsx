@@ -21,6 +21,8 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
   const key = getGroqKey();
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
 
+  const errText = (e: unknown) => (e instanceof AssistantError ? `${t(`aErr_${e.code}` as "aErr_auth")}${e.detail ? `\n${e.detail}` : ""}` : t("aError"));
+
   const act = useCallback(async (text: string) => {
     setHeard(text);
     if (!text) return setAnswer({ text: t("aNothingHeard"), err: true });
@@ -29,10 +31,10 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
       const r = await runAssistant(text, appTools, key, { lang });
       setAnswer({ text: r.text || (r.actions.length ? t("aDone") : t("aError")) });
     } catch (e) {
-      setAnswer({ text: t(e instanceof AssistantError ? (`aErr_${e.code}` as "aErr_auth") : "aError"), err: true });
+      setAnswer({ text: errText(e), err: true });
     }
     setPhase("idle");
-  }, [key, lang, t]);
+  }, [key, lang, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const listen = useCallback(async () => {
     if (phase !== "idle") return;
@@ -46,11 +48,13 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
     const chunks: Blob[] = [];
     const mr = new MediaRecorder(stream);
     const ctx = new AudioContext();
+    await ctx.resume().catch(() => {}); // started without a tap (power button): the context may begin suspended
     const an = ctx.createAnalyser();
     an.fftSize = 1024;
     ctx.createMediaStreamSource(stream).connect(an);
     const buf = new Uint8Array(an.fftSize);
     let spoke = false, quiet = 0, ticks = 0, done = false;
+    const vad = ctx.state === "running";
     const finish = () => {
       if (done) return;
       done = true;
@@ -71,12 +75,14 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
       stream.getTracks().forEach((x) => x.stop());
       void ctx.close();
       rec.current = null;
-      if (!spoke) { setPhase("idle"); return setAnswer({ text: t("aNothingHeard"), err: true }); }
+      const total = chunks.reduce((n, c) => n + c.size, 0);
+      // when the level meter could not run, still send what was recorded
+      if ((!spoke && vad) || total < 2000) { setPhase("idle"); return setAnswer({ text: t("aNothingHeard"), err: true }); }
       setPhase("thinking");
       try {
         await act(await transcribe(new Blob(chunks, { type: mr.mimeType }), key, lang));
       } catch (e) {
-        setAnswer({ text: t(e instanceof AssistantError ? (`aErr_${e.code}` as "aErr_auth") : "aError"), err: true });
+        setAnswer({ text: errText(e), err: true });
         setPhase("idle");
       }
     };

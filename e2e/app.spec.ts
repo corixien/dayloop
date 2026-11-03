@@ -345,8 +345,8 @@ test("long pinch skips a level", async ({ page }) => {
   await page.waitForTimeout(600); // let the switch animation finish
   const cdp = await page.context().newCDPSession(page);
   const two = (a: number) => [{ x: 195 - a, y: 400, id: 1 }, { x: 195 + a, y: 400, id: 2 }];
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(15) });
-  for (const a of [25, 40, 60, 90, 120, 150, 180]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) }); await page.waitForTimeout(50); }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(40) });
+  for (const a of [50, 60, 90, 120, 150, 180, 200]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(a) }); await page.waitForTimeout(50); }
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(4);
 });
@@ -372,8 +372,8 @@ test("pinch goes in and out in one gesture, week tasks are not tappable", async 
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeGreaterThan(30);
   // spread again: lands on the current week, today's day column is in it
   await page.waitForTimeout(600);
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(15) });
-  await move([25, 40]);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(40) });
+  await move([50, 80]);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(20);
   const today = new Date(); const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -384,4 +384,90 @@ test("pinch goes in and out in one gesture, week tasks are not tappable", async 
   expect(await chip.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe("none");
   await page.locator(`[data-date="${iso}"] button`).first().click();
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(4);
+});
+
+test("a single finger (or a finger plus an edge touch) never zooms the calendar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/calendar");
+  await page.getByRole("button", { name: "Monat" }).first().click();
+  await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(30);
+  await page.waitForTimeout(600);
+  const cdp = await page.context().newCDPSession(page);
+  const pts = (...p: [number, number][]) => p.map(([x, y], i) => ({ x, y, id: i + 1 }));
+  // one finger dragging around
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts([200, 400]) });
+  for (const y of [380, 350, 320, 300]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts([200, y]) }); await page.waitForTimeout(30); }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  // a stuck touch at the screen edge plus one moving finger
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pts([4, 500], [250, 400]) });
+  for (const x of [270, 300, 330]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: pts([4, 500], [x, 400]) }); await page.waitForTimeout(30); }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await page.waitForTimeout(500);
+  expect(await page.locator("[data-date]").count()).toBeGreaterThan(30);
+});
+
+test("assistant runs tools on the app (Groq mocked)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.evaluate(() => localStorage.setItem("dl_groq", "test-key"));
+  // seed a habit and a task
+  await page.goto("/#/habits");
+  await page.getByRole("button", { name: "Neue Gewohnheit" }).click();
+  await page.getByRole("textbox").first().fill("Wasser trinken");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Zahnarzt");
+  const call = (name: string, args: object, id: string) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } });
+  await page.route("https://api.groq.com/**", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}");
+    const answered = body.messages.some((m: any) => m.role === "tool");
+    const message = answered
+      ? { content: "Alles erledigt." }
+      : { tool_calls: [
+          call("add_task", { title: "Bericht", dueDate: "2030-01-05", dueTime: "09:30", priority: 3, reminders: [60] }, "1"),
+          call("complete_task", { query: "zahnarzt" }, "2"),
+          call("log_habit", { name: "wasser" }, "3"),
+          call("add_motivation_text", { title: "Durchhalten", body: "Ein Schritt nach dem anderen." }, "4"),
+          call("create_habit", { name: "Lesen", target: 2, days: [1, 2, 3] }, "5"),
+          call("add_checklist_item", { query: "bericht", text: "Gliederung" }, "6"),
+          call("start_timer", { minutes: 7 }, "7"),
+        ] };
+    await route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ choices: [{ message }] }) });
+  });
+  await page.goto("/#/assistant");
+  await page.getByRole("textbox", { name: "Oder schreib es hier …" }).fill("mach alles");
+  await page.getByRole("textbox", { name: "Oder schreib es hier …" }).press("Enter");
+  await expect(page.getByText("Alles erledigt.")).toBeVisible();
+  await page.goto("/#/todo");
+  await expect(page.getByRole("button", { name: /Bericht/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Zahnarzt/ })).toHaveCount(0);
+  await page.goto("/#/habits");
+  await expect(page.getByText("Lesen")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Wasser trinken" })).toHaveAttribute("aria-checked", "true");
+  await page.goto("/#/motivation");
+  await expect(page.getByText("Durchhalten")).toBeVisible();
+  await page.goto("/#/pomodoro");
+  await expect(page.getByRole("timer")).toContainText("07:");
+});
+
+test("motivation texts open in a clean read view, the pencil edits", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/motivation");
+  await page.getByRole("button", { name: "Neuer Text" }).click();
+  await page.getByRole("textbox", { name: "Titel" }).fill("Durchhalten");
+  await page.getByRole("textbox", { name: "Notiz" }).fill("Ein Schritt nach dem anderen.");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("button", { name: /Durchhalten/ }).click();
+  await expect(page.getByText("Ein Schritt nach dem anderen.").last()).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await page.getByRole("button", { name: "Bearbeiten" }).click();
+  await page.getByRole("textbox", { name: "Notiz" }).fill("Neu.");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Neu.").last()).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
 });

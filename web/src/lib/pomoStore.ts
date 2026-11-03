@@ -72,6 +72,7 @@ function tick() {
 }
 
 export const pomo = {
+  snapshot: (): PomoState | null => state,
   init(c: Cfg) {
     cfg = c;
     if (!state) set(load(c));

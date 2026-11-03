@@ -322,7 +322,8 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    let d0 = 0, started = false, dir: "in" | "out" = "in", lvl: Mode = "month", anc = "", next: Zoom | null = null;
+    let d0 = 0, started = false, armed = false, dir: "in" | "out" = "in", lvl: Mode = "month", anc = "", next: Zoom | null = null;
+    let t0: { id: number; x: number; y: number }[] = [];
     const bound: EventTarget[] = [];
     const dist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const begin = (d: "in" | "out") => {
@@ -340,6 +341,13 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
     };
     const start = (e: TouchEvent) => {
       if (e.touches.length !== 2 || S.current.zoom) return;
+      // Both fingers must be well apart and away from the screen edges (edge panel / palm touches count as a second finger),
+      // and both must actually move before anything zooms: a single finger only swipes.
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const edge = 28;
+      if (dist(e) < 60 || [a, b].some((t) => t.clientX < edge || t.clientX > window.innerWidth - edge)) return;
+      t0 = [a, b].map((t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+      armed = false;
       d0 = dist(e); started = false; next = null; lvl = S.current.mode; anc = S.current.anchor;
       // a level switch replaces the touched elements; their touch events then no longer bubble to the wrapper,
       // so follow the fingers on the touched elements themselves
@@ -352,8 +360,16 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
       }
     };
     function move(e: TouchEvent) {
+      if (d0 && e.touches.length !== 2) { end(); return; }
       if (!d0 || e.touches.length !== 2) return;
       e.preventDefault();
+      if (!armed) {
+        const moved = t0.every((p) => { const t = Array.from(e.touches).find((x) => x.identifier === p.id); return !!t && Math.hypot(t.clientX - p.x, t.clientY - p.y) > 8; });
+        if (!moved) return;
+        armed = true;
+        d0 = dist(e);
+        return;
+      }
       const s = dist(e) / d0;
       if (started && ((dir === "in" && s < 1) || (dir === "out" && s > 1))) {
         // fingers turned around past the starting distance: hand over to the opposite zoom without lifting

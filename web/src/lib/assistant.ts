@@ -12,21 +12,24 @@ export interface Tools { defs: ToolDef[]; run(name: string, args: Record<string,
 type Msg = { role: string; content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[]; tool_call_id?: string };
 
 export class AssistantError extends Error {
-  constructor(public code: "auth" | "network" | "rate" | "other") { super(code); }
+  /** detail: HTTP status and the provider's message, shown to the user to make failures diagnosable */
+  constructor(public code: "auth" | "network" | "rate" | "other", public detail = "") { super(code); }
 }
 
 async function groq(path: string, key: string, init: RequestInit, f: typeof fetch) {
   let res: Response;
   try { res = await f(GROQ + path, { ...init, headers: { Authorization: `Bearer ${key}`, ...init.headers } }); } catch { throw new AssistantError("network"); }
-  if (res.status === 401 || res.status === 403) throw new AssistantError("auth");
-  if (res.status === 429) throw new AssistantError("rate");
-  if (!res.ok) throw new AssistantError("other");
-  return res.json() as Promise<any>;
+  if (res.ok) return res.json() as Promise<any>;
+  const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: string } };
+  const detail = `${res.status} ${body.error?.code ?? ""} ${body.error?.message ?? ""}`.trim().slice(0, 200);
+  throw new AssistantError(res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate" : "other", detail);
 }
 
 export async function transcribe(blob: Blob, key: string, lang: string, f: typeof fetch = (...a) => fetch(...a)): Promise<string> {
   const form = new FormData();
-  form.append("file", blob, blob.type.includes("mp4") ? "audio.m4a" : "audio.webm");
+  // the recorder's type carries codec parameters ("audio/webm;codecs=opus") that the API rejects
+  const mp4 = blob.type.includes("mp4");
+  form.append("file", new Blob([blob], { type: mp4 ? "audio/mp4" : "audio/webm" }), mp4 ? "audio.m4a" : "audio.webm");
   form.append("model", WHISPER);
   form.append("language", lang);
   form.append("response_format", "json");
@@ -55,14 +58,16 @@ export async function runAssistant(
   const messages: Msg[] = [{ role: "system", content: systemPrompt(opts.lang, opts.now ?? new Date()) }, { role: "user", content: input }];
   const actions: string[] = [];
   for (let round = 0; round < 5; round++) {
-    const r = await groq("/chat/completions", key, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: CHAT_MODEL, temperature: 0.2, messages, tool_choice: "auto",
-        tools: tools.defs.map((d) => ({ type: "function", function: d })),
-      }),
-    }, f);
+    const body = JSON.stringify({
+      model: CHAT_MODEL, temperature: 0.2, messages, tool_choice: "auto",
+      tools: tools.defs.map((d) => ({ type: "function", function: d })),
+    });
+    let r: any;
+    // the model sometimes writes a malformed tool call (HTTP 400 tool_use_failed): asking again usually works
+    for (let attempt = 0; ; attempt++) {
+      try { r = await groq("/chat/completions", key, { method: "POST", headers: { "Content-Type": "application/json" }, body }, f); break; }
+      catch (e) { if (!(e instanceof AssistantError && e.detail.includes("tool_use_failed") && attempt < 2)) throw e; }
+    }
     const msg: Msg | undefined = r.choices?.[0]?.message;
     if (!msg) throw new AssistantError("other");
     if (!msg.tool_calls?.length) return { text: (msg.content ?? "").trim(), actions };

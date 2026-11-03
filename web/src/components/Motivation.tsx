@@ -1,8 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, FileUp, Music, Play, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Download as DownloadIcon, FileUp, Loader2, Music, Pencil, Play, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLang, useT } from "../lib/app";
-import { type Episode, type MFeed, type MText, SUGGESTED, fmtDuration, loadFeed, mdb, searchPodcasts } from "../lib/motivation";
+import { type Download, type Episode, type MFeed, type MText, SUGGESTED, downloadEpisode, downloadId, downloadSrc, feedFromUrl, fmtDuration, fmtSize, loadFeed, mdb, removeDownload, searchPodcasts } from "../lib/motivation";
+import { isNative } from "../lib/native";
+import { widgetPlugin } from "../lib/widget";
 import { Button, Dialog, Empty, IconButton, PageHeader, Segmented, cx, inputCls } from "./ui";
 
 type Tab = "texts" | "audio" | "podcasts";
@@ -80,23 +82,36 @@ function Texts() {
 
 function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
   const t = useT();
+  const fresh = !text.id;
+  const [editing, setEditing] = useState(fresh);
   const [title, setTitle] = useState(text.title);
   const [body, setBody] = useState(text.body);
+  const [saved, setSaved] = useState(text);
   async function save() {
     if (!title.trim() && !body.trim()) return onClose();
-    const row = { ...text, title: title.trim(), body };
-    if (text.id) await mdb.texts.put(row); else await mdb.texts.add(row);
-    onClose();
+    const row = { ...saved, title: title.trim(), body };
+    if (saved.id) { await mdb.texts.put(row); setSaved(row); setEditing(false); }
+    else { await mdb.texts.add(row); onClose(); }
+  }
+  if (!editing) {
+    return (
+      <Dialog title={saved.title || t("mTexts")} onClose={onClose} wide>
+        <article className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-[17px] leading-relaxed">{saved.body}</article>
+        <div className="mt-4 flex justify-end">
+          <IconButton label={t("edit")} onClick={() => setEditing(true)}><Pencil size={17} /></IconButton>
+        </div>
+      </Dialog>
+    );
   }
   return (
-    <Dialog title={text.id ? title || t("mTexts") : t("mNewText")} onClose={onClose} wide>
+    <Dialog title={fresh ? t("mNewText") : t("edit")} onClose={onClose} wide>
       <div className="space-y-3">
         <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("mTextTitle")} aria-label={t("mTextTitle")} />
         <textarea className={cx(inputCls, "h-64 resize-none py-2 text-[15px] leading-relaxed")} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t("mTextBody")} aria-label={t("note")} />
         <div className="flex justify-between">
-          {text.id ? <IconButton label={t("delete")} onClick={async () => { await mdb.texts.delete(text.id!); onClose(); }}><Trash2 size={16} /></IconButton> : <span />}
+          {saved.id ? <IconButton label={t("delete")} onClick={async () => { await mdb.texts.delete(saved.id!); onClose(); }}><Trash2 size={16} /></IconButton> : <span />}
           <div className="flex gap-2">
-            <Button onClick={onClose}>{t("cancel")}</Button>
+            <Button onClick={() => (fresh ? onClose() : (setTitle(saved.title), setBody(saved.body), setEditing(false)))}>{t("cancel")}</Button>
             <Button variant="primary" onClick={() => void save()}>{t("save")}</Button>
           </div>
         </div>
@@ -108,6 +123,7 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
 function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: Playing) => void }) {
   const t = useT();
   const audios = useLiveQuery(() => mdb.audios.orderBy("createdAt").reverse().toArray(), [], []);
+  const downloads = useLiveQuery(() => mdb.downloads.orderBy("createdAt").reverse().toArray(), [], []);
   const file = useRef<HTMLInputElement>(null);
   const urls = useRef(new Map<number, string>());
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), []);
@@ -128,7 +144,18 @@ function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: 
         <Button variant="primary" onClick={() => file.current?.click()}><FileUp size={14} /> {t("mUploadFile")}</Button>
         <input ref={file} type="file" accept="audio/*" multiple hidden onChange={(e) => void upload(e.target.files)} />
       </div>
-      {audios.length === 0 && <Empty>{t("mNoAudio")}</Empty>}
+      {audios.length === 0 && downloads.length === 0 && <Empty>{t("mNoAudio")}</Empty>}
+      {downloads.length > 0 && <h2 className="px-4 pb-1 pt-2 text-xs font-medium text-muted md:px-6">{t("mDownloaded")}</h2>}
+      {downloads.map((d) => (
+        <div key={d.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
+          <button onClick={() => onPlay({ src: downloadSrc(d), title: d.title })} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={d.title}>
+            <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === d.title ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}><Play size={15} /></span>
+            <span className="min-w-0 flex-1"><span className="line-clamp-2 text-[14px]">{d.title}</span><span className="text-xs text-muted">{d.feed} · {fmtSize(d.size)}</span></span>
+          </button>
+          <IconButton label={t("delete")} onClick={() => void removeDownload(d)}><Trash2 size={15} /></IconButton>
+        </div>
+      ))}
+      {audios.length > 0 && downloads.length > 0 && <h2 className="px-4 pb-1 pt-3 text-xs font-medium text-muted md:px-6">{t("mOwnAudio")}</h2>}
       {audios.map((a) => (
         <div key={a.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
           <button onClick={() => play(a)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={a.name}>
@@ -161,7 +188,7 @@ function Podcasts({ onPlay }: { onPlay: (p: Playing) => void }) {
   async function search(q: string) {
     if (!q.trim()) return setResults(null);
     setBusy(true);
-    try { setResults(await searchPodcasts(q.trim(), lang)); } catch { setResults([]); }
+    try { setResults(/^https?:\/\//i.test(q.trim()) ? [await feedFromUrl(q.trim())] : await searchPodcasts(q.trim(), lang)); } catch { setResults([]); }
     setBusy(false);
   }
 
@@ -211,12 +238,32 @@ function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; o
   const [eps, setEps] = useState<Episode[] | null>(null);
   const [err, setErr] = useState(false);
   const [limit, setLimit] = useState(30);
+  const [busy, setBusy] = useState<Record<string, number>>({});
+  const [failed, setFailed] = useState("");
+  const saved = useLiveQuery(() => mdb.downloads.toArray(), [], []);
+  const have = new Map(saved.map((d) => [d.id, d]));
   useEffect(() => {
     let alive = true;
     loadFeed(feed.url).then((f) => alive && setEps(f.episodes)).catch(() => alive && setErr(true));
     return () => { alive = false; };
   }, [feed.url]);
+  useEffect(() => {
+    if (!isNative()) return;
+    const h = widgetPlugin().addListener("dlProgress", (d: { name: string; pct: number }) => {
+      const id = d.name.replace(/\.[^.]+$/, "");
+      setBusy((b) => (id in b ? { ...b, [id]: d.pct } : b));
+    });
+    return () => void h.then((x) => x.remove());
+  }, []);
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", year: "numeric" });
+
+  async function save(e: Episode) {
+    const id = downloadId(e.audio);
+    setFailed("");
+    setBusy((b) => ({ ...b, [id]: 0 }));
+    try { await downloadEpisode(e, feed.title); } catch { setFailed(t("mDlFailed")); }
+    setBusy(({ [id]: _, ...rest }) => rest);
+  }
 
   return (
     <div>
@@ -225,17 +272,28 @@ function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; o
         <Cover src={feed.image} size={40} />
         <div className="min-w-0 truncate text-[15px] font-semibold">{feed.title}</div>
       </div>
+      {failed && <p role="status" className="px-4 pb-2 text-[13px] text-danger md:px-6">{failed}</p>}
       {err && <Empty>{t("mLoadErr")}</Empty>}
       {!err && !eps && <Empty>…</Empty>}
-      {eps?.slice(0, limit).map((e, i) => (
-        <button key={i} onClick={() => onPlay({ src: e.audio, title: e.title })} className="flex w-full items-center gap-3 border-b border-line/60 px-4 py-3 text-left md:px-6">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sub text-muted"><Play size={15} /></span>
-          <span className="min-w-0 flex-1">
-            <span className="line-clamp-2 text-[14px]">{e.title}</span>
-            <span className="text-xs text-muted">{e.date ? fmt.format(e.date) : ""}{e.duration ? ` · ${fmtDuration(e.duration)}` : ""}</span>
-          </span>
-        </button>
-      ))}
+      {eps?.slice(0, limit).map((e, i) => {
+        const id = downloadId(e.audio);
+        const d = have.get(id);
+        const pct = busy[id];
+        return (
+          <div key={i} className="flex w-full items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
+            <button onClick={() => onPlay({ src: d ? downloadSrc(d) : e.audio, title: e.title })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sub text-muted"><Play size={15} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 text-[14px]">{e.title}</span>
+                <span className="text-xs text-muted">{e.date ? fmt.format(e.date) : ""}{e.duration ? ` · ${fmtDuration(e.duration)}` : ""}</span>
+              </span>
+            </button>
+            {d ? <IconButton label={t("mSaved")} onClick={() => void removeDownload(d)}><Check size={16} className="text-accent" /></IconButton>
+              : pct !== undefined ? <span className="grid size-9 shrink-0 place-items-center text-[11px] text-muted tabular-nums">{pct ? `${pct}%` : <Loader2 size={16} className="animate-spin" />}</span>
+              : <IconButton label={t("mDownload")} onClick={() => void save(e)}><DownloadIcon size={16} /></IconButton>}
+          </div>
+        );
+      })}
       {eps && eps.length > limit && <div className="p-4 text-center"><Button onClick={() => setLimit(limit + 40)}>{t("mMore")}</Button></div>}
     </div>
   );
