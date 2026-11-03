@@ -80,7 +80,8 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
       if ((!spoke && vad) || total < 2000) { setPhase("idle"); return setAnswer({ text: t("aNothingHeard"), err: true }); }
       setPhase("thinking");
       try {
-        await act(await transcribe(new Blob(chunks, { type: mr.mimeType }), key, lang));
+        const hint = await appTools.context?.().then((c) => c.replace(/\n- /g, ", ").replace(/\n/g, " ")).catch(() => "");
+        await act(await transcribe(new Blob(chunks, { type: mr.mimeType }), key, lang, undefined, hint));
       } catch (e) {
         setAnswer({ text: errText(e), err: true });
         setPhase("idle");

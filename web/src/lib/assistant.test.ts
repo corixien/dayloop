@@ -55,4 +55,19 @@ describe("assistant", () => {
     expect(amb.candidates).toHaveLength(2);
     expect(matchByName("nix", items, t).candidates).toHaveLength(0);
   });
+
+  it("matches loosely: word order and endings", () => {
+    const items = [{ id: "1", t: "Mathe Hausaufgaben abgeben" }, { id: "2", t: "Zahnarzt Termin" }];
+    const t = (x: { t: string }) => x.t;
+    expect(matchByName("hausaufgabe mathe", items, t).hit?.id).toBe("1");
+    expect(matchByName("termin zahnarztes", items, t).hit?.id).toBe("2");
+  });
+
+  it("hands the app state to the model", async () => {
+    const bodies: any[] = [];
+    const tools: Tools = { defs: [], run: async () => ({}), context: async () => "Offene Aufgaben:\n- Steuer" };
+    await runAssistant("hi", tools, "k", { lang: "de", fetch: (async (_u: any, init: any) => { bodies.push(JSON.parse(init.body)); return reply({ content: "ok" }); }) as any });
+    expect(bodies[0].messages[0].content).toContain("- Steuer");
+    expect(bodies[0].messages[0].content).toContain("add_done");
+  });
 });

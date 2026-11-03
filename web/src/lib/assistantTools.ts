@@ -55,8 +55,13 @@ const repeatOf = (freq: unknown, interval: unknown) =>
  * habits, focus timer, motivation), except settings. Works on the local data, so it syncs like any other change.
  */
 export const appTools: Tools = {
+  async context() {
+    const open = sortOpen(await local.all("task"), Date.now(), 9).slice(0, 40).map((t) => `- ${t.title}${t.dueDate ? ` (${t.dueDate})` : ""}`);
+    const habits = (await local.all("habit")).filter((h) => !h.archived).slice(0, 20).map((h) => h.name);
+    return `Offene Aufgaben / open tasks:\n${open.join("\n") || "-"}\nHabits: ${habits.join(", ") || "-"}`;
+  },
   defs: [
-    { name: "add_task", description: "Create a todo / calendar entry. A deadline (dueDate, optional dueTime) shows up in the calendar. reminders = minutes before the deadline (24 h before is automatic).", parameters: obj({ title: str, dueDate: date, dueTime: time, priority: prio, notes: str, repeat, interval: { type: "integer" }, reminders: { type: "array", items: { type: "integer" } } }, ["title"]) },
+    { name: "add_task", description: "Create a todo / calendar entry. A deadline (dueDate, optional dueTime) shows up in the calendar. reminders = minutes before the deadline (24 h before is automatic).", parameters: obj({ title: str, dueDate: date, dueTime: time, priority: prio, notes: str, checklist: { type: "array", items: str, description: "subtasks / steps of this task, one entry each" }, repeat, interval: { type: "integer" }, reminders: { type: "array", items: { type: "integer" } } }, ["title"]) },
     { name: "list_tasks", description: "List tasks. scope: open (default, in app order), today, tomorrow, overdue, week (next 7 days), done_today, done_all. Optional text filter.", parameters: obj({ scope: { type: "string", enum: ["open", "today", "tomorrow", "overdue", "week", "done_today", "done_all"] }, contains: str, limit: { type: "integer" } }) },
     { name: "get_task", description: "All details of one task including notes and checklist.", parameters: obj({ query: str }, ["query"]) },
     { name: "update_task", description: "Change a task (open or done): title, deadline (empty dueDate clears it), time, priority, repeat (none removes), reminders (replace), notes (replace) or addNote (append a line).", parameters: obj({ query: str, title: str, dueDate: { type: "string", description: "YYYY-MM-DD, empty string clears" }, dueTime: { type: "string", description: "HH:mm, empty string clears" }, priority: prio, repeat, interval: { type: "integer" }, reminders: { type: "array", items: { type: "integer" } }, notes: str, addNote: str }, ["query"]) },
@@ -64,7 +69,7 @@ export const appTools: Tools = {
     { name: "reopen_task", description: "Move a finished task back to the todo list.", parameters: obj({ query: str }, ["query"]) },
     { name: "delete_task", description: "Move a task to the trash.", parameters: obj({ query: str }, ["query"]) },
     { name: "restore_task", description: "Bring a task back from the trash.", parameters: obj({ query: str }, ["query"]) },
-    { name: "add_done", description: "Record something already finished (Have Done).", parameters: obj({ title: str, notes: str }, ["title"]) },
+    { name: "add_done", description: "Record something that is ALREADY finished (past tense, e.g. \"I walked the dog\") directly in Have Done. Not for open tasks.", parameters: obj({ title: str, notes: str }, ["title"]) },
     { name: "add_checklist_item", description: "Add a checklist line to a task's notes.", parameters: obj({ query: str, text: str }, ["query", "text"]) },
     { name: "tick_checklist_item", description: "Tick (or untick with done=false) a checklist line of a task, found by part of its text.", parameters: obj({ query: str, item: str, done: { type: "boolean" } }, ["query", "item"]) },
     { name: "list_done", description: "What was finished on a day (default today), as in Have Done.", parameters: obj({ date }) },
@@ -105,7 +110,8 @@ export const appTools: Tools = {
         const dueDate = asDate(a.dueDate);
         const dueTime = dueDate ? asTime(a.dueTime) : null;
         const id = await addTask({
-          title: String(a.title ?? "").trim() || "?", notes: typeof a.notes === "string" ? a.notes : "",
+          title: String(a.title ?? "").trim() || "?",
+          notes: [typeof a.notes === "string" ? a.notes.trim() : "", ...(Array.isArray(a.checklist) ? a.checklist : []).map((x) => String(x).trim()).filter(Boolean).map((x) => `- [ ] ${x}`)].filter(Boolean).join("\n"),
           dueDate, dueTime, priority: clampPrio(a.priority),
           repeat: dueDate ? repeatOf(a.repeat, a.interval) : null,
           reminders: dueDate ? reminders(a.reminders) ?? (dueTime ? [{ offsetMin: 0 }] : []) : [],
@@ -154,7 +160,8 @@ export const appTools: Tools = {
       case "delete_task": { const t = await findTask(a.query, "any"); await trashTask(t.id); return { ok: true, title: t.title }; }
       case "restore_task": { const t = await findTask(a.query, "trash"); await local.patch("task", t.id, { trashedAt: null }); return { ok: true, title: t.title }; }
       case "add_done":
-        return { ok: true, id: await addTask({ title: String(a.title ?? "").trim() || "?", notes: typeof a.notes === "string" ? a.notes : "", done: true, completedAt: Date.now() }) };
+        return { ok: true, id: await addTask({ title: String(a.title ?? "").trim() || "?",
+          notes: [typeof a.notes === "string" ? a.notes.trim() : "", ...(Array.isArray(a.checklist) ? a.checklist : []).map((x) => String(x).trim()).filter(Boolean).map((x) => `- [ ] ${x}`)].filter(Boolean).join("\n"), done: true, completedAt: Date.now() }) };
       case "add_checklist_item": {
         const t = await findTask(a.query, "any");
         await local.patch("task", t.id, { notes: `${t.notes}${t.notes ? "\n" : ""}- [ ] ${String(a.text ?? "").trim()}` });
