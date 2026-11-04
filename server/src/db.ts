@@ -75,6 +75,18 @@ const MIGRATIONS: { id: number; sql: string }[] = [
     create index items_seq on items (user_id, seq);
     `,
   },
+  {
+    id: 2,
+    sql: `
+    create table blobs (
+      user_id uuid not null references users(id) on delete cascade,
+      id text not null,
+      mime text not null,
+      data bytea not null,
+      primary key (user_id, id)
+    );
+    `,
+  },
 ];
 
 export async function migrate(db: Db): Promise<void> {

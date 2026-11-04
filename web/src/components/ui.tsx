@@ -68,8 +68,9 @@ export function Check_({ done, priority = 0, onChange, label, size = 18, color }
         e.stopPropagation();
         onChange();
       }}
-      className="grid shrink-0 place-items-center rounded-full border-[1.5px] transition-colors"
-      style={{ width: size, height: size, borderColor: col, background: done ? col : "transparent" }}
+      className="grid shrink-0 place-items-center rounded-full transition-colors"
+      // ring gets thicker with priority, so the level is readable without color
+      style={{ width: size, height: size, border: `${[1.5, 1.5, 2.5, 3.5][priority] ?? 1.5}px solid ${col}`, background: done ? col : "transparent" }}
     >
       {done && <Check size={Math.round(size * 0.62)} strokeWidth={3} className="text-white" />}
     </button>

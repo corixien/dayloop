@@ -240,3 +240,36 @@ describe("feed proxy", () => {
     for (const ip of ["8.8.8.8", "93.184.216.34", "2606:4700::1111"]) expect(isPrivateIp(ip)).toBe(false);
   });
 });
+
+describe("blobs and motivation items", () => {
+  it("stores a file per user, hides it from others, deletes it", async () => {
+    const a = await user("blob-a@example.com"), b = await user("blob-b@example.com");
+    const bytes = Buffer.from([1, 2, 3, 4, 5]);
+    expect((await api.put("/api/blobs/abc").set(a.h).set("Content-Type", "audio/mpeg").send(bytes)).status).toBe(200);
+    const got = await api.get("/api/blobs/abc").set(a.h).buffer(true).parse((res, cb) => { const c: Buffer[] = []; res.on("data", (d: Buffer) => c.push(d)); res.on("end", () => cb(null, Buffer.concat(c))); });
+    expect(got.status).toBe(200);
+    expect(got.headers["content-type"]).toContain("audio/mpeg");
+    expect(Buffer.compare(got.body, bytes)).toBe(0);
+    expect((await api.get("/api/blobs/abc").set(b.h)).status).toBe(404);
+    expect((await api.get("/api/blobs/abc")).status).toBe(401);
+    expect((await api.put("/api/blobs/bad%20id").set(a.h).set("Content-Type", "audio/mpeg").send(bytes)).status).toBe(400);
+    await api.delete("/api/blobs/abc").set(a.h);
+    expect((await api.get("/api/blobs/abc").set(a.h)).status).toBe(404);
+  });
+
+  it("syncs motivation items and the Groq key in settings", async () => {
+    const u = await user("mo@example.com");
+    const t = now();
+    const r = await api.post("/api/sync").set(u.h).send({ cursor: 0, changes: [
+      { type: "motext", id: "t1", data: { title: "Warum", body: "Weil.", createdAt: t }, updatedAt: t, deleted: false },
+      { type: "mofeed", id: "f1", data: { url: "https://x.example/feed" }, updatedAt: t, deleted: false },
+      { type: "moaudio", id: "a1", data: { name: "Rede", size: 5 }, updatedAt: t, deleted: false },
+      { type: "settings", id: "settings", data: { groqKey: "gsk_test" }, updatedAt: t, deleted: false },
+    ] });
+    expect(r.body.rejected).toEqual([]);
+    const pull = await api.post("/api/sync").set(u.h).send({ cursor: 0, changes: [] });
+    const types = pull.body.changes.map((c: any) => c.type).sort();
+    expect(types).toEqual(["moaudio", "mofeed", "motext", "settings"]);
+    expect(pull.body.changes.find((c: any) => c.type === "settings").data.groqKey).toBe("gsk_test");
+  });
+});

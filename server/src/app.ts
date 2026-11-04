@@ -195,6 +195,33 @@ export function createApp(opts: AppOptions) {
     res.status(ok ? 200 : 404).json({ ok });
   });
 
+  // File blobs (own motivation audio): raw upload, only the owner can read. The item record carries the metadata.
+  const BLOB_MAX = 40 * 1024 * 1024, BLOB_USER_MAX = 300 * 1024 * 1024;
+  const blobId = (req: Request) => (/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.id)) ? String(req.params.id) : null);
+  app.put("/api/blobs/:id", requireAuth, express.raw({ type: () => true, limit: BLOB_MAX }), async (req, res) => {
+    const id = blobId(req);
+    if (!id || !Buffer.isBuffer(req.body) || req.body.length === 0) return void res.status(400).json({ error: "invalid_blob" });
+    const used = await db.query<{ n: string }>("select coalesce(sum(length(data)),0) n from blobs where user_id=$1 and id<>$2", [uid(req), id]);
+    if (Number(used.rows[0].n) + req.body.length > BLOB_USER_MAX) return void res.status(413).json({ error: "quota" });
+    const mime = String(req.headers["content-type"] ?? "application/octet-stream").slice(0, 100);
+    await db.query(
+      "insert into blobs (user_id,id,mime,data) values ($1,$2,$3,$4) on conflict (user_id,id) do update set mime=excluded.mime, data=excluded.data",
+      [uid(req), id, mime, req.body],
+    );
+    res.json({ ok: true });
+  });
+  app.get("/api/blobs/:id", requireAuth, async (req, res) => {
+    const id = blobId(req);
+    const r = id ? await db.query<{ mime: string; data: Buffer }>("select mime,data from blobs where user_id=$1 and id=$2", [uid(req), id]) : null;
+    if (!r?.rows[0]) return void res.status(404).json({ error: "not_found" });
+    res.type(r.rows[0].mime).send(r.rows[0].data);
+  });
+  app.delete("/api/blobs/:id", requireAuth, async (req, res) => {
+    const id = blobId(req);
+    if (id) await db.query("delete from blobs where user_id=$1 and id=$2", [uid(req), id]);
+    res.json({ ok: true });
+  });
+
   // RSS proxy for the podcast reader (feeds are not CORS-enabled).
   app.get("/api/feed", requireAuth, async (req, res) => {
     const url = z.string().url().max(1000).safeParse(req.query.url);

@@ -1,5 +1,7 @@
 import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
+import { adoptGroqKey } from "./lib/groqKey";
+import { flushUploads, migrateMotivation } from "./lib/motivation";
 import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
 import { takeOpenRequest } from "./lib/widget";
@@ -39,7 +41,10 @@ export default function App() {
   const t = useT();
   const settings = useSettings();
   useTheme(settings.theme);
+  useEffect(() => adoptGroqKey(settings.groqKey), [settings.groqKey]);
   const status = useSyncStatus();
+  useEffect(() => { void migrateMotivation(); }, []);
+  useEffect(() => { if (status === "idle") void flushUploads(); }, [status]);
   const [route, go] = useHashRoute();
   const [selected, setSelected] = useState<string | null>(null);
   const [focusNotes, setFocusNotes] = useState(false);

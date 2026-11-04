@@ -37,7 +37,29 @@ describe("assistant", () => {
       return models.length === 1 ? new Response(JSON.stringify({ error: { code: "model_not_found", message: "gone" } }), { status: 404 }) : reply({ content: "ok" });
     }) as unknown as typeof fetch;
     expect((await runAssistant("x", { defs: [], run: async () => 0 }, "k", { lang: "de", fetch: f })).text).toBe("ok");
-    expect(models).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(models).toEqual(["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]);
+  });
+
+  it("asks Groq for another model when all known ones are gone", async () => {
+    const models: string[] = [];
+    const f = (async (u: string, init: RequestInit) => {
+      if (u.endsWith("/models")) return new Response(JSON.stringify({ data: [{ id: "whisper-large-v3" }, { id: "openai/gpt-oss-120b" }, { id: "new/chat-model" }] }), { status: 200 });
+      const m = JSON.parse(String(init.body)).model;
+      models.push(m);
+      return m === "new/chat-model" ? reply({ content: "ok" }) : new Response("{}", { status: 404 });
+    }) as unknown as typeof fetch;
+    expect((await runAssistant("x", { defs: [], run: async () => 0 }, "k", { lang: "de", fetch: f })).text).toBe("ok");
+    expect(models.at(-1)).toBe("new/chat-model");
+  });
+
+  it("moves on to the next model on a rate limit", async () => {
+    const models: string[] = [];
+    const f = (async (_u: string, init: RequestInit) => {
+      models.push(JSON.parse(String(init.body)).model);
+      return models.length === 1 ? new Response(JSON.stringify({ error: { message: "tpm" } }), { status: 429 }) : reply({ content: "ok" });
+    }) as unknown as typeof fetch;
+    expect((await runAssistant("x", { defs: [], run: async () => 0 }, "k", { lang: "de", fetch: f })).text).toBe("ok");
+    expect(models).toEqual(["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]);
   });
 
   it("maps auth errors", async () => {
@@ -69,5 +91,6 @@ describe("assistant", () => {
     await runAssistant("hi", tools, "k", { lang: "de", fetch: (async (_u: any, init: any) => { bodies.push(JSON.parse(init.body)); return reply({ content: "ok" }); }) as any });
     expect(bodies[0].messages[0].content).toContain("- Steuer");
     expect(bodies[0].messages[0].content).toContain("add_done");
+    expect(bodies[0].messages[0].content).toMatch(/Kalender: [A-Z][a-z] \d{4}-\d\d-\d\d, /);
   });
 });

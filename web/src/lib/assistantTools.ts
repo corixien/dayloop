@@ -3,7 +3,7 @@ import { local, uid } from "./app";
 import { type Tools, matchByName } from "./assistant";
 import { addDays, todayStr, weekday } from "./dates";
 import { habitCounts } from "./habits";
-import { mdb, searchPodcasts } from "./motivation";
+import { deleteText, saveText, searchPodcasts, subscribe, unsubscribe } from "./motivation";
 import { formatNotes, parseNotes, toggled } from "./notes";
 import { pomo } from "./pomoStore";
 import { type TaskItem, addTask, doneDay, isDone, isOpen, sortOpen, toggleDone, trashTask } from "./tasks";
@@ -29,7 +29,7 @@ async function findTask(query: unknown, pool: Pool = "open"): Promise<TaskItem> 
     pool === "trash" ? t.trashedAt !== null : t.trashedAt === null && (pool === "any" || (pool === "open" ? isOpen(t) : isDone(t))));
   const m = matchByName(String(query ?? ""), all, (t) => t.title);
   if (m.hit) return m.hit;
-  if (m.candidates.length) throw new Error(`ambiguous: ${m.candidates.slice(0, 5).map((t) => t.title).join(" | ")}`);
+  if (m.candidates.length) throw new Error(`ambiguous: ${m.candidates.slice(0, 5).map((t) => t.title).join(" | ")} (nothing changed; ask the user which one)`);
   throw new Error("not_found");
 }
 
@@ -41,7 +41,7 @@ async function findHabit(name: unknown) {
 }
 
 async function findText(query: unknown) {
-  const m = matchByName(String(query ?? ""), (await mdb.texts.toArray()).map((x) => ({ ...x, id: String(x.id) })), (x) => x.title);
+  const m = matchByName(String(query ?? ""), await local.all("motext"), (x) => x.title);
   if (m.hit) return m.hit;
   throw new Error(m.candidates.length ? `ambiguous: ${m.candidates.map((x) => x.title).join(" | ")}` : "not_found");
 }
@@ -56,7 +56,10 @@ const repeatOf = (freq: unknown, interval: unknown) =>
  */
 export const appTools: Tools = {
   async context() {
-    const open = sortOpen(await local.all("task"), Date.now(), 9).slice(0, 40).map((t) => `- ${t.title}${t.dueDate ? ` (${t.dueDate})` : ""}`);
+    const open = sortOpen(await local.all("task"), Date.now(), 9).slice(0, 40).map((t) => {
+      const steps = parseNotes(t.notes).filter((l) => l.check && !l.done).map((l) => `[ ] ${l.text}`);
+      return `- ${t.title}${t.dueDate ? ` (${t.dueDate})` : ""}${steps.length ? `: ${steps.join("; ")}` : ""}`;
+    });
     const habits = (await local.all("habit")).filter((h) => !h.archived).slice(0, 20).map((h) => h.name);
     return `Offene Aufgaben / open tasks:\n${open.join("\n") || "-"}\nHabits: ${habits.join(", ") || "-"}`;
   },
@@ -70,7 +73,7 @@ export const appTools: Tools = {
     { name: "delete_task", description: "Move a task to the trash.", parameters: obj({ query: str }, ["query"]) },
     { name: "restore_task", description: "Bring a task back from the trash.", parameters: obj({ query: str }, ["query"]) },
     { name: "add_done", description: "Record something that is ALREADY finished (past tense, e.g. \"I walked the dog\") directly in Have Done. Not for open tasks.", parameters: obj({ title: str, notes: str }, ["title"]) },
-    { name: "add_checklist_item", description: "Add a checklist line to a task's notes.", parameters: obj({ query: str, text: str }, ["query", "text"]) },
+    { name: "add_checklist_item", description: "Add checklist lines (subtasks) to a task's notes. Pass all steps at once in items.", parameters: obj({ query: str, items: { type: "array", items: str }, text: str }, ["query"]) },
     { name: "tick_checklist_item", description: "Tick (or untick with done=false) a checklist line of a task, found by part of its text.", parameters: obj({ query: str, item: str, done: { type: "boolean" } }, ["query", "item"]) },
     { name: "list_done", description: "What was finished on a day (default today), as in Have Done.", parameters: obj({ date }) },
     { name: "list_calendar", description: "Calendar between two dates (inclusive): deadlines, finished tasks and habits done.", parameters: obj({ from: date, to: date }, ["from", "to"]) },
@@ -107,7 +110,7 @@ export const appTools: Tools = {
     const lang = (await local.all("settings"))[0]?.language ?? "de";
     switch (name) {
       case "add_task": {
-        const dueDate = asDate(a.dueDate);
+        const dueDate = asDate(a.dueDate) ?? (repeatOf(a.repeat, a.interval) ? todayStr() : null);
         const dueTime = dueDate ? asTime(a.dueTime) : null;
         const id = await addTask({
           title: String(a.title ?? "").trim() || "?",
@@ -164,8 +167,10 @@ export const appTools: Tools = {
           notes: [typeof a.notes === "string" ? a.notes.trim() : "", ...(Array.isArray(a.checklist) ? a.checklist : []).map((x) => String(x).trim()).filter(Boolean).map((x) => `- [ ] ${x}`)].filter(Boolean).join("\n"), done: true, completedAt: Date.now() }) };
       case "add_checklist_item": {
         const t = await findTask(a.query, "any");
-        await local.patch("task", t.id, { notes: `${t.notes}${t.notes ? "\n" : ""}- [ ] ${String(a.text ?? "").trim()}` });
-        return { ok: true, title: t.title };
+        const items = [...(Array.isArray(a.items) ? a.items : []), ...(a.text ? [a.text] : [])].map((x) => String(x).trim()).filter(Boolean);
+        if (!items.length) throw new Error("no_items");
+        await local.patch("task", t.id, { notes: `${t.notes}${t.notes ? "\n" : ""}${items.map((x) => `- [ ] ${x}`).join("\n")}` });
+        return { ok: true, title: t.title, added: items.length };
       }
       case "tick_checklist_item": {
         const t = await findTask(a.query, "any");
@@ -270,32 +275,32 @@ export const appTools: Tools = {
         return { phase: st.phase, status: st.status, minutesLeft: Math.round(left / 60000), round: st.round };
       }
 
-      case "list_motivation_texts": return (await mdb.texts.toArray()).map((x) => ({ title: x.title, preview: x.body.slice(0, 80) }));
+      case "list_motivation_texts": return (await local.all("motext")).map((x) => ({ title: x.title, preview: x.body.slice(0, 80) }));
       case "get_motivation_text": { const x = await findText(a.query); return { title: x.title, body: x.body }; }
       case "add_motivation_text": {
-        await mdb.texts.add({ title: String(a.title ?? "").trim(), body: String(a.body ?? ""), createdAt: Date.now() });
+        await saveText({ title: String(a.title ?? "").trim(), body: String(a.body ?? "") });
         return { ok: true };
       }
       case "update_motivation_text": {
         const x = await findText(a.query);
         const body = typeof a.body === "string" ? a.body : x.body;
-        await mdb.texts.update(Number(x.id), { title: typeof a.title === "string" && a.title.trim() ? a.title.trim() : x.title, body: typeof a.append === "string" && a.append ? `${body}\n${a.append}` : body });
+        await saveText({ id: x.id, createdAt: x.createdAt, title: typeof a.title === "string" && a.title.trim() ? a.title.trim() : x.title, body: typeof a.append === "string" && a.append ? `${body}\n${a.append}` : body });
         return { ok: true, title: x.title };
       }
-      case "delete_motivation_text": { const x = await findText(a.query); await mdb.texts.delete(Number(x.id)); return { ok: true, title: x.title }; }
-      case "list_podcasts": return (await mdb.feeds.toArray()).map((f) => ({ title: f.title, author: f.author }));
+      case "delete_motivation_text": { const x = await findText(a.query); await deleteText(x.id); return { ok: true, title: x.title }; }
+      case "list_podcasts": return (await local.all("mofeed")).map((f) => ({ title: f.title, author: f.author }));
       case "search_podcasts": return (await searchPodcasts(String(a.term ?? ""), lang)).slice(0, 8).map((f) => ({ title: f.title, author: f.author }));
       case "add_podcast": {
         const f = (await searchPodcasts(String(a.term ?? ""), lang))[0];
         if (!f) throw new Error("not_found");
-        await mdb.feeds.put(f);
+        await subscribe(f);
         return { ok: true, title: f.title };
       }
       case "remove_podcast": {
-        const feeds = await mdb.feeds.toArray();
+        const feeds = await local.all("mofeed");
         const m = matchByName(String(a.title ?? ""), feeds.map((f) => ({ ...f, id: f.url })), (f) => f.title);
         if (!m.hit) throw new Error("not_found");
-        await mdb.feeds.delete(m.hit.url);
+        await unsubscribe(m.hit.url);
         return { ok: true, title: m.hit.title };
       }
       default:

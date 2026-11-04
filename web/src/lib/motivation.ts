@@ -1,29 +1,103 @@
 import Dexie, { type Table } from "dexie";
 import { Capacitor } from "@capacitor/core";
-import { syncClient } from "./app";
+import { local, syncClient, uid, useItems } from "./app";
 import { isNative } from "./native";
 import { widgetPlugin } from "./widget";
 
-export interface MText { id?: number; title: string; body: string; createdAt: number }
-export interface MAudio { id?: number; name: string; blob: Blob; createdAt: number }
+export interface MText { id?: string; title: string; body: string; createdAt: number }
+export interface MAudio { id: string; name: string; size: number; mime: string; createdAt: number }
 export interface MFeed { url: string; title: string; image: string; author: string }
 /** An episode saved on this device: a file in the app folder (Android) or a blob (browser). */
 export interface Download { id: string; title: string; feed: string; path?: string; blob?: Blob; size: number; createdAt: number }
 export interface Episode { title: string; audio: string; date: number; duration: string }
 
-/** Personal motivation material lives on this device only (audio files are too big to sync). */
+/**
+ * Texts, subscribed podcasts and the audio list are synced items (motext, mofeed, moaudio); audio files go to the server as
+ * blobs. This db holds the device-local parts: the file cache with an upload flag, downloaded episodes, and the pre-sync tables
+ * (texts/audios/feeds) that `migrateMotivation` moves into the synced store once.
+ */
+interface OldAudio { id?: number; name: string; blob: Blob; createdAt: number }
+interface AudioFile { id: string; blob: Blob; uploaded: 0 | 1 }
 class MotivationDb extends Dexie {
-  texts!: Table<MText, number>;
-  audios!: Table<MAudio, number>;
+  texts!: Table<{ id?: number; title: string; body: string; createdAt: number }, number>;
+  audios!: Table<OldAudio, number>;
   feeds!: Table<MFeed, string>;
   downloads!: Table<Download, string>;
+  files!: Table<AudioFile, string>;
   constructor() {
     super("dayloop-motivation");
     this.version(1).stores({ texts: "++id, createdAt", audios: "++id, createdAt", feeds: "url" });
     this.version(2).stores({ downloads: "id, createdAt" });
+    this.version(3).stores({ files: "id" });
   }
 }
 export const mdb = new MotivationDb();
+
+// ---- synced texts, feeds, audio ----
+
+export function useTexts(): MText[] {
+  return useItems("motext").map((x) => ({ id: x.id, title: x.title, body: x.body, createdAt: x.createdAt })).sort((a, b) => b.createdAt - a.createdAt);
+}
+export const saveText = (t: { id?: string; title: string; body: string; createdAt?: number }) =>
+  local.put("motext", t.id ?? uid(), { title: t.title, body: t.body, createdAt: t.createdAt ?? Date.now() });
+export const deleteText = (id: string) => local.remove("motext", id);
+
+export const feedId = (url: string) => hash(url);
+export const useFeeds = (): MFeed[] => useItems("mofeed");
+export const subscribe = (f: MFeed) => local.put("mofeed", feedId(f.url), f);
+export const unsubscribe = (url: string) => local.remove("mofeed", feedId(url));
+
+export const useAudios = (): MAudio[] => useItems("moaudio").sort((a, b) => b.createdAt - a.createdAt);
+
+/** Add an audio file: kept on the device right away, uploaded when possible (retried by `flushUploads`). */
+export async function addAudio(f: File) {
+  const id = uid();
+  await mdb.files.put({ id, blob: f, uploaded: 0 });
+  await local.put("moaudio", id, { name: f.name.replace(/\.[^.]+$/, ""), size: f.size, mime: f.type || "audio/mpeg", createdAt: Date.now() });
+  void flushUploads();
+}
+export async function removeAudio(id: string) {
+  await local.remove("moaudio", id);
+  await mdb.files.delete(id);
+  if (syncClient.session) void syncClient.blob(id, { method: "DELETE" }).catch(() => {});
+}
+let flushing = false;
+export async function flushUploads() {
+  if (flushing || !syncClient.session) return;
+  flushing = true;
+  try {
+    for (const f of await mdb.files.where("uploaded").equals(0).toArray()) {
+      const r = await syncClient.blob(f.id, { method: "PUT", body: f.blob });
+      if (r.ok) await mdb.files.update(f.id, { uploaded: 1 });
+    }
+  } catch { /* offline: retried on the next sync */ } finally { flushing = false; }
+}
+/** The audio file: from the device cache, else downloaded from the server and cached. */
+export async function audioBlob(a: MAudio): Promise<Blob> {
+  const have = await mdb.files.get(a.id);
+  if (have) return have.blob;
+  const r = await syncClient.blob(a.id, { method: "GET" });
+  if (!r.ok) throw new Error("audio");
+  const blob = new Blob([await r.arrayBuffer()], { type: a.mime });
+  await mdb.files.put({ id: a.id, blob, uploaded: 1 });
+  return blob;
+}
+
+/** One-time move of the old device-only data into the synced store (idempotent: ids derive from the old rows). */
+export async function migrateMotivation() {
+  for (const x of await mdb.texts.toArray()) {
+    await local.put("motext", `old${x.id}`, { title: x.title, body: x.body, createdAt: x.createdAt });
+    await mdb.texts.delete(x.id!);
+  }
+  for (const f of await mdb.feeds.toArray()) { await subscribe(f); await mdb.feeds.delete(f.url); }
+  for (const a of await mdb.audios.toArray()) {
+    const id = `old${a.id}`;
+    await mdb.files.put({ id, blob: a.blob, uploaded: 0 });
+    await local.put("moaudio", id, { name: a.name, size: a.blob.size, mime: a.blob.type || "audio/mpeg", createdAt: a.createdAt });
+    await mdb.audios.delete(a.id!);
+  }
+  void flushUploads();
+}
 
 /** Starter podcasts (public RSS feeds), one tap to add. */
 export const SUGGESTED: MFeed[] = [

@@ -1,13 +1,11 @@
 /** Voice assistant: Groq Whisper for speech to text, a Groq chat model with tools to act on the app. Key stays on the device. */
 const GROQ = "https://api.groq.com/openai/v1";
-const KEY = "dl_groq";
+export const KEY = "dl_groq";
 export const WHISPER = "whisper-large-v3-turbo";
-/** Tried in order; a model Groq retired answers 404 and the next one is used (llama-3.3-70b-versatile was shut down). */
-export const CHAT_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"];
+/** Tried in order; a model Groq retired answers 404 and the next one is used (llama-3.3-70b-versatile was shut down); when all are gone, `discoverModel` asks Groq what exists. */
+export const CHAT_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"];
 
 export const getGroqKey = () => localStorage.getItem(KEY) ?? "";
-export const saveGroqKey = (k: string) => (k.trim() ? localStorage.setItem(KEY, k.trim()) : localStorage.removeItem(KEY));
-
 export interface ToolDef { name: string; description: string; parameters: object }
 export interface Tools {
   defs: ToolDef[]; run(name: string, args: Record<string, unknown>): Promise<unknown>;
@@ -18,7 +16,7 @@ type Msg = { role: string; content?: string | null; tool_calls?: { id: string; f
 
 export class AssistantError extends Error {
   /** detail: HTTP status and the provider's message, shown to the user to make failures diagnosable */
-  constructor(public code: "auth" | "network" | "rate" | "other", public detail = "") { super(code); }
+  constructor(public code: "auth" | "network" | "rate" | "other", public detail = "", public retryAfter = 0) { super(code); }
 }
 
 async function groq(path: string, key: string, init: RequestInit, f: typeof fetch) {
@@ -27,7 +25,7 @@ async function groq(path: string, key: string, init: RequestInit, f: typeof fetc
   if (res.ok) return res.json() as Promise<any>;
   const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: string } };
   const detail = `${res.status} ${body.error?.code ?? ""} ${body.error?.message ?? ""}`.trim().slice(0, 200);
-  throw new AssistantError(res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate" : "other", detail);
+  throw new AssistantError(res.status === 401 || res.status === 403 ? "auth" : res.status === 429 ? "rate" : "other", detail, Number(res.headers.get("retry-after")) || 0);
 }
 
 /** hint: names from the app (tasks, habits) that steer Whisper towards the user's own vocabulary */
@@ -43,6 +41,7 @@ export async function transcribe(blob: Blob, key: string, lang: string, f: typeo
   return ((await groq("/audio/transcriptions", key, { method: "POST", body: form }, f)).text ?? "").trim();
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WD_DE = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const WD_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -50,29 +49,48 @@ export function systemPrompt(lang: string, now: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
   const date = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
   const wd = (lang === "de" ? WD_DE : WD_EN)[now.getDay()];
+  // models miscalculate weekdays: hand them the next two weeks
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now); d.setDate(d.getDate() + i);
+    return `${(lang === "de" ? WD_DE : WD_EN)[d.getDay()].slice(0, 2)} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }).join(", ");
   return lang === "de"
     ? `Du bist der Sprachassistent der Todo-App Dayloop. Heute ist ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())} Uhr. Führe Wünsche sofort mit den Werkzeugen aus, ohne nachzufragen. Datum als YYYY-MM-DD, Uhrzeit als HH:mm, Priorität 0-3 (3 = hoch). Die Spracherkennung macht Fehler: gleiche Namen großzügig mit der Liste unten ab und nimm die ähnlichste Aufgabe/Gewohnheit.
 
+Kalender: ${days}
+
 Regeln:
-1. Schon Erledigtes (Vergangenheit: "war gassi", "habe X gemacht", "hab X erledigt", "X ist fertig") -> add_done mit dem Titel (Infinitiv-Stil, z.B. "Gassi gehen"). Existiert dazu eine offene Aufgabe, stattdessen complete_task. Nie als offene Aufgabe anlegen.
+1. Schon Erledigtes (Vergangenheit: "war gassi", "habe X gemacht", "hab X erledigt", "X ist fertig") -> add_done mit dem Titel (Infinitiv-Stil, z.B. "Gassi gehen"). Existiert dazu eine passende offene Aufgabe in der Liste unten, rufe NUR complete_task dafür auf und niemals zusätzlich add_done. Nie als offene Aufgabe anlegen.
 2. Noch zu Erledigendes ("ich muss", "erinnere mich", "plane", "Aufgabe") -> add_task.
 3. Braucht eine Sache mehrere Schritte ("dafür muss ich A, B und C tun", "dazu gehören ...", "Unteraufgaben"): EINE Aufgabe mit checklist = [A, B, C]. Gibt es die Hauptaufgabe schon (siehe Liste), hänge die Schritte mit add_checklist_item daran, lege keine neuen Aufgaben an. Sagt der Nutzer "dafür"/"dazu" ohne Namen, meint er die zuletzt genannte Aufgabe.
 4. Mehrere voneinander unabhängige Dinge -> je eine eigene Aufgabe.
-5. Gewohnheiten (täglich/regelmäßig, z.B. Wasser trinken, Sport) -> log_habit statt Aufgabe, wenn die Gewohnheit existiert.
+5. Hat der Nutzer etwas getan, das zu einer bestehenden Gewohnheit passt (z.B. Wasser getrunken, Sport gemacht) -> log_habit statt Aufgabe. Neue Gewohnheiten (create_habit) nur, wenn er ausdrücklich "Gewohnheit"/"Habit" sagt; "erinnere mich jeden Montag an X" ist eine Aufgabe mit Wiederholung (add_task mit repeat).
 6. Relative Angaben ("morgen", "Freitag", "in zwei Tagen", "abends 18 Uhr") selbst in Datum/Uhrzeit umrechnen.
 7. Mehrere Wünsche in einem Satz: alle nacheinander ausführen.
+8. Wiederholung ("jeden Montag", "täglich", "monatlich"): add_task mit repeat (daily/weekly/monthly/yearly) UND dueDate = nächster passender Tag (selbst berechnen).
+9. Nennt der Nutzer einen Punkt, der in der Liste unten als Checklistenpunkt ([ ]) einer Aufgabe steht ("X abhaken", "X ist erledigt", "X ist gemacht"): tick_checklist_item mit query = Aufgabe und item = Punkt. Nie als neue Aufgabe oder Checklistenpunkt anlegen und nicht die ganze Aufgabe erledigen.
+10. Meldet ein Werkzeug "ambiguous" (mehrere ähnliche Aufgaben), ändere NICHTS und frage kurz, welche gemeint ist. Erledige nie mehrere Aufgaben auf Verdacht.
 Antworte danach mit einem kurzen deutschen Satz, was getan wurde; bei Auflistungen kurze Zeilen. Keine Förmlichkeiten.`
     : `You are the voice assistant of the todo app Dayloop. Today is ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())}. Carry out requests right away with the tools, without asking. Dates as YYYY-MM-DD, times as HH:mm, priority 0-3 (3 = high). Speech recognition makes mistakes: match names loosely against the list below and pick the most similar task/habit.
 
 Rules:
-1. Already finished things (past tense: "I walked the dog", "I did X", "X is done") -> add_done with the title (infinitive style, e.g. "Walk the dog"). If an open task for it exists, use complete_task instead. Never create them as open tasks.
+1. Already finished things (past tense: "I walked the dog", "I did X", "X is done") -> add_done with the title (infinitive style, e.g. "Walk the dog"). If a matching open task exists in the list below, call ONLY complete_task for it and never add_done in addition. Never create them as open tasks.
 2. Things still to do ("I need to", "remind me", "plan", "task") -> add_task.
-3. If one thing needs several steps ("for that I have to A, B and C", "this includes ...", "subtasks"): ONE task with checklist = [A, B, C]. If the main task already exists (see list), add the steps with add_checklist_item and do not create new tasks. If the user says "for that" without a name, they mean the task mentioned last.
+3. If one thing needs several steps ("for that I have to A, B and C", "this includes ...", "subtasks"): ONE task with checklist = [A, B, C]. If the main task already exists (see list), add ALL steps in one add_checklist_item call (items) and do not create new tasks. If the user says "for that" without a name, they mean the task mentioned last.
 4. Several independent things -> one task each.
-5. Habits (daily/regular, e.g. drink water, exercise) -> log_habit instead of a task when the habit exists.
+5. If the user did something matching an existing habit (drank water, exercised) -> log_habit instead of a task. Create habits (create_habit) only when the user explicitly says "habit"; "remind me every Monday to X" is a task with a repeat (add_task with repeat).
 6. Convert relative expressions ("tomorrow", "Friday", "in two days", "6 pm") to date/time yourself.
 7. Several requests in one sentence: carry out all of them in turn.
+8. Repetition ("every Monday", "daily", "monthly"): add_task with repeat (daily/weekly/monthly/yearly) AND dueDate = next matching day (work it out yourself).
+9. If the user names an item that appears below as a checklist item ([ ]) of a task ("tick X", "X is done"): tick_checklist_item with query = task and item = the item. Never create it as a new task or checklist item and do not complete the whole task.
+10. If a tool reports "ambiguous" (several similar tasks), change NOTHING and briefly ask which one is meant. Never complete several tasks on suspicion.
 Then answer in one short sentence saying what was done; for lists use short lines. No pleasantries.`;
+}
+
+/** Last resort when every known model answers 404: pick any other chat model Groq currently offers. */
+async function discoverModel(key: string, tried: string[], f: typeof fetch): Promise<string | null> {
+  const ids: string[] = ((await groq("/models", key, {}, f).catch(() => ({ data: [] }))).data ?? []).map((m: { id: string }) => m.id);
+  return ids.find((id) => !tried.includes(id) && !/whisper|guard|orpheus|safeguard|allam|tts/i.test(id)) ?? null;
 }
 
 export interface RunResult { text: string; actions: string[] }
@@ -85,20 +103,30 @@ export async function runAssistant(
   const state = (await tools.context?.().catch(() => "")) ?? "";
   const messages: Msg[] = [{ role: "system", content: systemPrompt(opts.lang, opts.now ?? new Date()) + (state ? `\n\n${state}` : "") }, { role: "user", content: input }];
   const actions: string[] = [];
-  let model = 0;
+  let model = 0, waited = 0;
+  const models = [...CHAT_MODELS];
   for (let round = 0; round < 8; round++) {
     let r: any;
     // a malformed tool call (HTTP 400 tool_use_failed) usually works on a second try; an unknown model (404) moves on to the next one
     for (let attempt = 0; ; attempt++) {
       const body = JSON.stringify({
-        model: CHAT_MODELS[model], temperature: 0.2, messages, tool_choice: "auto",
-        ...(CHAT_MODELS[model].startsWith("openai/") ? { reasoning_effort: "medium" } : {}),
+        model: models[model], temperature: 0.2, messages, tool_choice: "auto",
+        ...(models[model].startsWith("openai/") ? { reasoning_effort: "medium" } : {}),
         tools: tools.defs.map((d) => ({ type: "function", function: d })),
       });
       try { r = await groq("/chat/completions", key, { method: "POST", headers: { "Content-Type": "application/json" }, body }, f); break; }
       catch (e) {
         if (!(e instanceof AssistantError)) throw e;
-        if (e.detail.startsWith("404") && model < CHAT_MODELS.length - 1) { model++; continue; }
+        if (e.detail.startsWith("404")) {
+          if (model < models.length - 1) { model++; continue; }
+          const found = await discoverModel(key, models, f);
+          if (found) { models.push(found); model++; continue; }
+        }
+        // every model has its own free-tier quota: a rate limit moves on to the next one; when all are used up, wait once
+        if (e.code === "rate") {
+          if (model < models.length - 1) { model++; continue; }
+          if (waited < 3 && e.retryAfter <= 40) { waited++; await sleep(Math.max(6, e.retryAfter + 1) * 1000); model = 0; continue; }
+        }
         if (e.detail.includes("tool_use_failed") && attempt < 3) continue;
         throw e;
       }

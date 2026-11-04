@@ -176,6 +176,14 @@ export class SyncClient {
     return res.text();
   }
 
+  /** Authorized request for file blobs (own audio); returns the raw response. */
+  async blob(id: string, init: { method: "GET" | "PUT" | "DELETE"; body?: Blob }): Promise<Response> {
+    return this.doFetch(`${this.baseUrl}/api/blobs/${id}`, {
+      method: init.method, body: init.body,
+      headers: { Authorization: `Bearer ${await this.token()}`, ...(init.body ? { "Content-Type": init.body.type || "application/octet-stream" } : {}) },
+    });
+  }
+
   // ---- sync ----
 
   syncSoon(ms = 400) {

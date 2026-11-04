@@ -48,7 +48,7 @@ const de = {
   mNoResults: "Nichts gefunden.", mMore: "Mehr anzeigen", mBack: "Zurück", mNeedLogin: "Podcasts laden über den Server: bitte anmelden.",
   assistant: "Assistent", aNoKey: "Für den Assistenten fehlt der Groq-API-Key (Einstellungen > Assistent).", aMic: "Sprechen", aTap: "Tippen zum Sprechen", aListening: "Ich höre zu …", aThinking: "Moment …", aType: "Oder schreib es hier …",
   aNothingHeard: "Ich habe nichts verstanden.", aDone: "Erledigt.", aError: "Das hat nicht geklappt.", aMicDenied: "Mikrofon-Zugriff fehlt.", aErr_auth: "Groq-API-Key ungültig.", aErr_network: "Keine Verbindung.", aErr_rate: "Groq-Limit erreicht, gleich nochmal versuchen.", aErr_other: "Das hat nicht geklappt.",
-  aGroqKey: "Groq-API-Key", aKeySaved: "Gespeichert", aSetDefault: "Als Assistent festlegen", aActive: "Dayloop ist als digitaler Assistent aktiv.", aHelp: "Sprich Aufgaben, Habits, Kalender und Timer. Antworten kommen nur als Text. Der Key bleibt auf diesem Gerät. Zum Starten per Power-Taste: Dayloop als digitalen Assistenten wählen und unter Einstellungen > Erweiterte Funktionen > Seitentaste „Lange drücken“ auf „Digitaler Assistent“ stellen.",
+  aGroqKey: "Groq-API-Key", aKeySaved: "Gespeichert", aSetDefault: "Als Assistent festlegen", aActive: "Dayloop ist als digitaler Assistent aktiv.", aHelp: "Sprich Aufgaben, Habits, Kalender und Timer. Antworten kommen nur als Text. Der Key wird mit deinem Konto synchronisiert. Zum Starten per Power-Taste: Dayloop als digitalen Assistenten wählen und unter Einstellungen > Erweiterte Funktionen > Seitentaste „Lange drücken“ auf „Digitaler Assistent“ stellen.",
   mDownloaded: "Heruntergeladen", mOwnAudio: "Eigene Dateien", mDownload: "Herunterladen", mSaved: "Gespeichert (tippen zum Löschen)", mDlFailed: "Download fehlgeschlagen.",
   alarmStopped: "Alarm gestoppt",
 } as const;
@@ -105,7 +105,7 @@ const en: Record<Key, string> = {
   mNoResults: "Nothing found.", mMore: "Show more", mBack: "Back", mNeedLogin: "Podcasts load through the server: please sign in.",
   assistant: "Assistant", aNoKey: "The assistant needs a Groq API key (Settings > Assistant).", aMic: "Speak", aTap: "Tap to speak", aListening: "Listening …", aThinking: "One moment …", aType: "Or type it here …",
   aNothingHeard: "I did not catch that.", aDone: "Done.", aError: "That did not work.", aMicDenied: "Microphone access is missing.", aErr_auth: "Groq API key invalid.", aErr_network: "No connection.", aErr_rate: "Groq limit reached, try again shortly.", aErr_other: "That did not work.",
-  aGroqKey: "Groq API key", aKeySaved: "Saved", aSetDefault: "Set as assistant", aActive: "Dayloop is the active digital assistant.", aHelp: "Speak tasks, habits, calendar and timer. Answers come as text only. The key stays on this device. To start with the power button: choose Dayloop as digital assistant and set Settings > Advanced features > Side key > Press and hold to \"Digital assistant\".",
+  aGroqKey: "Groq API key", aKeySaved: "Saved", aSetDefault: "Set as assistant", aActive: "Dayloop is the active digital assistant.", aHelp: "Speak tasks, habits, calendar and timer. Answers come as text only. The key is synced with your account. To start with the power button: choose Dayloop as digital assistant and set Settings > Advanced features > Side key > Press and hold to \"Digital assistant\".",
   mDownloaded: "Downloaded", mOwnAudio: "Own files", mDownload: "Download", mSaved: "Saved (tap to delete)", mDlFailed: "Download failed.",
   alarmStopped: "Alarm stopped",
 };

@@ -2,7 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Check, Download as DownloadIcon, FileUp, Loader2, Music, Pencil, Play, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLang, useT } from "../lib/app";
-import { type Download, type Episode, type MFeed, type MText, SUGGESTED, downloadEpisode, downloadId, downloadSrc, feedFromUrl, fmtDuration, fmtSize, loadFeed, mdb, removeDownload, searchPodcasts } from "../lib/motivation";
+import { type Download, type Episode, type MAudio, type MFeed, type MText, SUGGESTED, addAudio, audioBlob, deleteText, downloadEpisode, downloadId, downloadSrc, feedFromUrl, fmtDuration, fmtSize, loadFeed, mdb, removeAudio, removeDownload, saveText, searchPodcasts, subscribe, unsubscribe, useAudios, useFeeds, useTexts } from "../lib/motivation";
 import { isNative } from "../lib/native";
 import { widgetPlugin } from "../lib/widget";
 import { Button, Dialog, Empty, IconButton, PageHeader, Segmented, cx, inputCls } from "./ui";
@@ -10,7 +10,7 @@ import { Button, Dialog, Empty, IconButton, PageHeader, Segmented, cx, inputCls 
 type Tab = "texts" | "audio" | "podcasts";
 interface Playing { src: string; title: string }
 
-/** Own texts and audio files, and podcasts from public RSS feeds. Personal material stays on this device. */
+/** Own texts and audio files, and podcasts from public RSS feeds. Everything syncs with the account. */
 export function Motivation() {
   const t = useT();
   const [tab, setTab] = useState<Tab>("texts");
@@ -50,13 +50,13 @@ function Player({ p, onClose }: { p: Playing; onClose: () => void }) {
 
 function Texts() {
   const t = useT();
-  const texts = useLiveQuery(() => mdb.texts.orderBy("createdAt").reverse().toArray(), [], []);
+  const texts = useTexts();
   const [edit, setEdit] = useState<MText | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
   async function upload(files: FileList | null) {
     for (const f of Array.from(files ?? [])) {
-      await mdb.texts.add({ title: f.name.replace(/\.[^.]+$/, ""), body: await f.text(), createdAt: Date.now() });
+      await saveText({ title: f.name.replace(/\.[^.]+$/, ""), body: await f.text() });
     }
     if (file.current) file.current.value = "";
   }
@@ -90,8 +90,8 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
   async function save() {
     if (!title.trim() && !body.trim()) return onClose();
     const row = { ...saved, title: title.trim(), body };
-    if (saved.id) { await mdb.texts.put(row); setSaved(row); setEditing(false); }
-    else { await mdb.texts.add(row); onClose(); }
+    if (saved.id) { await saveText(row); setSaved(row); setEditing(false); }
+    else { await saveText(row); onClose(); }
   }
   if (!editing) {
     return (
@@ -109,7 +109,7 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
         <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("mTextTitle")} aria-label={t("mTextTitle")} />
         <textarea className={cx(inputCls, "h-64 resize-none py-2 text-[15px] leading-relaxed")} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t("mTextBody")} aria-label={t("note")} />
         <div className="flex justify-between">
-          {saved.id ? <IconButton label={t("delete")} onClick={async () => { await mdb.texts.delete(saved.id!); onClose(); }}><Trash2 size={16} /></IconButton> : <span />}
+          {saved.id ? <IconButton label={t("delete")} onClick={async () => { await deleteText(saved.id!); onClose(); }}><Trash2 size={16} /></IconButton> : <span />}
           <div className="flex gap-2">
             <Button onClick={() => (fresh ? onClose() : (setTitle(saved.title), setBody(saved.body), setEditing(false)))}>{t("cancel")}</Button>
             <Button variant="primary" onClick={() => void save()}>{t("save")}</Button>
@@ -122,19 +122,24 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
 
 function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: Playing) => void }) {
   const t = useT();
-  const audios = useLiveQuery(() => mdb.audios.orderBy("createdAt").reverse().toArray(), [], []);
+  const audios = useAudios();
   const downloads = useLiveQuery(() => mdb.downloads.orderBy("createdAt").reverse().toArray(), [], []);
   const file = useRef<HTMLInputElement>(null);
-  const urls = useRef(new Map<number, string>());
+  const urls = useRef(new Map<string, string>());
+  const [loading, setLoading] = useState<string | null>(null);
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   async function upload(files: FileList | null) {
-    for (const f of Array.from(files ?? [])) await mdb.audios.add({ name: f.name.replace(/\.[^.]+$/, ""), blob: f, createdAt: Date.now() });
+    for (const f of Array.from(files ?? [])) await addAudio(f);
     if (file.current) file.current.value = "";
   }
-  const play = (a: { id?: number; name: string; blob: Blob }) => {
-    let u = urls.current.get(a.id!);
-    if (!u) { u = URL.createObjectURL(a.blob); urls.current.set(a.id!, u); }
+  const play = async (a: MAudio) => {
+    let u = urls.current.get(a.id);
+    if (!u) {
+      setLoading(a.id);
+      try { u = URL.createObjectURL(await audioBlob(a)); urls.current.set(a.id, u); } catch { setLoading(null); return; }
+      setLoading(null);
+    }
     onPlay({ src: u, title: a.name });
   };
 
@@ -158,11 +163,11 @@ function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: 
       {audios.length > 0 && downloads.length > 0 && <h2 className="px-4 pb-1 pt-3 text-xs font-medium text-muted md:px-6">{t("mOwnAudio")}</h2>}
       {audios.map((a) => (
         <div key={a.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-          <button onClick={() => play(a)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={a.name}>
-            <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === a.name ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}><Play size={15} /></span>
+          <button onClick={() => void play(a)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={a.name}>
+            <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === a.name ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}>{loading === a.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}</span>
             <span className="min-w-0 flex-1 truncate text-[15px]">{a.name}</span>
           </button>
-          <IconButton label={t("delete")} onClick={() => void mdb.audios.delete(a.id!)}><Trash2 size={15} /></IconButton>
+          <IconButton label={t("delete")} onClick={() => void removeAudio(a.id)}><Trash2 size={15} /></IconButton>
         </div>
       ))}
     </div>
@@ -178,7 +183,7 @@ function Cover({ src, size = 44 }: { src: string; size?: number }) {
 function Podcasts({ onPlay }: { onPlay: (p: Playing) => void }) {
   const t = useT();
   const lang = useLang();
-  const feeds = useLiveQuery(() => mdb.feeds.toArray(), [], []);
+  const feeds = useFeeds();
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<MFeed[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -204,8 +209,8 @@ function Podcasts({ onPlay }: { onPlay: (p: Playing) => void }) {
         </span>
       </button>
       {subscribed.has(f.url)
-        ? <Button onClick={() => void mdb.feeds.delete(f.url)}>{t("mUnsubscribe")}</Button>
-        : <Button variant="primary" onClick={() => void mdb.feeds.put(f)}>{t("mSubscribe")}</Button>}
+        ? <Button onClick={() => void unsubscribe(f.url)}>{t("mUnsubscribe")}</Button>
+        : <Button variant="primary" onClick={() => void subscribe({ url: f.url, title: f.title, image: f.image, author: f.author })}>{t("mSubscribe")}</Button>}
     </div>
   );
 

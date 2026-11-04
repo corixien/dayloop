@@ -1,8 +1,8 @@
-import { Bell, Check, ListChecks, Repeat, StickyNote, Trash2 } from "lucide-react";
+import { AlarmClock, Bell, Check, ListChecks, Repeat, StickyNote, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { useLang, useT } from "../lib/app";
+import { useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
-import { type TaskItem, extras, toggleDone, trashTask } from "../lib/tasks";
+import { type TaskItem, extras, isUrgent, toggleDone, trashTask } from "../lib/tasks";
 import { Check_, cx } from "./ui";
 
 export function dueLabel(t: TaskItem, lang: string, tr: (k: any) => string, today = todayStr()): { text: string; overdue: boolean } | null {
@@ -35,6 +35,10 @@ export function TaskRow({
   const t = useT();
   const lang = useLang();
   const due = dueLabel(task, lang, t);
+  const now = useNow();
+  const hour = useSettings().defaultReminderHour;
+  // deadline within 24 h (or overdue): marked by a bar, a clock and bold text, so it also reads in grayscale
+  const urgent = !task.done && isUrgent(task, now.getTime(), hour);
   const { total, done: subDone, note: noteLine } = extras(task);
   const [leaving, setLeaving] = useState(false);
 
@@ -116,6 +120,7 @@ export function TaskRow({
           onTouchCancel={() => { g.current.mode = "idle"; setX(0, true); }}
           className={cx(
             "relative touch-pan-y group flex min-h-12 cursor-default select-none items-start gap-3 border-b border-line/60 bg-bg px-4 py-2.5 md:min-h-10 md:px-6 md:py-2",
+            urgent && "border-l-[5px] border-l-fg pl-[11px] md:pl-[19px]",
             selected ? "!bg-accent-soft" : "md:hover:bg-hover",
           )}
         >
@@ -124,7 +129,7 @@ export function TaskRow({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className={cx("truncate text-[15px] md:text-[14px]", task.done && "text-faint line-through")}>{task.title}</span>
+              <span className={cx("truncate text-[15px] md:text-[14px]", task.done && "text-faint line-through", urgent && "font-semibold")}>{task.title}</span>
               {noteLine && <StickyNote size={12} className="shrink-0 text-faint" aria-label={t("note")} />}
               {total > 0 && <ListChecks size={13} className="shrink-0 text-faint" aria-label={t("subtasks")} />}
             </div>
@@ -137,9 +142,17 @@ export function TaskRow({
                 <span className="truncate">{noteLine}</span>
               </button>
             )}
-            {(due || total > 0 || task.repeat || meta) && (
+            {(due || total > 0 || task.repeat || meta || (task.priority > 0 && !task.done)) && (
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
-                {due && <span className={cx(due.overdue && "text-danger")}>{due.text}</span>}
+                {task.priority > 0 && !task.done && (
+                  <span className="font-bold tracking-tighter text-fg" style={{ color: `var(--color-p${task.priority})` }} aria-label={`${t("priority")} ${task.priority}`}>{"!".repeat(task.priority)}</span>
+                )}
+                {due && (
+                  <span className={cx("inline-flex items-center gap-1", due.overdue && "text-danger", urgent && "font-semibold text-fg")}>
+                    {urgent && <AlarmClock size={13} strokeWidth={2.4} aria-label="24h" />}
+                    {due.text}
+                  </span>
+                )}
                 {task.repeat && <Repeat size={12} aria-label="repeat" />}
                 {task.reminders.length > 0 && <Bell size={12} aria-label="reminder" />}
                 {total > 0 && (

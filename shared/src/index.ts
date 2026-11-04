@@ -119,6 +119,27 @@ export const settingsSchema = z.object({
   defaultReminderHour: z.number().int().min(0).max(23).default(9),
   /** default lists the user removed from navigation */
   hiddenSmart: z.array(z.enum(["inbox", "today", "next7", "all", "done"])).default([]),
+  /** Groq API key for the voice assistant, synced so every device of the account can use it */
+  groqKey: z.string().max(200).default(""),
+});
+
+/** Motivation page: own texts, subscribed podcasts and own audio files (the file itself is a server blob). */
+export const motextSchema = z.object({
+  title: z.string().max(200).default(""),
+  body: z.string().max(80_000).default(""),
+  createdAt: z.number().default(0),
+});
+export const mofeedSchema = z.object({
+  url: z.string().max(1000),
+  title: z.string().max(300).default(""),
+  image: z.string().max(1000).default(""),
+  author: z.string().max(300).default(""),
+});
+export const moaudioSchema = z.object({
+  name: z.string().max(200).default(""),
+  size: z.number().default(0),
+  mime: z.string().max(100).default("audio/mpeg"),
+  createdAt: z.number().default(0),
 });
 
 export const itemSchemas = {
@@ -130,6 +151,9 @@ export const itemSchemas = {
   habitlog: habitLogSchema,
   pomodoro: pomodoroSchema,
   settings: settingsSchema,
+  motext: motextSchema,
+  mofeed: mofeedSchema,
+  moaudio: moaudioSchema,
 } as const;
 
 export type ItemType = keyof typeof itemSchemas;
@@ -144,6 +168,9 @@ export type Habit = z.infer<typeof habitSchema>;
 export type HabitLog = z.infer<typeof habitLogSchema>;
 export type Pomodoro = z.infer<typeof pomodoroSchema>;
 export type Settings = z.infer<typeof settingsSchema>;
+export type MoText = z.infer<typeof motextSchema>;
+export type MoFeed = z.infer<typeof mofeedSchema>;
+export type MoAudio = z.infer<typeof moaudioSchema>;
 export type Repeat = z.infer<typeof repeatSchema>;
 export type Subtask = z.infer<typeof subtaskSchema>;
 
@@ -156,6 +183,9 @@ export interface DataOf {
   habitlog: HabitLog;
   pomodoro: Pomodoro;
   settings: Settings;
+  motext: MoText;
+  mofeed: MoFeed;
+  moaudio: MoAudio;
 }
 
 /** Wire format for sync. `data` is the validated payload, ignored for tombstones. */

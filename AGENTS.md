@@ -62,4 +62,7 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Todo is one list without sections: `sortOpen` (taskLogic) puts deadlines within 24 h (or overdue) first, then priority, deadline, order. Every deadline also reminds 24 h before (`reminders.ts`).
 - Timer end: AlarmManager -> `FocusAlarmReceiver` -> `FocusRingService` (looping alarm until stopped, 30 min cap, heads-up + full-screen intent to `/overlay/alarm`); web side `AlarmPopup`/`AlarmHost`.
 - Refresh tokens stay valid 120 s after rotation (server) and `SyncClient` refreshes once at a time and rereads the shared session: do not revert, it prevents random logouts.
-- Motivation page: local-only IndexedDB (`lib/motivation.ts`); podcast feeds go through `GET /api/feed` (auth, public hosts only).
+- Motivation page: texts, subscribed podcasts and the audio list are synced items (`motext`, `mofeed`, `moaudio`); audio files are server blobs (`/api/blobs/:id`, table `blobs`) cached in the local `dayloop-motivation.files` table and uploaded when online; downloaded episodes stay device-local. Podcast feeds go through `GET /api/feed` (auth, public hosts only).
+- Groq key: `settings.groqKey` (synced), mirrored in localStorage `dl_groq` (`lib/groqKey.ts`).
+- Todo rows must stay readable in grayscale: priority = `!` marks + ring thickness, deadline within 24 h = left bar + bold + clock icon.
+- Assistant quality check: `GROQ_KEY=... npx vitest run src/lib/assistant.live.test.ts` (real Groq, real tools, in-memory db).
