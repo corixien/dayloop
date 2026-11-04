@@ -66,3 +66,6 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Groq key: `settings.groqKey` (synced), mirrored in localStorage `dl_groq` (`lib/groqKey.ts`).
 - Todo rows must stay readable in grayscale: priority = `!` marks + ring thickness, deadline within 24 h = left bar + bold + clock icon.
 - Assistant quality check: `GROQ_KEY=... npx vitest run src/lib/assistant.live.test.ts` (real Groq, real tools, in-memory db).
+
+- Settings sync: `settings` also carries `groqKey`, tracker login (`trackerUrl/User/Pass`) and `trackerSent`; localStorage copies are mirrored both ways in `lib/groqKey.ts` (`adoptGroqKey`, `adoptTracker`, `pushTracker`). Device-only: `dl_server`, `dl_sound`, downloaded episodes.
+- Calendar week view: finished chips (`ev.timing`) are tappable, open ones stay inert. Habit checkboxes are neutral gray.

@@ -1,7 +1,7 @@
 /**
  * Productivity-Tracker integration: sends finished things to the tracker's own AI flow
  * (rate -> create task -> complete), so XP and streaks work exactly as if typed in there.
- * Credentials stay on this device (localStorage), they are never synced.
+ * Login and sent marks live in localStorage and are mirrored into the synced settings (`groqKey.ts`).
  */
 
 export interface TrackerConfig {
@@ -35,6 +35,7 @@ export const clearTracker = () => {
 };
 
 export const sentIds = (): Set<string> => new Set(JSON.parse(localStorage.getItem(SENT) ?? "[]"));
+export const setSent = (ids: string[]) => { localStorage.setItem(SENT, JSON.stringify(ids.slice(-1000))); changed(); };
 export const markSent = (ids: string[]) => {
   localStorage.setItem(SENT, JSON.stringify([...sentIds(), ...ids].slice(-1000)));
   changed();

@@ -54,7 +54,7 @@ export function Habits() {
                 })}
               </div>
               {h.target === 1 ? (
-                <Check_ size={30} color={colorOf(h.color)} done={n >= 1} onChange={() => void setCount(h.id, today, n >= 1 ? 0 : 1)} label={h.name} />
+                <Check_ size={30} color="var(--faint)" done={n >= 1} onChange={() => void setCount(h.id, today, n >= 1 ? 0 : 1)} label={h.name} />
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Button className="size-10 px-0 text-lg" onClick={() => void setCount(h.id, today, n - 1)} disabled={n === 0} aria-label="-">−</Button>

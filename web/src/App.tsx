@@ -1,6 +1,7 @@
 import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
-import { adoptGroqKey } from "./lib/groqKey";
+import { adoptGroqKey, adoptTracker, pushTracker } from "./lib/groqKey";
+import { TRACKER_EVENT } from "./lib/tracker";
 import { flushUploads, migrateMotivation } from "./lib/motivation";
 import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
@@ -42,6 +43,8 @@ export default function App() {
   const settings = useSettings();
   useTheme(settings.theme);
   useEffect(() => adoptGroqKey(settings.groqKey), [settings.groqKey]);
+  useEffect(() => adoptTracker(settings), [settings.trackerUrl, settings.trackerUser, settings.trackerPass, settings.trackerSent.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const f = () => void pushTracker(); window.addEventListener(TRACKER_EVENT, f); return () => window.removeEventListener(TRACKER_EVENT, f); }, []);
   const status = useSyncStatus();
   useEffect(() => { void migrateMotivation(); }, []);
   useEffect(() => { if (status === "idle") void flushUploads(); }, [status]);

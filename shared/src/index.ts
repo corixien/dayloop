@@ -121,6 +121,11 @@ export const settingsSchema = z.object({
   hiddenSmart: z.array(z.enum(["inbox", "today", "next7", "all", "done"])).default([]),
   /** Groq API key for the voice assistant, synced so every device of the account can use it */
   groqKey: z.string().max(200).default(""),
+  /** Productivity-Tracker login and the ids already sent, so a new device starts fully set up */
+  trackerUrl: z.string().max(300).default(""),
+  trackerUser: z.string().max(200).default(""),
+  trackerPass: z.string().max(200).default(""),
+  trackerSent: z.array(z.string().max(80)).max(1000).default([]),
 });
 
 /** Motivation page: own texts, subscribed podcasts and own audio files (the file itself is a server blob). */

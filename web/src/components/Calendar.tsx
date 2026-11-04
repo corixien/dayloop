@@ -182,7 +182,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                   : <span className="block truncate">{fmtLong(d, lang)}</span>}
               </button>
               <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })}>
-                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week"} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
+                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week" && !ev.timing} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
               </div>
             </div>
@@ -222,7 +222,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
               >
                 {placed.map(({ e, top, lane }, i) => (
                   <div key={i} className="absolute px-px" style={{ top, height: CHIP_H, left: `${(lane / n) * 100}%`, width: `${100 / n}%` }}>
-                    <Chip ev={e} inert={mode === "week"} onSelect={onSelect} selected={selectedId === e.task?.id} />
+                    <Chip ev={e} inert={mode === "week" && !e.timing} onSelect={onSelect} selected={selectedId === e.task?.id} />
                   </div>
                 ))}
                 {d === today && (

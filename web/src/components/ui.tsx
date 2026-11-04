@@ -58,7 +58,7 @@ export function Field({ label, children, className, group }: { label: string; ch
 
 /** Round checkbox colored by priority. */
 export function Check_({ done, priority = 0, onChange, label, size = 18, color }: { done: boolean; priority?: number; onChange: () => void; label: string; size?: number; color?: string }) {
-  const col = color ?? priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)";
+  const col = color ?? (priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)");
   return (
     <button
       role="checkbox"
