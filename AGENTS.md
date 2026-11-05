@@ -69,3 +69,12 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 
 - Settings sync: `settings` also carries `groqKey`, tracker login (`trackerUrl/User/Pass`) and `trackerSent`; localStorage copies are mirrored both ways in `lib/groqKey.ts` (`adoptGroqKey`, `adoptTracker`, `pushTracker`). Device-only: `dl_server`, `dl_sound`, downloaded episodes.
 - Calendar week view: finished chips (`ev.timing`) are tappable, open ones stay inert. Habit checkboxes are neutral gray.
+
+## Additions 2026-11-05
+- Appointments: `task.showBeforeMin` (null = ordinary task). An appointment is a task with date/time that `sortOpen` hides from Todo/widget until that many minutes before it starts; the calendar always shows it, completing it moves it to Have Done like any task. Calendar "+" (and N) opens `NewItem kind="event"` for the day in view (App dispatches `dl-new-event`); touch: hold an empty spot (week grid/header, month cell) to create there (day view: plain tap), mouse: double-click in the week grid. TaskDetail has an "Appointment" checkbox + lead field (`LeadField`).
+- Notes editor (`NotesEditor`): each line is a textarea wrapped in zero-width sentinels (U+200B); the caret reaching a sentinel (space-bar slide, arrow keys) moves to the neighbouring line (document `selectionchange`, suppressed while a pointer is down), Backspace/Delete at line ends are detected through the removed sentinel. Anything reading a note textarea value must strip U+200B.
+- Search bar (`CommandPalette`, Ctrl+K, `/`, sidebar): typo-tolerant `lib/fuzzy.ts`; typed text creates a todo / Have Done entry / appointment (`lib/quick.ts`, `parseQuick`: `Referat: a, b, c` -> checklist), Ctrl+Enter completes the selected task, habits can be ticked.
+- Global audio player: `lib/player.ts` (one Audio element, MediaSession) + `MiniPlayer` above the tab bar; Motivation only calls `player.play`. Playback continues in the background (verified on the phone).
+- Audio sync bug fixed: `files.uploaded` was queried without an index (Dexie v4 adds it), so `flushUploads` threw silently and nothing was ever uploaded.
+- Assistant: `cleanTranscript` (small model repairs misheard words, e.g. "Kassi gehen" -> "Gassi gehen") runs on voice input before the main call; the page is a chat (bubbles, composer with mic).
+- Widget overlay: closing the sheet calls `overlayPassThrough` (window becomes untouchable at once) and `finishOverlay` uses `finishAndRemoveTask`, so the home screen is usable while the overlay finishes syncing.

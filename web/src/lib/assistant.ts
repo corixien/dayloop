@@ -41,6 +41,32 @@ export async function transcribe(blob: Blob, key: string, lang: string, f: typeo
   return ((await groq("/audio/transcriptions", key, { method: "POST", body: form }, f)).text ?? "").trim();
 }
 
+/**
+ * Second pass over a spoken sentence: speech recognition often turns a word into a similar-sounding non-word
+ * ("Kassi gehen" for "Gassi gehen"). A small model repairs such slips using the sentence and the app's own names.
+ * Never fails: on any problem (offline, limits, odd answer) the original text is used.
+ */
+export async function cleanTranscript(text: string, key: string, lang: string, context = "", f: typeof fetch = (...a) => fetch(...a)): Promise<string> {
+  const src = text.trim();
+  if (src.length < 4) return text;
+  const system = lang === "de"
+    ? "Du korrigierst Erkennungsfehler in einem gesprochenen deutschen Satz für eine Todo-App. Ersetze Wörter, die es so nicht gibt oder im Zusammenhang keinen Sinn ergeben, durch das, was der Sprecher mit größter Wahrscheinlichkeit gesagt hat (z. B. „Kassi gehen“ -> „Gassi gehen“, „Zahn Arzt“ -> „Zahnarzt“, „Mathe Hausaufgabe fertig“ bleibt). Nutze dafür den Satzzusammenhang und die Namen aus der App unten. Ändere sonst nichts: gleiche Bedeutung, gleiche Zeitform, keine neuen Informationen, keine Antwort, keine Erklärung. Gib ausschließlich den korrigierten Satz aus."
+    : "You fix recognition errors in a spoken sentence for a todo app. Replace words that do not exist or make no sense in context with what the speaker most likely said, using the sentence and the app's own names below. Change nothing else: same meaning, same tense, no new information, no answer, no explanation. Output only the corrected sentence.";
+  for (const model of ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
+    try {
+      const r = await groq("/chat/completions", key, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0, max_completion_tokens: 600, reasoning_effort: "low", messages: [{ role: "system", content: system + (context ? `\n\n${context.slice(0, 1500)}` : "") }, { role: "user", content: src }] }),
+      }, f);
+      const out = String(r.choices?.[0]?.message?.content ?? "").trim().replace(/^["„“]+|["“”]+$/g, "").trim();
+      // plausibility: one line, about the same length (a model that answers instead of correcting is ignored)
+      if (out && !out.includes("\n") && out.length >= src.length * 0.5 && out.length <= src.length * 1.6 + 12) return out;
+      return text;
+    } catch { /* next model */ }
+  }
+  return text;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WD_DE = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const WD_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -55,7 +81,7 @@ export function systemPrompt(lang: string, now: Date) {
     return `${(lang === "de" ? WD_DE : WD_EN)[d.getDay()].slice(0, 2)} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }).join(", ");
   return lang === "de"
-    ? `Du bist der Sprachassistent der Todo-App Dayloop. Heute ist ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())} Uhr. Führe Wünsche sofort mit den Werkzeugen aus, ohne nachzufragen. Datum als YYYY-MM-DD, Uhrzeit als HH:mm, Priorität 0-3 (3 = hoch). Die Spracherkennung macht Fehler: gleiche Namen großzügig mit der Liste unten ab und nimm die ähnlichste Aufgabe/Gewohnheit.
+    ? `Du bist der Sprachassistent der Todo-App Dayloop. Heute ist ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())} Uhr. Führe Wünsche sofort mit den Werkzeugen aus, ohne nachzufragen. Datum als YYYY-MM-DD, Uhrzeit als HH:mm, Priorität 0-3 (3 = hoch). Die Spracherkennung macht Fehler: gleiche Namen großzügig mit der Liste unten ab und nimm die ähnlichste Aufgabe/Gewohnheit. Wörter, die es so nicht gibt (z.B. "Kassi gehen"), sind Hörfehler: schreibe Titel in der wahrscheinlich gemeinten, korrekten Form ("Gassi gehen").
 
 Kalender: ${days}
 
@@ -71,7 +97,7 @@ Regeln:
 9. Nennt der Nutzer einen Punkt, der in der Liste unten als Checklistenpunkt ([ ]) einer Aufgabe steht ("X abhaken", "X ist erledigt", "X ist gemacht"): tick_checklist_item mit query = Aufgabe und item = Punkt. Nie als neue Aufgabe oder Checklistenpunkt anlegen und nicht die ganze Aufgabe erledigen.
 10. Meldet ein Werkzeug "ambiguous" (mehrere ähnliche Aufgaben), ändere NICHTS und frage kurz, welche gemeint ist. Erledige nie mehrere Aufgaben auf Verdacht.
 Antworte danach mit einem kurzen deutschen Satz, was getan wurde; bei Auflistungen kurze Zeilen. Keine Förmlichkeiten.`
-    : `You are the voice assistant of the todo app Dayloop. Today is ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())}. Carry out requests right away with the tools, without asking. Dates as YYYY-MM-DD, times as HH:mm, priority 0-3 (3 = high). Speech recognition makes mistakes: match names loosely against the list below and pick the most similar task/habit.
+    : `You are the voice assistant of the todo app Dayloop. Today is ${wd}, ${date}, ${p(now.getHours())}:${p(now.getMinutes())}. Carry out requests right away with the tools, without asking. Dates as YYYY-MM-DD, times as HH:mm, priority 0-3 (3 = high). Speech recognition makes mistakes: match names loosely against the list below and pick the most similar task/habit. Words that do not exist (e.g. "Kassi gehen") are mishearings: write titles in the most likely intended, correct form ("Gassi gehen").
 
 Rules:
 1. Already finished things (past tense: "I walked the dog", "I did X", "X is done") -> add_done with the title (infinitive style, e.g. "Walk the dog"). If a matching open task exists in the list below, call ONLY complete_task for it and never add_done in addition. Never create them as open tasks.

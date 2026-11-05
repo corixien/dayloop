@@ -43,7 +43,14 @@ public class WidgetPlugin extends Plugin {
 
     @PluginMethod
     public void finishOverlay(PluginCall call) {
-        if (getActivity() != null) getActivity().finish();
+        // remove the whole translucent task, not just the window: a lingering empty task can swallow the first touches on the home screen
+        if (getActivity() != null) getActivity().finishAndRemoveTask();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void overlayPassThrough(PluginCall call) {
+        if (getActivity() instanceof OverlayActivity) ((OverlayActivity) getActivity()).passThrough(true);
         call.resolve();
     }
 

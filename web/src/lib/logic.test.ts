@@ -64,3 +64,17 @@ describe("dates", () => {
     expect(g[0]).toBe("2026-09-28");
   });
 });
+
+describe("appointments", () => {
+  const task = (over: object) => ({ id: "a", title: "x", notes: "", done: false, trashedAt: null, priority: 0, order: 0, updatedAt: 0, dueDate: null, dueTime: null, showBeforeMin: null, ...over }) as never;
+  it("show up in the todo list only shortly before they start", async () => {
+    const { sortOpen } = await import("./taskLogic");
+    const appt = task({ id: "appt", dueDate: "2026-10-30", dueTime: "15:00", showBeforeMin: 1440 });
+    const plain = task({ id: "plain" });
+    const at = (d: Date) => sortOpen([appt, plain], d.getTime(), 9).map((t: { id: string }) => t.id);
+    expect(at(new Date(2026, 9, 28, 10, 0))).toEqual(["plain"]);
+    expect(at(new Date(2026, 9, 29, 14, 59))).toEqual(["plain"]);
+    expect(at(new Date(2026, 9, 29, 15, 0))).toContain("appt");
+    expect(at(new Date(2026, 9, 31, 9, 0))).toContain("appt");
+  });
+});

@@ -51,6 +51,12 @@ const de = {
   aGroqKey: "Groq-API-Key", aKeySaved: "Gespeichert", aSetDefault: "Als Assistent festlegen", aActive: "Dayloop ist als digitaler Assistent aktiv.", aHelp: "Sprich Aufgaben, Habits, Kalender und Timer. Antworten kommen nur als Text. Der Key wird mit deinem Konto synchronisiert. Zum Starten per Power-Taste: Dayloop als digitalen Assistenten wählen und unter Einstellungen > Erweiterte Funktionen > Seitentaste „Lange drücken“ auf „Digitaler Assistent“ stellen.",
   mDownloaded: "Heruntergeladen", mOwnAudio: "Eigene Dateien", mDownload: "Herunterladen", mSaved: "Gespeichert (tippen zum Löschen)", mDlFailed: "Download fehlgeschlagen.",
   alarmStopped: "Alarm gestoppt",
+  newEvent: "Neuer Termin", addEvent: "Termin, z. B. „Zahnarzt Freitag 15 Uhr“", asAppointment: "Termin", showInTodo: "In Todo anzeigen ab", beforeWord: "vorher",
+  unitMin: "Minuten", unitHour: "Stunden", unitDay: "Tage", apptHint: "Erscheint erst kurz vorher in der Todo-Liste, im Kalender steht er immer.", atEvent: "Zum Termin",
+  cmdNewTask: "Neue Aufgabe", cmdNewDone: "Als erledigt eintragen", cmdNewEvent: "Neuer Termin", cmdCreate: "Erstellen", cmdTimer: "Fokus-Timer starten", cmdComplete: "Erledigen", cmdActions: "Aktionen", cmdHabit: "Gewohnheit abhaken", cmdHint: "Tippe eine Aufgabe, Seite oder Aktion – Enter führt aus.",
+  mPlayErr: "Audio konnte nicht abgespielt werden.", mAudioMissing: "Die Datei ist noch nicht vom anderen Gerät hochgeladen. Öffne Dayloop dort einmal mit Internet.", mUploading: "Wird hochgeladen …",
+  cmdAdded: "Hinzugefügt", cmdFooter: "Enter ausführen · Strg+Enter erledigen · Esc schließen", cmdDoneHint: "Erledigt", cmdSubItems: "Unterpunkte",
+  chatEmpty: "Sag oder schreib, was du erledigen willst: Aufgaben, Erledigtes, Termine, Habits, Timer.", you: "Du",
 } as const;
 
 export type Key = keyof typeof de;
@@ -108,6 +114,12 @@ const en: Record<Key, string> = {
   aGroqKey: "Groq API key", aKeySaved: "Saved", aSetDefault: "Set as assistant", aActive: "Dayloop is the active digital assistant.", aHelp: "Speak tasks, habits, calendar and timer. Answers come as text only. The key is synced with your account. To start with the power button: choose Dayloop as digital assistant and set Settings > Advanced features > Side key > Press and hold to \"Digital assistant\".",
   mDownloaded: "Downloaded", mOwnAudio: "Own files", mDownload: "Download", mSaved: "Saved (tap to delete)", mDlFailed: "Download failed.",
   alarmStopped: "Alarm stopped",
+  newEvent: "New appointment", addEvent: "Appointment, e.g. \"Dentist Friday 3pm\"", asAppointment: "Appointment", showInTodo: "Show in Todo from", beforeWord: "before",
+  unitMin: "minutes", unitHour: "hours", unitDay: "days", apptHint: "Shows up in the Todo list only shortly before; the calendar always shows it.", atEvent: "At the appointment",
+  cmdNewTask: "New task", cmdNewDone: "Add as done", cmdNewEvent: "New appointment", cmdCreate: "Create", cmdTimer: "Start focus timer", cmdComplete: "Complete", cmdActions: "Actions", cmdHabit: "Tick habit", cmdHint: "Type a task, page or action – Enter runs it.",
+  mPlayErr: "Audio could not be played.", mAudioMissing: "The file has not been uploaded from the other device yet. Open Dayloop there once while online.", mUploading: "Uploading …",
+  cmdAdded: "Added", cmdFooter: "Enter run · Ctrl+Enter complete · Esc close", cmdDoneHint: "Done", cmdSubItems: "sub-items",
+  chatEmpty: "Say or type what you want done: tasks, finished things, appointments, habits, timer.", you: "You",
 };
 
 export const dict = { de, en };

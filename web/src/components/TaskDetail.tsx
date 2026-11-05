@@ -5,7 +5,7 @@ import { local, useItems, useLang, useT } from "../lib/app";
 import { weekdayNames } from "../lib/dates";
 import { deleteTaskForever, restoreTask, toggleDone, trashTask } from "../lib/tasks";
 import { NotesEditor } from "./NotesEditor";
-import { Button, Check_, Field, IconButton, Segmented, Select, cx, inputCls } from "./ui";
+import { Button, Check_, Field, IconButton, LeadField, Segmented, Select, cx, inputCls } from "./ui";
 
 const REMINDER_OPTIONS = [
   { v: 0, k: "atDue" }, { v: 5, k: "before5" }, { v: 30, k: "before30" }, { v: 60, k: "before1h" }, { v: 1440, k: "before1d" },
@@ -124,6 +124,20 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
             <Field label={t("dueTime")}>
               <input type="time" className={inputCls} disabled={!task.dueDate} value={task.dueTime ?? ""} onChange={(e) => patch({ dueTime: e.target.value || null })} />
             </Field>
+          </div>
+        )}
+        {!task.done && task.dueDate && (
+          <div>
+            <label className="flex items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={task.showBeforeMin !== null} onChange={(e) => patch({ showBeforeMin: e.target.checked ? 1440 : null })} />
+              {t("asAppointment")}
+            </label>
+            {task.showBeforeMin !== null && (
+              <div className="mt-2">
+                <span className="mb-1 block text-xs font-medium text-muted">{t("showInTodo")}</span>
+                <LeadField value={task.showBeforeMin} onChange={(v) => patch({ showBeforeMin: v })} t={t} />
+              </div>
+            )}
           </div>
         )}
         {!task.done && (

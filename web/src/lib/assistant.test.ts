@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Tools, matchByName, runAssistant } from "./assistant";
+import { type Tools, cleanTranscript, matchByName, runAssistant } from "./assistant";
 
 const reply = (message: object) => new Response(JSON.stringify({ choices: [{ message }] }), { status: 200 });
 
@@ -92,5 +92,12 @@ describe("assistant", () => {
     expect(bodies[0].messages[0].content).toContain("- Steuer");
     expect(bodies[0].messages[0].content).toContain("add_done");
     expect(bodies[0].messages[0].content).toMatch(/Kalender: [A-Z][a-z] \d{4}-\d\d-\d\d, /);
+  });
+
+  it("repairs a misheard word, ignores answers that are not corrections", async () => {
+    const say = (content: string) => (async () => reply({ content })) as unknown as typeof fetch;
+    expect(await cleanTranscript("Ich war Kassi gehen", "k", "de", "", say("Ich war Gassi gehen"))).toBe("Ich war Gassi gehen");
+    expect(await cleanTranscript("Ich war Kassi gehen", "k", "de", "", say("Das ist ein Satz über einen Hund, den ich nicht verstehe und deshalb lang erkläre"))).toBe("Ich war Kassi gehen");
+    expect(await cleanTranscript("Ich war Kassi gehen", "k", "de", "", (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch)).toBe("Ich war Kassi gehen");
   });
 });

@@ -265,3 +265,24 @@ export function Select<T extends string | number>({
     </>
   );
 }
+
+/** "N minutes/hours/days before": how long ahead an appointment shows up in the Todo list. */
+export function LeadField({ value, onChange, t }: { value: number; onChange: (min: number) => void; t: (k: "unitMin" | "unitHour" | "unitDay" | "beforeWord") => string }) {
+  const unit = value % 1440 === 0 && value > 0 ? 1440 : value % 60 === 0 && value > 0 ? 60 : 1;
+  const [u, setU] = useState(unit);
+  const n = Math.round(value / u);
+  return (
+    <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-[13px]">
+      <input type="number" min={0} max={9999} aria-label="n" className={inputCls} value={n} onChange={(e) => onChange(Math.max(0, Math.round(Number(e.target.value) || 0)) * u)} />
+      <div className="min-w-0">
+        <Select
+          label={t("unitDay")}
+          value={u}
+          options={[{ value: 1, label: t("unitMin") }, { value: 60, label: t("unitHour") }, { value: 1440, label: t("unitDay") }]}
+          onChange={(nu) => { onChange(n * nu); setU(nu); }}
+        />
+      </div>
+      <span className="text-muted">{t("beforeWord")}</span>
+    </div>
+  );
+}

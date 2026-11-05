@@ -1,38 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Repeat } from "@dayloop/shared";
 import { useIsMobile, useLang, useT } from "../lib/app";
-import { fmtLong } from "../lib/dates";
+import { fmtLong, todayStr } from "../lib/dates";
 import { parseQuickAdd } from "../lib/nlp";
 import { addDoneEntry, addTask } from "../lib/tasks";
 import { NotesEditor } from "./NotesEditor";
 import { Sheet } from "./Sheet";
-import { Button, Dialog, Field, Segmented, Select, inputCls } from "./ui";
+import { Button, Dialog, Field, LeadField, Segmented, Select, cx, inputCls } from "./ui";
 
-/** The "+" flow: one form (sheet on phones, dialog on desktop) for a new todo or a Have Done entry. */
-export function NewItem({ kind, onClose, bare }: { kind: "todo" | "done"; onClose: () => void; bare?: boolean }) {
+export type NewKind = "todo" | "done" | "event";
+export interface NewInit { date?: string; time?: string | null }
+
+/** The "+" flow: one form (sheet on phones, dialog on desktop) for a new todo, appointment or Have Done entry. */
+export function NewItem({ kind, onClose, bare, init }: { kind: NewKind; onClose: () => void; bare?: boolean; init?: NewInit }) {
   const mobile = useIsMobile();
   if (bare || mobile) {
-    return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form kind={kind} close={close} />}</Sheet>;
+    return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form kind={kind} init={init} close={close} />}</Sheet>;
   }
-  return <DialogShell kind={kind} onClose={onClose} />;
+  return <DialogShell kind={kind} init={init} onClose={onClose} />;
 }
 
-function DialogShell({ kind, onClose }: { kind: "todo" | "done"; onClose: () => void }) {
+const heading = (kind: NewKind, t: ReturnType<typeof useT>) => (kind === "todo" ? t("newTask") : kind === "event" ? t("newEvent") : t("newDone"));
+
+function DialogShell({ kind, init, onClose }: { kind: NewKind; init?: NewInit; onClose: () => void }) {
   const t = useT();
   return (
-    <Dialog title={kind === "todo" ? t("newTask") : t("newDone")} onClose={onClose} wide>
-      <Form kind={kind} close={onClose} inDialog />
+    <Dialog title={heading(kind, t)} onClose={onClose} wide>
+      <Form kind={kind} init={init} close={onClose} inDialog />
     </Dialog>
   );
 }
 
-function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => void; inDialog?: boolean }) {
+function Form({ kind, init, close, inDialog }: { kind: NewKind; init?: NewInit; close: () => void; inDialog?: boolean }) {
   const t = useT();
   const lang = useLang();
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [date, setDate] = useState(kind === "event" ? init?.date ?? todayStr() : "");
+  const [time, setTime] = useState(init?.time ?? "");
+  const [lead, setLead] = useState(1440);
   const [priority, setPriority] = useState(0);
   const [repeat, setRepeat] = useState<Repeat["freq"] | "">("");
   const [busy, setBusy] = useState(false);
@@ -48,31 +54,33 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
     if (kind === "done") await addDoneEntry(p.title, n);
     else {
       const dueDate = date || p.dueDate;
+      const when = time || p.dueTime;
       await addTask({
         title: p.title,
         notes: n,
         dueDate: dueDate || null,
-        dueTime: dueDate ? time || p.dueTime : null,
+        dueTime: dueDate ? when : null,
         priority: priority || p.priority,
         repeat: repeat ? { freq: repeat, interval: 1 } : p.repeat,
-        reminders: dueDate && (time || p.dueTime) ? [{ offsetMin: 0 }] : [],
+        reminders: dueDate && when ? [{ offsetMin: 0 }] : [],
+        ...(kind === "event" ? { showBeforeMin: lead } : {}),
       });
     }
     close();
   }
 
   const chips: string[] = [];
-  if (kind === "todo" && parsed) {
+  if (kind !== "done" && parsed) {
     if (parsed.dueDate && !date) chips.push(`${fmtLong(parsed.dueDate, lang)}${parsed.dueTime ? ` ${parsed.dueTime}` : ""}`);
     if (parsed.repeat && !repeat) chips.push(t(parsed.repeat.freq));
     if (parsed.priority && !priority) chips.push([, t("pLow"), t("pMed"), t("pHigh")][parsed.priority]!);
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-bg">
+    <div className={cx("flex min-h-0 flex-1 flex-col", !inDialog && "bg-bg")}>
       {!inDialog && (
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
-          <h2 className="text-[15px] font-semibold">{kind === "todo" ? t("newTask") : t("newDone")}</h2>
+          <h2 className="text-[15px] font-semibold">{heading(kind, t)}</h2>
           <button onClick={close} className="text-[13px] text-muted">{t("cancel")}</button>
         </div>
       )}
@@ -85,7 +93,7 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
             data-newtitle
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={kind === "todo" ? t("addTask") : t("haveDoneAdd")}
+            placeholder={kind === "todo" ? t("addTask") : kind === "event" ? t("addEvent") : t("haveDoneAdd")}
             aria-label={t("title")}
             className="w-full bg-transparent text-lg font-semibold outline-none placeholder:font-normal placeholder:text-faint"
           />
@@ -96,12 +104,18 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
           )}
         </div>
         <NotesEditor value={notes} onChange={setNotes} onCommit={setNotes} placeholder={t("addNote")} label={t("note")} />
-        {kind === "todo" && (
+        {kind !== "done" && (
           <>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("dueDate")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
               <Field label={t("dueTime")}><input type="time" className={inputCls} disabled={!date && !parsed?.dueDate} value={time} onChange={(e) => setTime(e.target.value)} /></Field>
             </div>
+            {kind === "event" && (
+              <Field label={t("showInTodo")} group>
+                <LeadField value={lead} onChange={setLead} t={t} />
+                <p className="mt-1 text-[11px] text-faint">{t("apptHint")}</p>
+              </Field>
+            )}
             <Field label={t("priority")} group>
               <Segmented
                 value={priority}
@@ -126,7 +140,7 @@ function Form({ kind, close, inDialog }: { kind: "todo" | "done"; close: () => v
           </>
         )}
         <Button type="submit" variant="primary" disabled={!title.trim() || busy} className="h-10 w-full text-[14px]">
-          {kind === "todo" ? t("add") : t("newDoneSave")}
+          {kind === "done" ? t("newDoneSave") : t("add")}
         </Button>
       </form>
     </div>

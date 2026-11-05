@@ -1,20 +1,20 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Check, Download as DownloadIcon, FileUp, Loader2, Music, Pencil, Play, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, CloudOff, Download as DownloadIcon, FileUp, Loader2, Music, Pencil, Play, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLang, useT } from "../lib/app";
+import { useLang, useSyncStatus, useT } from "../lib/app";
 import { type Download, type Episode, type MAudio, type MFeed, type MText, SUGGESTED, addAudio, audioBlob, deleteText, downloadEpisode, downloadId, downloadSrc, feedFromUrl, fmtDuration, fmtSize, loadFeed, mdb, removeAudio, removeDownload, saveText, searchPodcasts, subscribe, unsubscribe, useAudios, useFeeds, useTexts } from "../lib/motivation";
 import { isNative } from "../lib/native";
+import { type Track, player, usePlayer } from "../lib/player";
 import { widgetPlugin } from "../lib/widget";
 import { Button, Dialog, Empty, IconButton, PageHeader, Segmented, cx, inputCls } from "./ui";
 
 type Tab = "texts" | "audio" | "podcasts";
-interface Playing { src: string; title: string }
+type Play = (p: Track) => void;
 
-/** Own texts and audio files, and podcasts from public RSS feeds. Everything syncs with the account. */
+/** Own texts and audio files, and podcasts from public RSS feeds. Everything syncs with the account; playback is global (MiniPlayer). */
 export function Motivation() {
   const t = useT();
   const [tab, setTab] = useState<Tab>("texts");
-  const [playing, setPlaying] = useState<Playing | null>(null);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -28,22 +28,9 @@ export function Motivation() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-6">
         {tab === "texts" && <Texts />}
-        {tab === "audio" && <AudioFiles playing={playing} onPlay={setPlaying} />}
-        {tab === "podcasts" && <Podcasts onPlay={setPlaying} />}
+        {tab === "audio" && <AudioFiles />}
+        {tab === "podcasts" && <Podcasts onPlay={player.play} />}
       </div>
-      {playing && <Player p={playing} onClose={() => setPlaying(null)} />}
-    </div>
-  );
-}
-
-function Player({ p, onClose }: { p: Playing; onClose: () => void }) {
-  return (
-    <div className="shrink-0 border-t border-line bg-sub px-4 py-2">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="truncate text-xs font-medium">{p.title}</span>
-        <IconButton label="x" className="size-6" onClick={onClose}><X size={14} /></IconButton>
-      </div>
-      <audio key={p.src} src={p.src} controls autoPlay className="h-9 w-full" />
     </div>
   );
 }
@@ -95,8 +82,11 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
   }
   if (!editing) {
     return (
-      <Dialog title={saved.title || t("mTexts")} titleClass="text-2xl leading-snug" onClose={onClose} wide>
-        <article className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-[17px] leading-relaxed">{saved.body}</article>
+      <Dialog title={t("mTexts")} titleClass="font-medium text-muted" onClose={onClose} wide>
+        <article className="max-h-[68dvh] overflow-y-auto">
+          {saved.title && <h1 className="mb-4 text-[28px] font-extrabold leading-tight tracking-tight md:text-4xl">{saved.title}</h1>}
+          <div className="whitespace-pre-wrap text-[17px] leading-relaxed">{saved.body}</div>
+        </article>
         <div className="mt-4 flex justify-end">
           <IconButton label={t("edit")} onClick={() => setEditing(true)}><Pencil size={17} /></IconButton>
         </div>
@@ -120,27 +110,27 @@ function TextDialog({ text, onClose }: { text: MText; onClose: () => void }) {
   );
 }
 
-function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: Playing) => void }) {
+function AudioFiles() {
   const t = useT();
   const audios = useAudios();
   const downloads = useLiveQuery(() => mdb.downloads.orderBy("createdAt").reverse().toArray(), [], []);
+  const pending = useLiveQuery(async () => new Set((await mdb.files.where("uploaded").equals(0).toArray()).map((f) => f.id)), [], new Set<string>());
   const file = useRef<HTMLInputElement>(null);
-  const urls = useRef(new Map<string, string>());
+  const playing = usePlayer().track;
+  const signedIn = useSyncStatus() !== "signedout";
   const [loading, setLoading] = useState<string | null>(null);
-  useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), []);
+  const [err, setErr] = useState("");
 
   async function upload(files: FileList | null) {
     for (const f of Array.from(files ?? [])) await addAudio(f);
     if (file.current) file.current.value = "";
   }
   const play = async (a: MAudio) => {
-    let u = urls.current.get(a.id);
-    if (!u) {
-      setLoading(a.id);
-      try { u = URL.createObjectURL(await audioBlob(a)); urls.current.set(a.id, u); } catch { setLoading(null); return; }
-      setLoading(null);
-    }
-    onPlay({ src: u, title: a.name });
+    setErr("");
+    setLoading(a.id);
+    try { player.play({ src: URL.createObjectURL(await audioBlob(a)), title: a.name, revoke: true }); }
+    catch { setErr(t("mAudioMissing")); }
+    setLoading(null);
   };
 
   return (
@@ -149,11 +139,12 @@ function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: 
         <Button variant="primary" onClick={() => file.current?.click()}><FileUp size={14} /> {t("mUploadFile")}</Button>
         <input ref={file} type="file" accept="audio/*" multiple hidden onChange={(e) => void upload(e.target.files)} />
       </div>
+      {err && <p role="status" className="px-4 pb-2 text-[13px] text-danger md:px-6">{err}</p>}
       {audios.length === 0 && downloads.length === 0 && <Empty>{t("mNoAudio")}</Empty>}
       {downloads.length > 0 && <h2 className="px-4 pb-1 pt-2 text-xs font-medium text-muted md:px-6">{t("mDownloaded")}</h2>}
       {downloads.map((d) => (
         <div key={d.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-          <button onClick={() => onPlay({ src: downloadSrc(d), title: d.title })} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={d.title}>
+          <button onClick={() => player.play({ src: downloadSrc(d), title: d.title, revoke: !d.path })} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={d.title}>
             <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === d.title ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}><Play size={15} /></span>
             <span className="min-w-0 flex-1"><span className="line-clamp-2 text-[14px]">{d.title}</span><span className="text-xs text-muted">{d.feed} · {fmtSize(d.size)}</span></span>
           </button>
@@ -167,6 +158,7 @@ function AudioFiles({ playing, onPlay }: { playing: Playing | null; onPlay: (p: 
             <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === a.name ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}>{loading === a.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}</span>
             <span className="min-w-0 flex-1 truncate text-[15px]">{a.name}</span>
           </button>
+          {signedIn && pending.has(a.id) && <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted"><CloudOff size={13} />{t("mUploading")}</span>}
           <IconButton label={t("delete")} onClick={() => void removeAudio(a.id)}><Trash2 size={15} /></IconButton>
         </div>
       ))}
@@ -180,7 +172,7 @@ function Cover({ src, size = 44 }: { src: string; size?: number }) {
     : <span className="grid shrink-0 place-items-center rounded-lg bg-sub text-muted" style={{ width: size, height: size }}><Music size={size / 2.4} /></span>;
 }
 
-function Podcasts({ onPlay }: { onPlay: (p: Playing) => void }) {
+function Podcasts({ onPlay }: { onPlay: Play }) {
   const t = useT();
   const lang = useLang();
   const feeds = useFeeds();
@@ -237,7 +229,7 @@ function Podcasts({ onPlay }: { onPlay: (p: Playing) => void }) {
   );
 }
 
-function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; onPlay: (p: Playing) => void }) {
+function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; onPlay: Play }) {
   const t = useT();
   const lang = useLang();
   const [eps, setEps] = useState<Episode[] | null>(null);
@@ -286,7 +278,7 @@ function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; o
         const pct = busy[id];
         return (
           <div key={i} className="flex w-full items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-            <button onClick={() => onPlay({ src: d ? downloadSrc(d) : e.audio, title: e.title })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <button onClick={() => onPlay({ src: d ? downloadSrc(d) : e.audio, title: e.title, revoke: !!d && !d.path })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sub text-muted"><Play size={15} /></span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-2 text-[14px]">{e.title}</span>

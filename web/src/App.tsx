@@ -1,5 +1,5 @@
 import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adoptGroqKey, adoptTracker, pushTracker } from "./lib/groqKey";
 import { TRACKER_EVENT } from "./lib/tracker";
 import { flushUploads, migrateMotivation } from "./lib/motivation";
@@ -24,6 +24,8 @@ import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { TaskDetail } from "./components/TaskDetail";
 import { Drawer } from "./components/Drawer";
+import { usePlayer } from "./lib/player";
+import { MiniPlayer } from "./components/MiniPlayer";
 import { NewItem } from "./components/NewItem";
 import { Sheet } from "./components/Sheet";
 import { Button, Dialog, PageHeader, cx } from "./components/ui";
@@ -56,6 +58,14 @@ export default function App() {
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
   const [newKind, setNewKind] = useState<"todo" | "done" | null>(null);
+  const player = usePlayer();
+  const pageRef = useRef("todo");
+  /** "+" / N: a todo, a Have Done entry, or (calendar) an appointment on the day in view */
+  const add = () => {
+    const p = pageRef.current;
+    if (p === "calendar") window.dispatchEvent(new Event("dl-new-event"));
+    else setNewKind(p === "done" ? "done" : "todo");
+  };
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
   const { state, left } = usePomo();
   useReminders();
@@ -97,7 +107,7 @@ export default function App() {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); }
       else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "/") { e.preventDefault(); setPalette(true); }
-      else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "n") { e.preventDefault(); setNewKind(page === "done" ? "done" : "todo"); }
+      else if (!typing && !e.metaKey && !e.ctrlKey && e.key === "n") { e.preventDefault(); add(); }
       else if (e.key === "Escape" && !typing) setSelected(null);
     };
     window.addEventListener("keydown", onKey);
@@ -106,6 +116,7 @@ export default function App() {
 
   const closeWelcome = () => { localStorage.setItem("dl_welcomed", "1"); setWelcome(false); };
   const page = route.split("/")[1] || "todo";
+  pageRef.current = page;
   const hasDetail = selected !== null && ["todo", "done", "calendar", "trash"].includes(page);
 
   const tabs = [
@@ -121,7 +132,7 @@ export default function App() {
   else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
-  else if (page === "assistant") main = <div className="flex h-full min-h-0 flex-col"><PageHeader title={t("assistant")} /><div className="mx-auto w-full max-w-md overflow-y-auto pt-6"><AssistantPanel /></div></div>;
+  else if (page === "assistant") main = <div className="flex h-full min-h-0 flex-col"><PageHeader title={t("assistant")} /><AssistantPanel /></div>;
   else if (page === "motivation") main = <Motivation />;
   else if (page === "settings") main = <Settings />;
   else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;
@@ -138,6 +149,7 @@ export default function App() {
 
       <main className="relative flex min-w-0 flex-1 flex-col safe-top">
         <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
+        <MiniPlayer />
         <nav className="grid shrink-0 grid-cols-6 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (
             <a key={x.to} href={`#${x.to}`} aria-current={route === x.to || route === (x as { also?: string }).also ? "page" : undefined}
@@ -149,11 +161,11 @@ export default function App() {
         </nav>
         {["todo", "done", "calendar"].includes(page) && (
           <button
-            onClick={() => setNewKind(page === "done" ? "done" : "todo")}
-            aria-label={page === "done" ? t("newDone") : t("newTask")}
-            className="absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] right-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-transform duration-200 active:scale-95 md:bottom-6 md:right-6 dark:text-[#101012]"
+            onClick={add}
+            aria-label={page === "done" ? t("newDone") : page === "calendar" ? t("newEvent") : t("newTask")}
+            className={cx("group absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] right-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-black/30 active:scale-95 md:bottom-6 md:right-6 dark:text-[#101012]", player.track && "mb-[3.6rem]")}
           >
-            <Plus size={26} strokeWidth={2.2} />
+            <Plus size={26} strokeWidth={2.2} className="transition-transform duration-200 group-hover:rotate-90" />
           </button>
         )}
       </main>
@@ -170,14 +182,14 @@ export default function App() {
       )}
 
       {state?.status === "running" && page !== "pomodoro" && page !== "zen" && (
-        <a href="#/pomodoro" className="fixed bottom-20 left-4 z-20 flex items-center gap-2 rounded-full border border-line bg-raise px-3 py-1.5 text-[13px] font-medium tabular-nums shadow-lg md:bottom-4">
+        <a href="#/pomodoro" className={cx("fixed left-4 z-20 flex items-center gap-2 rounded-full border border-line bg-raise px-3 py-1.5 text-[13px] font-medium tabular-nums shadow-lg", player.track ? "bottom-36 md:bottom-24" : "bottom-20 md:bottom-4")}>
           <Timer size={14} className="text-accent" /> {fmtClock(left)}
         </a>
       )}
       {page === "zen" && <Zen />}
       <AlarmHost />
       {newKind && <NewItem kind={newKind} onClose={() => setNewKind(null)} />}
-      {palette && <CommandPalette onClose={() => setPalette(false)} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
+      {palette && <CommandPalette onClose={() => setPalette(false)} onNew={(k) => { if (k === "event") { go("/calendar"); setTimeout(() => window.dispatchEvent(new Event("dl-new-event")), 250); } else setNewKind(k); }} onOpenTask={(id) => { if (!["todo", "done", "calendar", "trash"].includes(page)) go("/todo"); select(id); }} />}
       {welcome && <Welcome onClose={closeWelcome} />}
       {status === "error" && null}
     </div>

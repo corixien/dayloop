@@ -1,4 +1,5 @@
 import { type ReactNode, useRef, useState } from "react";
+import { overlayPassThrough } from "../lib/widget";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
@@ -31,6 +32,7 @@ export function Sheet({ onClose, children, always, fit, onExpand }: { onClose: (
   const close = () => {
     if (closing) return;
     setClosing(true);
+    if (always) overlayPassThrough();
     set(panel.current?.offsetHeight ?? 800, true);
     setTimeout(onClose, 260);
   };

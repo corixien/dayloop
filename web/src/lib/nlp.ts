@@ -97,3 +97,15 @@ export function parseQuickAdd(input: string, now = new Date()): Parsed {
   out.title = s.replace(/\s+/g, " ").trim();
   return out;
 }
+
+/**
+ * Free text -> new entry, the way people type it: "Zahnarzt morgen 15 Uhr !1", "Referat: recherchieren, Folien, üben"
+ * (everything after ": " becomes checklist items), "// note". Dates, times, priority and repeats come from the quick-add parser.
+ */
+export function parseQuick(text: string) {
+  const m = /^(.+?):\s+(.+)$/.exec(text.trim());
+  const items = m ? m[2].split(/\s*[;,]\s*|\s+und\s+/i).map((x) => x.trim()).filter(Boolean) : [];
+  const p = parseQuickAdd(items.length ? m![1] : text);
+  return { ...p, items };
+}
+

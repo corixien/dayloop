@@ -41,8 +41,15 @@ public class OverlayActivity extends BridgeActivity {
             // the end-of-timer pop-up shows over the lock screen and wakes the display
             if (android.os.Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
         }
+        passThrough(false);
         final String url = "https://localhost/#/overlay" + path;
         getBridge().getWebView().post(() -> getBridge().getWebView().loadUrl(url));
+    }
+
+    /** The sheet is gone but the window lingers while data syncs: let touches reach the home screen behind it right away. */
+    public void passThrough(boolean on) {
+        int f = android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        runOnUiThread(() -> { if (on) getWindow().addFlags(f); else getWindow().clearFlags(f); });
     }
 
     public void reveal() {

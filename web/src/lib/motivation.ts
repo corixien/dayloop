@@ -29,6 +29,8 @@ class MotivationDb extends Dexie {
     this.version(1).stores({ texts: "++id, createdAt", audios: "++id, createdAt", feeds: "url" });
     this.version(2).stores({ downloads: "id, createdAt" });
     this.version(3).stores({ files: "id" });
+    // `uploaded` is queried by flushUploads: without an index that query throws and no file was ever uploaded
+    this.version(4).stores({ files: "id, uploaded" });
   }
 }
 export const mdb = new MotivationDb();

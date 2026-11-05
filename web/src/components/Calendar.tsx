@@ -6,8 +6,9 @@ import { habitCounts } from "../lib/habits";
 import { doneItems } from "../lib/notes";
 import { occurrences } from "../lib/repeat";
 import { useSwipe } from "../lib/swipe";
-import { type TaskItem, addTask, doneDay } from "../lib/tasks";
-import { Button, Dialog, IconButton, PageHeader, Segmented, colorOf, cx, inputCls } from "./ui";
+import { type TaskItem, doneDay } from "../lib/tasks";
+import { NewItem } from "./NewItem";
+import { Button, IconButton, PageHeader, Segmented, colorOf, cx } from "./ui";
 
 type Mode = "month" | "week" | "day";
 /** zoom levels, closest first */
@@ -119,6 +120,20 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
     if (mode !== "month" && scroller.current) scroller.current.scrollTop = (days.includes(today) ? Math.max(0, now.getHours() - 1) : 7) * HOUR;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Touch: hold an empty spot to create an appointment there (a plain tap zooms/selects, a drag scrolls or swipes).
+  // Mouse: double-click in the week grid. Day view creates on a plain click.
+  const hold = useRef<{ t?: number; x: number; y: number; fired: boolean }>({ x: 0, y: 0, fired: false });
+  const press = (at: (e: React.PointerEvent) => { date: string; time: string | null }) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse" || !e.isPrimary || (e.target as HTMLElement).closest("button")) return;
+      const c = at(e);
+      clearTimeout(hold.current.t);
+      hold.current = { x: e.clientX, y: e.clientY, fired: false, t: window.setTimeout(() => { hold.current.fired = true; navigator.vibrate?.(15); onCreate(c); }, 480) };
+    },
+    onPointerMove: (e: React.PointerEvent) => { if (Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > 10) clearTimeout(hold.current.t); },
+    onPointerUp: () => clearTimeout(hold.current.t),
+    onPointerCancel: () => clearTimeout(hold.current.t),
+  });
   const names = weekdayNames(lang, weekStart);
   const drop = (e: React.DragEvent, date: string, time?: string | null) => {
     e.preventDefault();
@@ -145,7 +160,8 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
               <div
                 key={d}
                 data-date={d}
-                onClick={(e) => onZoom("week", d, e.currentTarget)}
+                onClick={(e) => { if (hold.current.fired) { hold.current.fired = false; return; } onZoom("week", d, e.currentTarget); }}
+                {...press(() => ({ date: d, time: null }))}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => drop(e, d)}
                 className={cx("min-h-0 min-w-0 overflow-hidden border-b border-r border-line p-1", out && "bg-sub/60")}
@@ -181,7 +197,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                   ? <><span className="block">{new Intl.DateTimeFormat(lang, { weekday: "short" }).format(parseDate(d))}</span><span className="block text-sm tabular-nums">{Number(d.slice(8))}</span></>
                   : <span className="block truncate">{fmtLong(d, lang)}</span>}
               </button>
-              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })}>
+              <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })} onDoubleClick={mode === "week" ? () => onCreate({ date: d, time: null }) : undefined} {...(mode === "week" ? press(() => ({ date: d, time: null })) : {})}>
                 {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week" && !ev.timing} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
               </div>
@@ -217,6 +233,8 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 className="relative min-w-0 flex-1 basis-0 border-l border-line"
                 style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR - 1}px, var(--line) ${HOUR - 1}px, var(--line) ${HOUR}px)` }}
                 onClick={mode === "week" ? undefined : (e) => onCreate({ date: d, time: timeFromY(e) })}
+                onDoubleClick={mode === "week" ? (e) => onCreate({ date: d, time: timeFromY(e) }) : undefined}
+                {...(mode === "week" ? press((e) => ({ date: d, time: timeFromY(e) })) : {})}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => drop(e, d, timeFromY(e))}
               >
@@ -316,6 +334,12 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
     const [from, to] = m === "month" ? [`${a.slice(0, 7)}-01`, `${a.slice(0, 7)}-31`] : m === "week" ? [startOfWeek(a, W.current), addDays(startOfWeek(a, W.current), 6)] : [a, a];
     return today >= from && today <= to ? today : a;
   };
+  // the "+" button / N key (App) asks for a new appointment on the day in view
+  useEffect(() => {
+    const open = () => setCreate({ date: focusDay(S.current.mode, S.current.anchor), time: null });
+    window.addEventListener("dl-new-event", open);
+    return () => window.removeEventListener("dl-new-event", open);
+  });
 
   // pinch: spread = closer (month > week > day), together = wider; the frames follow the fingers.
   // One gesture can go in and out repeatedly: crossing the starting distance flips the direction.
@@ -452,7 +476,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
           </div>
         )}
       </div>
-      {create && <CreateDialog {...create} onClose={() => setCreate(null)} />}
+      {create && <NewItem kind="event" init={create} onClose={() => setCreate(null)} />}
     </div>
   );
 }
@@ -466,25 +490,5 @@ function Legend() {
         <span key={k} className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ background: TIMING_COLOR[k] }} />{label}</span>
       ))}
     </div>
-  );
-}
-
-function CreateDialog({ date, time, onClose }: { date: string; time: string | null; onClose: () => void }) {
-  const t = useT();
-  const lang = useLang();
-  const [title, setTitle] = useState("");
-  async function save() {
-    if (!title.trim()) return;
-    await addTask({ title: title.trim(), dueDate: date, dueTime: time, reminders: time ? [{ offsetMin: 0 }] : [] });
-    onClose();
-  }
-  return (
-    <Dialog title={`${t("newTask")} · ${fmtLong(date, lang)}${time ? ` ${time}` : ""}`} onClose={onClose}>
-      <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void save()} placeholder={t("title")} />
-      <div className="mt-3 flex justify-end gap-2">
-        <Button onClick={onClose}>{t("cancel")}</Button>
-        <Button variant="primary" onClick={() => void save()}>{t("create")}</Button>
-      </div>
-    </Dialog>
   );
 }

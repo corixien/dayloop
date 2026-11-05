@@ -53,20 +53,21 @@ export function Pomodoro() {
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title={t("pomodoro")} />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-6 px-4 py-8">
+        <div className="mx-auto flex max-w-md flex-col items-center gap-6 px-4 py-8 md:grid md:max-w-6xl md:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] md:items-start md:gap-x-16 md:px-10 md:py-12">
+          <div className="flex min-w-0 flex-col items-center gap-6 md:gap-8">
           <Segmented<Phase | "custom">
             value={state.custom ? "custom" : state.phase}
             onChange={(p) => { if (state.status !== "idle") return; if (p === "custom") setCustomOpen(true); else pomo.setPhase(p); }}
             options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }, { value: "custom", label: state.custom ? `${Math.round(state.plannedSec / 60)} ${t("minutesShort")}` : t("custom") }]}
           />
-          <div className="relative grid size-[280px] place-items-center" role="timer" aria-label={label}>
+          <div className="relative grid size-[280px] place-items-center md:size-[clamp(340px,56vh,560px)]" role="timer" aria-label={label}>
             <svg viewBox="0 0 280 280" className="absolute inset-0 -rotate-90">
               <circle cx="140" cy="140" r={R} fill="none" stroke="var(--line)" strokeWidth="6" />
               <circle cx="140" cy="140" r={R} fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} style={{ transition: "stroke-dashoffset 250ms linear" }} />
             </svg>
             <div className="text-center">
-              <div className="text-[56px] font-semibold leading-none tracking-tight tabular-nums">{fmtClock(left)}</div>
-              <div className="mt-2 text-sm text-muted">{label}{state.round > 0 && state.phase === "work" ? ` · ${state.round}` : ""}</div>
+              <div className="text-[56px] font-semibold leading-none tracking-tight tabular-nums md:text-[clamp(72px,12vh,128px)]">{fmtClock(left)}</div>
+              <div className="mt-2 text-sm text-muted md:text-base">{label}{state.round > 0 && state.phase === "work" ? ` · ${state.round}` : ""}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -81,7 +82,9 @@ export function Pomodoro() {
           {state.status === "running" && (
             <Button className="h-9 gap-2 px-4" onClick={() => { location.hash = "#/zen"; }}><Moon size={15} /> {t("zen")}</Button>
           )}
-          <div className="w-full max-w-xs">
+          </div>
+          <div className="flex w-full min-w-0 flex-col items-center gap-6 md:gap-8 md:pt-6">
+          <div className="w-full max-w-xs md:max-w-none">
             <Select
               label={t("noTaskLinked")}
               value={state.taskId ?? ""}
@@ -114,6 +117,7 @@ export function Pomodoro() {
                 );
               })}
             </div>
+          </div>
           </div>
         </div>
       </div>

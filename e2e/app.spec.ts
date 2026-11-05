@@ -161,7 +161,7 @@ test("mobile: swipes, sheet, notes, dropdown", async ({ browser }) => {
   // note tap opens the sheet with the note focused
   await page.getByRole("button", { name: "Notiz" }).first().click();
   await expect(page.getByRole("textbox", { name: "Notiz" })).toBeFocused();
-  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue("Trikot mitnehmen");
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue(/^\u200b?Trikot mitnehmen\u200b?$/);
 
   // "- " turns a line into a round checkbox item inside the notes
   await page.keyboard.press("Enter");
@@ -277,7 +277,7 @@ test("regressions: note autosave, priority label, completions in calendar, habit
   await swipe(page, [195, 84], [195, 520]);
   await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0, { timeout: 3000 });
   await page.getByRole("button", { name: /Autosave Test/ }).first().click();
-  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue("Hallo Welt");
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveValue(/^\u200b?Hallo Welt\u200b?$/);
 
   // tapping the label next to the priority buttons must not change the priority
   await page.getByRole("button", { name: "Hoch" }).click();
@@ -302,7 +302,9 @@ test("regressions: note autosave, priority label, completions in calendar, habit
   // month -> tap a day = zoom into that week
   await page.getByRole("button", { name: "Monat" }).first().click();
   await expect.poll(() => page.locator("[data-date]").count()).toBeGreaterThan(30);
-  await page.locator("[data-date]").nth(10).click();
+  await page.waitForTimeout(600); // the zoom animation between the levels has to finish first
+  // a day without chips (today carries some, and the clicked point may be on one of them)
+  await page.locator("[data-date]:not(:has(button[title]))").nth(10).click();
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(20);
   await shot(page, "41-zoom-week");
 
@@ -470,4 +472,104 @@ test("motivation texts open in a clean read view, the pencil edits", async ({ pa
   await page.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Neu.").last()).toBeVisible();
   await expect(page.getByRole("textbox")).toHaveCount(0);
+});
+
+test("notes: arrow keys and selection moves travel between lines", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Navigationsprobe");
+  await page.getByRole("button", { name: /Navigationsprobe/ }).first().click();
+  await page.getByRole("textbox", { name: "Notiz" }).first().click();
+  await page.keyboard.type("Erste");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("- Zweite");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Dritte");
+  const lines = page.getByRole("textbox", { name: "Notiz" });
+  await expect(lines).toHaveCount(3);
+  // up/down between lines, caret column kept
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.type("X");
+  await expect(lines.nth(0)).toHaveValue(/^​?Erste?X?/);
+  await expect(lines.nth(0)).toHaveValue(/X/);
+  // caret reaching the end of a line continues in the next one (what the space-bar slide on a phone does)
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("Y");
+  await expect(lines.nth(1)).toHaveValue(/Y/);
+  // a selection change to the very start of a line (what a phone keyboard's space-bar slide produces) continues in the previous line
+  await page.waitForTimeout(600); // a selection right after a click counts as the click landing there
+  await page.evaluate(() => { const t = document.querySelectorAll("textarea")[2] as HTMLTextAreaElement; t.focus(); t.setSelectionRange(0, 0); });
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll("textarea")].indexOf(document.activeElement as HTMLTextAreaElement))).toBe(1);
+  // Backspace at the start of a checklist line turns it back into text, then joins with the previous one
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Backspace");
+  await expect(page.getByRole("checkbox", { name: /Zweite/ })).toHaveCount(0);
+  await page.keyboard.press("Backspace");
+  await expect(lines).toHaveCount(2);
+});
+
+test("calendar: plus creates an appointment that enters the todo list only shortly before", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/calendar");
+  const iso = (n: number) => { const d = new Date(Date.now() + n * 86_400_000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const make = async (title: string, date: string, time: string) => {
+    await page.getByRole("button", { name: "Neuer Termin" }).click();
+    await page.locator("[data-newtitle]").fill(title);
+    await page.locator('input[type="date"]').fill(date);
+    if (time) await page.locator('input[type="time"]').fill(time);
+    await page.getByRole("button", { name: "Hinzufügen" }).click();
+    await page.waitForTimeout(400);
+  };
+  await make("Fernes Konzert", iso(10), "20:00");
+  await make("Naher Zahnarzt", iso(0), "23:30");
+  await page.goto("/#/todo");
+  await expect(page.getByRole("button", { name: /Naher Zahnarzt/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Fernes Konzert/ })).toHaveCount(0);
+  await page.goto("/#/calendar");
+  await expect(page.getByRole("button", { name: /Naher Zahnarzt/ }).first()).toBeVisible();
+  await shot(page, "50-appointment");
+});
+
+test("search bar: typed text creates entries, fuzzy finds tasks, Enter runs", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await page.keyboard.press("Control+k");
+  const box = page.getByRole("dialog", { name: /Suchen/ }).getByRole("textbox");
+  await box.fill("Gassi gehen morgen");
+  await box.press("Enter");
+  await expect(page.getByRole("status").filter({ hasText: "Hinzugefügt" })).toBeVisible();
+  await box.fill("Referat: recherchieren, Folien, üben");
+  await box.press("Enter");
+  await box.fill("Kassi");
+  await expect(page.getByRole("button", { name: /Gassi gehen/ }).first()).toBeVisible();
+  await box.press("Escape");
+  await expect(page.getByRole("button", { name: /Referat/ }).first()).toBeVisible();
+  await page.getByRole("button", { name: /Referat/ }).first().click();
+  await expect(page.getByRole("checkbox", { name: "Folien" })).toBeVisible();
+  await shot(page, "51-search");
+});
+
+test("motivation audio: list renders, the global player bar stays across pages", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/motivation");
+  await page.getByRole("button", { name: "Audio" }).click();
+  // 1 s of silence as WAV
+  const wav = Buffer.alloc(44 + 8000);
+  wav.write("RIFF", 0); wav.writeUInt32LE(36 + 8000, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(8000, 28); wav.writeUInt16LE(1, 32); wav.writeUInt16LE(8, 34); wav.write("data", 36); wav.writeUInt32LE(8000, 40);
+  await page.locator('input[type="file"]').setInputFiles({ name: "stille.wav", mimeType: "audio/wav", buffer: wav });
+  await page.getByRole("button", { name: "stille" }).click();
+  await expect(page.getByRole("region", { name: "stille" })).toBeVisible();
+  await page.goto("/#/todo");
+  await expect(page.getByRole("region", { name: "stille" })).toBeVisible();
 });

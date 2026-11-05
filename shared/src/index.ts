@@ -73,6 +73,8 @@ export const taskSchema = z.object({
   estimate: z.number().int().min(0).max(100).default(0),
   /** soft delete (trash), epoch ms */
   trashedAt: z.number().nullable().default(null),
+  /** appointment: shown in the Todo list only this many minutes before its date/time (null = ordinary task, always shown) */
+  showBeforeMin: z.number().int().min(0).max(525600).nullable().default(null),
 });
 
 export const habitSchema = z.object({

@@ -5,6 +5,9 @@ import { dueMs, fmtDate } from "./dates";
 export type TaskItem = Item<"task">;
 
 export const isOpen = (t: TaskItem) => !t.done && t.trashedAt === null;
+/** An appointment appears in the Todo list only shortly before it happens (`showBeforeMin`). */
+export const isAppointment = (t: Pick<TaskItem, "showBeforeMin">) => t.showBeforeMin !== null;
+
 export const isDone = (t: TaskItem) => t.done && t.trashedAt === null;
 
 export const DAY_MS = 86_400_000;
@@ -24,7 +27,11 @@ export const isUrgent = (t: TaskItem, now: number, hour: number) => {
  */
 export function sortOpen(tasks: TaskItem[], now: number, hour: number): TaskItem[] {
   const key = (t: TaskItem) => dueAt(t, hour) ?? Infinity;
-  return tasks.filter(isOpen).sort((a, b) => {
+  const shown = (t: TaskItem) => {
+    const d = dueAt(t, hour);
+    return t.showBeforeMin === null || d === null || now >= d - t.showBeforeMin * 60_000;
+  };
+  return tasks.filter((t) => isOpen(t) && shown(t)).sort((a, b) => {
     const ua = isUrgent(a, now, hour), ub = isUrgent(b, now, hour);
     if (ua !== ub) return ua ? -1 : 1;
     if (!ua && a.priority !== b.priority) return b.priority - a.priority;

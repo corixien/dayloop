@@ -14,6 +14,7 @@ interface WidgetPlugin {
   setCredentials(o: { url: string; token: string }): Promise<void>;
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
   finishOverlay(): Promise<void>;
+  overlayPassThrough(): Promise<void>;
   openApp(): Promise<void>;
   focusSync(o: object): Promise<void>;
   listSounds(): Promise<{ sounds: { title: string; uri: string; kind: string }[] }>;
@@ -102,6 +103,11 @@ export function useWidgetSync() {
   }, [lang, hour]);
 }
 
+/** The sheet is closing: let touches through to the home screen while the window finishes syncing. */
+export function overlayPassThrough() {
+  void widgetPlugin().overlayPassThrough().catch(() => {});
+}
+
 /** The overlay route has rendered: the native window may show its WebView. */
 export function overlayReady() {
   void widgetPlugin().overlayReady().catch(() => {});
@@ -109,6 +115,7 @@ export function overlayReady() {
 
 /** Close the translucent overlay activity (opened from the widget) after pushing pending changes. */
 export async function closeOverlay() {
+  void widgetPlugin().overlayPassThrough().catch(() => {});
   await Promise.race([syncClient.syncNow(), new Promise((r) => setTimeout(r, 2500))]).catch(() => {});
   try {
     await widgetPlugin().finishOverlay();

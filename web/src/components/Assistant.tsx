@@ -1,49 +1,57 @@
 import { Loader2, Mic, Send, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AssistantError, getGroqKey, runAssistant, transcribe } from "../lib/assistant";
+import { AssistantError, cleanTranscript, getGroqKey, runAssistant, transcribe } from "../lib/assistant";
 import { appTools } from "../lib/assistantTools";
 import { useLang, useSettings, useT } from "../lib/app";
 import { pomo } from "../lib/pomoStore";
-import { Button, inputCls } from "./ui";
+import { cx, inputCls } from "./ui";
 
 type Phase = "idle" | "listening" | "thinking";
+interface Msg { me: boolean; text: string; err?: boolean }
 
-/** Record until the user stops talking (or taps), then transcribe and act. Text input as a fallback. */
+/** Chat with the assistant: speak (auto-stops on silence) or type; answers appear as chat bubbles. */
 export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
   const t = useT();
   const lang = useLang();
   const settings = useSettings();
   const [phase, setPhase] = useState<Phase>("idle");
-  const [heard, setHeard] = useState("");
-  const [answer, setAnswer] = useState<{ text: string; err?: boolean } | null>(null);
+  const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typed, setTyped] = useState("");
+  const end = useRef<HTMLDivElement>(null);
+  const say = (m: Msg) => setMsgs((x) => [...x, m]);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [msgs, phase]);
   const rec = useRef<{ stop: () => void } | null>(null);
   const key = getGroqKey();
   useEffect(() => pomo.init(settings), [settings.workMin, settings.breakMin, settings.longBreakMin, settings.longBreakEvery, settings.autoStart]);
 
   const errText = (e: unknown) => (e instanceof AssistantError ? `${t(`aErr_${e.code}` as "aErr_auth")}${e.detail ? `\n${e.detail}` : ""}` : t("aError"));
 
-  const act = useCallback(async (text: string) => {
-    setHeard(text);
-    if (!text) return setAnswer({ text: t("aNothingHeard"), err: true });
+  /** voice input is repaired first (misheard words) and shown as the user's message */
+  const act = useCallback(async (text: string, spoken = false) => {
+    if (!text) return say({ me: false, text: t("aNothingHeard"), err: true });
     setPhase("thinking");
     try {
-      const r = await runAssistant(text, appTools, key, { lang });
-      setAnswer({ text: r.text || (r.actions.length ? t("aDone") : t("aError")) });
+      let input = text;
+      if (spoken) {
+        const ctx = await appTools.context?.().catch(() => "");
+        input = await cleanTranscript(text, key, lang, ctx);
+      }
+      say({ me: true, text: input });
+      const r = await runAssistant(input, appTools, key, { lang });
+      say({ me: false, text: r.text || (r.actions.length ? t("aDone") : t("aError")) });
     } catch (e) {
-      setAnswer({ text: errText(e), err: true });
+      say({ me: false, text: errText(e), err: true });
     }
     setPhase("idle");
   }, [key, lang, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const listen = useCallback(async () => {
     if (phase !== "idle") return;
-    setAnswer(null); setHeard("");
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      return setAnswer({ text: t("aMicDenied"), err: true });
+      return say({ me: false, text: t("aMicDenied"), err: true });
     }
     const chunks: Blob[] = [];
     const mr = new MediaRecorder(stream);
@@ -77,13 +85,13 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
       rec.current = null;
       const total = chunks.reduce((n, c) => n + c.size, 0);
       // when the level meter could not run, still send what was recorded
-      if ((!spoke && vad) || total < 2000) { setPhase("idle"); return setAnswer({ text: t("aNothingHeard"), err: true }); }
+      if ((!spoke && vad) || total < 2000) { setPhase("idle"); return say({ me: false, text: t("aNothingHeard"), err: true }); }
       setPhase("thinking");
       try {
         const hint = await appTools.context?.().then((c) => c.replace(/\n- /g, ", ").replace(/\n/g, " ")).catch(() => "");
-        await act(await transcribe(new Blob(chunks, { type: mr.mimeType }), key, lang, undefined, hint));
+        await act(await transcribe(new Blob(chunks, { type: mr.mimeType }), key, lang, undefined, hint), true);
       } catch (e) {
-        setAnswer({ text: errText(e), err: true });
+        say({ me: false, text: errText(e), err: true });
         setPhase("idle");
       }
     };
@@ -97,22 +105,56 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
 
   if (!key) return <p className="px-6 py-8 text-center text-sm text-muted">{t("aNoKey")}</p>;
 
+  const mic = (size: string, icon: number) => (
+    <button
+      type="button"
+      onClick={() => (phase === "listening" ? rec.current?.stop() : void listen())}
+      disabled={phase === "thinking"}
+      aria-label={t("aMic")}
+      className={cx("grid shrink-0 place-items-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 dark:text-[#101012]", size, phase === "listening" ? "animate-pulse bg-danger" : "bg-accent")}
+    >
+      {phase === "thinking" ? <Loader2 size={icon} className="animate-spin" /> : phase === "listening" ? <Square size={icon - 4} /> : <Mic size={icon} />}
+    </button>
+  );
+  const submit = () => { const v = typed.trim(); if (v && phase === "idle") { setTyped(""); void act(v); } };
+
   return (
-    <div className="flex flex-col items-center gap-4 px-5 pb-6 pt-2">
-      <button
-        onClick={() => (phase === "listening" ? rec.current?.stop() : void listen())}
-        disabled={phase === "thinking"}
-        aria-label={t("aMic")}
-        className={`grid size-24 place-items-center rounded-full text-white transition-transform active:scale-95 dark:text-[#101012] ${phase === "listening" ? "animate-pulse bg-danger" : "bg-accent"}`}
-      >
-        {phase === "thinking" ? <Loader2 size={34} className="animate-spin" /> : phase === "listening" ? <Square size={30} /> : <Mic size={36} />}
-      </button>
-      <div className="text-xs text-muted">{phase === "listening" ? t("aListening") : phase === "thinking" ? t("aThinking") : t("aTap")}</div>
-      {heard && <div className="max-w-full text-center text-sm italic text-muted">„{heard}“</div>}
-      {answer && <div role="status" className={`max-w-full whitespace-pre-line text-center text-[15px] ${answer.err ? "text-danger" : ""}`}>{answer.text}</div>}
-      <form className="flex w-full gap-2" onSubmit={(e) => { e.preventDefault(); const v = typed.trim(); if (v && phase === "idle") { setTyped(""); setAnswer(null); void act(v); } }}>
-        <input className={inputCls} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("aType")} aria-label={t("aType")} />
-        <Button type="submit" className="size-9 shrink-0 px-0" aria-label={t("add")}><Send size={15} /></Button>
+    <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" role="log" aria-live="polite">
+        {msgs.length === 0 && phase === "idle" ? (
+          <div className="flex h-full min-h-48 flex-col items-center justify-center gap-4 text-center">
+            {mic("size-24", 36)}
+            <p className="max-w-xs text-sm text-muted">{t("chatEmpty")}</p>
+            <p className="text-xs text-faint">{t("aTap")}</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {msgs.map((m, i) => (
+              <div key={i} className={cx("flex", m.me && "justify-end")}>
+                <div
+                  role={m.me ? undefined : "status"}
+                  className={cx("max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2 text-[15px] leading-snug", m.me ? "rounded-br-md bg-accent text-white dark:text-[#101012]" : "rounded-bl-md border border-line bg-sub", m.err && "text-danger")}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {phase !== "idle" && (
+              <div className="flex">
+                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-sub px-3.5 py-2 text-[13px] text-muted">
+                  <Loader2 size={14} className="animate-spin" /> {phase === "listening" ? t("aListening") : t("aThinking")}
+                </div>
+              </div>
+            )}
+            <div ref={end} />
+          </div>
+        )}
+      </div>
+      <form className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3 safe-bottom" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+        <input className={cx(inputCls, "h-11 rounded-full px-4")} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("aType")} aria-label={t("aType")} />
+        {typed.trim() ? (
+          <button type="submit" disabled={phase !== "idle"} aria-label={t("add")} className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 dark:text-[#101012]"><Send size={17} /></button>
+        ) : mic("size-11", 20)}
       </form>
     </div>
   );
