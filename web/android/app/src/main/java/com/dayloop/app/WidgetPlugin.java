@@ -16,6 +16,47 @@ import org.json.JSONObject;
 /** Bridge between the web app and the home screen widget. */
 @CapacitorPlugin(name = "DayloopWidget")
 public class WidgetPlugin extends Plugin {
+    private MediaService.Sink mediaSink;
+
+    @Override
+    public void load() {
+        // buttons of the audio notification / lock screen controls go back to the web player
+        mediaSink = (action, value) -> {
+            JSObject o = new JSObject();
+            o.put("action", action);
+            o.put("value", value);
+            notifyListeners("mediaAction", o);
+        };
+        MediaService.sink = mediaSink;
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (MediaService.sink == mediaSink) MediaService.sink = null;
+    }
+
+    /** Audio playing in the web player: title, state, position (ms), duration (ms), whether a next track exists. */
+    @PluginMethod
+    public void mediaSync(PluginCall call) {
+        Context ctx = getContext();
+        android.content.Intent in = new android.content.Intent(ctx, MediaService.class).setAction(MediaService.SYNC)
+            .putExtra("title", call.getString("title", ""))
+            .putExtra("playing", Boolean.TRUE.equals(call.getBoolean("playing", false)))
+            .putExtra("pos", (long) call.getData().optDouble("pos", 0))
+            .putExtra("dur", (long) call.getData().optDouble("dur", 0))
+            .putExtra("hasNext", Boolean.TRUE.equals(call.getBoolean("hasNext", false)));
+        try {
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(in); else ctx.startService(in);
+        } catch (Exception e) { /* started from the background where that is not allowed: the running service keeps its last state */ }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void mediaClear(PluginCall call) {
+        getContext().stopService(new android.content.Intent(getContext(), MediaService.class));
+        call.resolve();
+    }
+
     /** Snapshot of todos and Have Done rows, already formatted by the web layer. */
     @PluginMethod
     public void update(PluginCall call) {

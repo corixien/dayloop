@@ -51,6 +51,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
+        <service android:name=".MediaService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <service android:name=".FocusRingService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
 
         <service

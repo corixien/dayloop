@@ -22,7 +22,7 @@ final class WidgetStore {
         int radius = 1;      // 0 square, 1 round, 2 very round
         int size = 1;        // 0 S, 1 M, 2 L, 3 XL
         boolean plus = true;
-        int tab = 0;         // default view: 0 Todo, 1 Have Done
+        int tab = 0;         // default view: 0 Todo, 1 Have Done, 2 Calendar
 
         float titleSp() { return new float[]{14f, 16f, 18f, 20f}[size]; }
         float metaSp() { return new float[]{11f, 12f, 13f, 14f}[size]; }
@@ -104,7 +104,7 @@ final class WidgetStore {
     }
 
     static JSONArray rows(Context c, int mode) {
-        JSONArray a = snapshot(c).optJSONArray(mode == 0 ? "todo" : "done");
+        JSONArray a = snapshot(c).optJSONArray(mode == 0 ? "todo" : mode == 1 ? "done" : "events");
         return a != null ? a : new JSONArray();
     }
 

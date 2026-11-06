@@ -4,7 +4,7 @@ import { type Tools, matchByName } from "./assistant";
 import { addDays, todayStr, weekday } from "./dates";
 import { habitCounts } from "./habits";
 import { deleteText, saveText, searchPodcasts, subscribe, unsubscribe } from "./motivation";
-import { formatNotes, parseNotes, toggled } from "./notes";
+import { formatNotes, parseNotes, stripMarks, toggled } from "./notes";
 import { pomo } from "./pomoStore";
 import { type TaskItem, addTask, doneDay, isDone, isOpen, sortOpen, toggleDone, trashTask } from "./tasks";
 import { getTracker, markSent, sendToTracker } from "./tracker";
@@ -176,7 +176,7 @@ export const appTools: Tools = {
         const t = await findTask(a.query, "any");
         const lines = parseNotes(t.notes);
         const items = lines.map((l, i) => ({ id: String(i), l })).filter((x) => x.l.check);
-        const m = matchByName(String(a.item ?? ""), items, (x) => x.l.text);
+        const m = matchByName(String(a.item ?? ""), items, (x) => stripMarks(x.l.text));
         if (!m.hit) throw new Error(m.candidates.length ? `ambiguous: ${m.candidates.map((x) => x.l.text).join(" | ")}` : "not_found");
         const want = a.done !== false;
         const i = Number(m.hit.id);

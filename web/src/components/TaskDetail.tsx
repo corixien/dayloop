@@ -43,7 +43,7 @@ function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, (v?:
   return [draft, set, flush];
 }
 
-export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; onClose: () => void; onFocus: (taskId: string) => void; focusNotes?: boolean }) {
+export function TaskDetail({ id, onClose, onFocus, focusNotes, highlight }: { id: string; onClose: () => void; onFocus: (taskId: string) => void; focusNotes?: boolean; highlight?: string }) {
   const t = useT();
   const lang = useLang();
   const tasks = useItems("task");
@@ -113,7 +113,7 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
           className="w-full bg-transparent text-lg font-semibold outline-none"
         />
         <div ref={notesBox}>
-          <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => flushNotes(v)} placeholder={t("addNote")} label={t("note")} />
+          <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => flushNotes(v)} placeholder={t("addNote")} label={t("note")} highlight={highlight} />
         </div>
 
         {!task.done && (
@@ -213,7 +213,7 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes }: { id: string; o
                                 on ? cur.delete(d) : cur.add(d);
                                 setRepeat({ ...repeat, byWeekday: cur.size ? [...cur].sort() : undefined });
                               }}
-                              className={cx("h-8 flex-1 rounded text-xs ring-1", on ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line hover:bg-hover")}
+                              className={cx("h-8 flex-1 rounded text-xs ring-1", on ? "bg-accent-soft font-bold text-accent ring-2 ring-accent" : "text-muted ring-line hover:bg-hover")}
                             >
                               {names[i]}
                             </button>

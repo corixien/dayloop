@@ -39,7 +39,7 @@ export function Overlay() {
   if (kind === "assistant") return <AssistantSheet />;
   if (kind === "alarm") return <AlarmPopup onClose={() => void closeOverlay()} />;
   if (kind === "track" && arg) return <TrackSend id={arg} />;
-  if (kind === "new") return <NewItem kind={arg === "done" ? "done" : "todo"} bare onClose={() => void closeOverlay()} />;
+  if (kind === "new") return <NewItem kind={arg === "done" ? "done" : arg === "event" ? "event" : "todo"} bare onClose={() => void closeOverlay()} />;
   return null;
 }
 

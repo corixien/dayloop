@@ -1,4 +1,5 @@
 import { addDays, fmtLong, todayStr } from "./dates";
+import { occurrences } from "./repeat";
 import { type Lang, translate } from "./i18n";
 import { type TaskItem, doneDay, extras, isDone, sortOpen } from "./taskLogic";
 
@@ -28,12 +29,16 @@ const flags = (x: TaskItem, tr: TrackerState): Pick<WRow, "n" | "c" | "s"> => {
 
 export interface WidgetSnapshot {
   lang: Lang;
-  labels: { today: string; none: string; todo: string; done: string; empty: string; emptyDone: string };
+  labels: { today: string; none: string; todo: string; done: string; calendar: string; empty: string; emptyDone: string; emptyEvents: string };
   todo: WRow[];
   done: WRow[];
+  /** upcoming appointments (next one first), grouped by day, up to two years ahead */
+  events: WRow[];
 }
 
 const MAX_ROWS = 80;
+const EVENT_ROWS = 150;
+const EVENT_DAYS = 730;
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
 /** Pure: everything the native widget needs, already formatted. */
@@ -44,7 +49,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
   const todo: WRow[] = [];
   for (const x of sortOpen(tasks, now.getTime(), hour)) {
     const meta = !x.dueDate ? "" : x.dueDate === today ? x.dueTime ?? "" : `${x.dueDate === addDays(today, 1) ? t("tomorrow") : fmtLong(x.dueDate, lang)}${x.dueTime ? ` ${x.dueTime}` : ""}`;
-    todo.push({ k: "t", id: x.id, title: x.title, meta, prio: x.priority, rep: !!x.repeat, ...flags(x, tracker) });
+    todo.push({ k: "t", id: x.id, title: x.title, meta: x.priority ? `${"!".repeat(x.priority)} ${meta}`.trim() : meta, prio: x.priority, rep: !!x.repeat, ...flags(x, tracker) });
   }
 
   const done: WRow[] = [];
@@ -57,11 +62,28 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
     }
   }
 
+  // appointments: open tasks with a lead time; a repeating one counts with its next occurrence
+  const until = addDays(today, EVENT_DAYS);
+  const upcoming: { day: string; x: TaskItem }[] = [];
+  for (const x of tasks) {
+    if (!x.dueDate || x.showBeforeMin === null || x.done || x.trashedAt !== null) continue;
+    const day = x.repeat ? occurrences(x.dueDate, x.repeat, today, until)[0] : x.dueDate >= today && x.dueDate <= until ? x.dueDate : undefined;
+    if (day) upcoming.push({ day, x });
+  }
+  upcoming.sort((a, b) => (a.day + (a.x.dueTime ?? "")).localeCompare(b.day + (b.x.dueTime ?? "")));
+  const events: WRow[] = [];
+  let last = "";
+  for (const { day, x } of upcoming) {
+    if (day !== last) { last = day; events.push({ k: "h", title: day === today ? t("today") : day === addDays(today, 1) ? t("tomorrow") : fmtLong(day, lang) }); }
+    events.push({ k: "t", id: x.id, title: x.title, meta: x.dueTime ?? "", prio: x.priority, ...flags(x, null) });
+  }
+
   return {
     lang,
-    labels: { today: t("today"), none: t("noDate"), todo: t("todoTab"), done: t("haveDone"), empty: t("noOpen"), emptyDone: t("noneDone") },
+    labels: { today: t("today"), none: t("noDate"), todo: t("todoTab"), done: t("haveDone"), calendar: t("calendar"), empty: t("noOpen"), emptyDone: t("noneDone"), emptyEvents: t("noEvents") },
     todo: todo.slice(0, MAX_ROWS),
     done: done.slice(0, MAX_ROWS),
+    events: events.slice(0, EVENT_ROWS),
   };
 }
 

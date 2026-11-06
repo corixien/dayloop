@@ -149,6 +149,11 @@ export const moaudioSchema = z.object({
   createdAt: z.number().default(0),
 });
 
+/** Assistant chat history: one record ("main") holding the last messages (about 20 exchanges). */
+export const chatSchema = z.object({
+  messages: z.array(z.object({ me: z.boolean(), text: z.string().max(4000), err: z.boolean().optional(), at: z.number().default(0) })).max(80).default([]),
+});
+
 export const itemSchemas = {
   folder: folderSchema,
   list: listSchema,
@@ -161,6 +166,7 @@ export const itemSchemas = {
   motext: motextSchema,
   mofeed: mofeedSchema,
   moaudio: moaudioSchema,
+  chat: chatSchema,
 } as const;
 
 export type ItemType = keyof typeof itemSchemas;
@@ -178,6 +184,7 @@ export type Settings = z.infer<typeof settingsSchema>;
 export type MoText = z.infer<typeof motextSchema>;
 export type MoFeed = z.infer<typeof mofeedSchema>;
 export type MoAudio = z.infer<typeof moaudioSchema>;
+export type Chat = z.infer<typeof chatSchema>;
 export type Repeat = z.infer<typeof repeatSchema>;
 export type Subtask = z.infer<typeof subtaskSchema>;
 
@@ -193,6 +200,7 @@ export interface DataOf {
   motext: MoText;
   mofeed: MoFeed;
   moaudio: MoAudio;
+  chat: Chat;
 }
 
 /** Wire format for sync. `data` is the validated payload, ignored for tombstones. */

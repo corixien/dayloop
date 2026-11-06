@@ -31,3 +31,20 @@ describe("widget snapshot", () => {
     expect(s.labels).toMatchObject({ today: "Heute", todo: "Todo", done: "Have Done" });
   });
 });
+
+describe("widget calendar tab", () => {
+  it("lists upcoming appointments by day, nearest first, within two years", async () => {
+    const { buildSnapshot } = await import("./widgetSnapshot");
+    const mk = (id: string, title: string, dueDate: string, dueTime: string | null, over: object = {}) => ({ id, title, notes: "", subtasks: [], done: false, trashedAt: null, priority: 0, order: 0, updatedAt: 0, dueDate, dueTime, showBeforeMin: 1440, repeat: null, ...over }) as never;
+    const now = new Date(2026, 10, 5, 10, 0);
+    const snap = buildSnapshot([
+      mk("far", "Konzert", "2026-12-24", "20:00"),
+      mk("near", "Zahnarzt", "2026-11-06", "15:00"),
+      mk("tooFar", "Fern", "2029-01-01", null),
+      mk("past", "Vorbei", "2026-11-01", null),
+      mk("plain", "Aufgabe", "2026-11-07", null, { showBeforeMin: null }),
+    ], "de", now);
+    expect(snap.events.map((r) => r.title)).toEqual(["Morgen", "Zahnarzt", expect.stringContaining("Dez"), "Konzert"]);
+    expect(snap.events[1].meta).toBe("15:00");
+  });
+});

@@ -88,7 +88,8 @@ public class DayloopWidget extends AppWidgetProvider {
         JSONObject labels = snap.optJSONObject("labels");
         String lTodo = labels != null ? labels.optString("todo", "Todo") : "Todo";
         String lDone = labels != null ? labels.optString("done", "Have Done") : "Have Done";
-        String lEmpty = labels != null ? labels.optString(mode == 0 ? "empty" : "emptyDone", "") : "";
+        String lCal = labels != null ? labels.optString("calendar", "Kalender") : "Kalender";
+        String lEmpty = labels != null ? labels.optString(mode == 0 ? "empty" : mode == 1 ? "emptyDone" : "emptyEvents", "") : "";
 
         int bg = WidgetStore.bgColor(ctx, cfg);
         int text = WidgetStore.textColor(bg), muted = WidgetStore.mutedColor(bg);
@@ -104,19 +105,24 @@ public class DayloopWidget extends AppWidgetProvider {
         float tabSp = cfg.titleSp() - 1;
         v.setTextViewText(R.id.tab_todo, lTodo);
         v.setTextViewText(R.id.tab_done, lDone);
+        v.setTextViewText(R.id.tab_cal, lCal);
         v.setTextViewTextSize(R.id.tab_todo, TypedValue.COMPLEX_UNIT_SP, tabSp);
         v.setTextViewTextSize(R.id.tab_done, TypedValue.COMPLEX_UNIT_SP, tabSp);
+        v.setTextViewTextSize(R.id.tab_cal, TypedValue.COMPLEX_UNIT_SP, tabSp);
         v.setInt(R.id.tab_todo, "setBackgroundResource", mode == 0 ? R.drawable.widget_tab_active : 0);
         v.setInt(R.id.tab_done, "setBackgroundResource", mode == 1 ? R.drawable.widget_tab_active : 0);
+        v.setInt(R.id.tab_cal, "setBackgroundResource", mode == 2 ? R.drawable.widget_tab_active : 0);
         v.setTextColor(R.id.tab_todo, mode == 0 ? 0xFFFFFFFF : muted);
         v.setTextColor(R.id.tab_done, mode == 1 ? 0xFFFFFFFF : muted);
+        v.setTextColor(R.id.tab_cal, mode == 2 ? 0xFFFFFFFF : muted);
         v.setOnClickPendingIntent(R.id.tab_todo, tabIntent(ctx, id, 0));
         v.setOnClickPendingIntent(R.id.tab_done, tabIntent(ctx, id, 1));
+        v.setOnClickPendingIntent(R.id.tab_cal, tabIntent(ctx, id, 2));
 
         // plus
         v.setViewVisibility(R.id.plus, cfg.plus ? View.VISIBLE : View.GONE);
         if (cfg.plus) {
-            Intent add = overlayIntent(ctx, "new/" + (mode == 0 ? "todo" : "done"));
+            Intent add = overlayIntent(ctx, "new/" + (mode == 0 ? "todo" : mode == 1 ? "done" : "event"));
             v.setOnClickPendingIntent(R.id.plus, PendingIntent.getActivity(ctx, id * 10 + 1, add, flags(false)));
         }
 
@@ -154,7 +160,7 @@ public class DayloopWidget extends AppWidgetProvider {
     private static PendingIntent tabIntent(Context ctx, int id, int mode) {
         Intent i = new Intent(ctx, DayloopWidget.class).setAction(ACTION_TAB)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra("mode", mode);
-        return PendingIntent.getBroadcast(ctx, id * 10 + 3 + mode, i, flags(false));
+        return PendingIntent.getBroadcast(ctx, id * 10 + (mode == 2 ? 6 : 3 + mode), i, flags(false));
     }
 
     static int flags(boolean mutable) {

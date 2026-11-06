@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
-import { type NoteLine, formatNotes, parseNotes, toggled } from "../lib/notes";
+import { Bold, Italic } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type NoteLine, formatNotes, parseMarks, parseNotes, stripMarks, toggleMark, toggled } from "../lib/notes";
 import { Check_, cx } from "./ui";
 
 /**
@@ -30,7 +31,7 @@ function caretEdge(el: HTMLTextAreaElement) {
  * line turns it into a checkbox; Enter continues the list (twice ends it), Backspace at the start undoes it.
  */
 export function NotesEditor({
-  value, onChange, onCommit, placeholder, label,
+  value, onChange, onCommit, placeholder, label, highlight,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -38,10 +39,15 @@ export function NotesEditor({
   onCommit: (v: string) => void;
   placeholder: string;
   label: string;
+  /** checklist item (plain text) to point out, e.g. when it was opened from the calendar */
+  highlight?: string;
 }) {
   const lines = parseNotes(value.split(ZW).join(""));
   const els = useRef<(HTMLTextAreaElement | null)[]>([]);
-  const focus = useRef<{ i: number; pos: number } | null>(null);
+  const focus = useRef<{ i: number; pos: number; end?: number } | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  /** the line being edited shows its raw text (with ** and * markers); the others show it formatted */
+  const [active, setActive] = useState<number | null>(null);
   /** true while a pointer is on a line: taps may land on a sentinel and must not jump lines */
   const pointer = useRef(false);
 
@@ -54,8 +60,9 @@ export function NotesEditor({
     focus.current = null;
     const el = els.current[f.i];
     el?.focus();
-    el?.setSelectionRange(f.pos + 1, f.pos + 1);
+    el?.setSelectionRange(f.pos + 1, (f.end ?? f.pos) + 1);
   });
+  useEffect(() => { if (highlight) root.current?.querySelector("[data-hl]")?.scrollIntoView({ block: "center" }); }, [highlight]);
 
   // The caret reaching a sentinel (space-bar slide, arrow keys, IME) moves on to the neighbouring line. Taps and clicks can also
   // land on a sentinel: they only get clamped (the pointer flag).
@@ -86,7 +93,7 @@ export function NotesEditor({
     };
   });
 
-  const set = (next: NoteLine[], f?: { i: number; pos: number }) => {
+  const set = (next: NoteLine[], f?: { i: number; pos: number; end?: number }) => {
     if (f) focus.current = f;
     onChange(formatNotes(next));
   };
@@ -103,29 +110,55 @@ export function NotesEditor({
     const prev = lines[i - 1];
     set([...lines.slice(0, i - 1), { ...prev, text: prev.text + lines[i].text }, ...lines.slice(i + 1)], { i: i - 1, pos: prev.text.length });
   };
+  /** bold / italic on the selection of the line being edited (or the word at the caret) */
+  const format = (marker: "**" | "*") => {
+    const i = els.current.findIndex((el) => el === document.activeElement);
+    const el = els.current[i];
+    if (!el) return;
+    const text = lines[i].text;
+    const clamp = (n: number) => Math.min(Math.max(n - 1, 0), text.length);
+    const r = toggleMark(text, clamp(el.selectionStart), clamp(el.selectionEnd), marker);
+    set(lines.map((x, j) => (j === i ? { ...x, text: r.text } : x)), { i, pos: r.s, end: r.e });
+  };
   const unlist = (i: number) => set(lines.map((x, j) => (j === i ? { check: false, done: false, text: x.text } : x)), { i, pos: 0 });
 
   return (
     <div
+      ref={root}
       aria-label={label}
       data-notes
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onCommit(value); }}
-      className="min-h-16 space-y-0.5 rounded-ctl border border-line bg-raise p-2.5 text-[14px] focus-within:border-accent"
+      className="group relative min-h-16 space-y-0.5 rounded-ctl border border-line bg-raise p-2.5 text-[14px] focus-within:border-accent"
     >
+      <div className="absolute -top-8 right-0 z-10 hidden gap-1 group-focus-within:flex" aria-label="format">
+        {([["**", Bold, "B"], ["*", Italic, "I"]] as const).map(([m, Icon, k]) => (
+          <button key={m} type="button" tabIndex={-1} aria-label={m === "**" ? "Bold" : "Italic"} title={`${m === "**" ? "Bold" : "Italic"} (Ctrl+${k})`}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => format(m)}
+            className="grid size-7 place-items-center rounded-md border border-line bg-raise text-muted hover:text-fg"><Icon size={14} strokeWidth={2.5} /></button>
+        ))}
+      </div>
       {lines.map((l, i) => (
-        <div key={i} className="flex items-start gap-2.5">
+        <div key={i} data-hl={highlight && l.check && stripMarks(l.text) === highlight ? "" : undefined} className={cx("flex items-start gap-2.5", highlight && l.check && stripMarks(l.text) === highlight && "-mx-1.5 rounded-md bg-accent-soft px-1.5 py-0.5")}>
           {l.check && (
             <div className="flex h-5 items-center">
-              <Check_ done={l.done} label={l.text || label} onChange={() => { const next = lines.map((x, j) => (j === i ? toggled(x) : x)); onChange(formatNotes(next)); onCommit(formatNotes(next)); }} />
+              <Check_ done={l.done} emphasis={!!highlight && stripMarks(l.text) === highlight} label={stripMarks(l.text) || label} onChange={() => { const next = lines.map((x, j) => (j === i ? toggled(x) : x)); onChange(formatNotes(next)); onCommit(formatNotes(next)); }} />
             </div>
           )}
           <div className="relative min-w-0 flex-1">
             {lines.length === 1 && !l.text && <span aria-hidden className="pointer-events-none absolute left-0 top-0 leading-5 text-faint">{placeholder}</span>}
+            <div
+              aria-hidden
+              className={cx("min-h-5 whitespace-pre-wrap break-words leading-5", active === i && "hidden", l.check && l.done && "text-faint line-through")}
+            >
+              {parseMarks(l.text).map((sp, k) => <span key={k} className={cx(sp.bold && "font-bold", sp.italic && "italic")}>{sp.text}</span>)}
+            </div>
             <textarea
               ref={(el) => { els.current[i] = el; }}
               rows={1}
               value={wrap(l.text)}
               aria-label={label}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive((a) => (a === i ? null : a))}
               onChange={(e) => {
                 const raw = e.target.value;
                 const text = strip(raw);
@@ -156,7 +189,10 @@ export function NotesEditor({
               onKeyDown={(e) => {
                 const el = e.currentTarget;
                 const pos = el.selectionStart - 1;
-                if (e.key === "Enter" && !e.shiftKey) {
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "b" || e.key === "i")) {
+                  e.preventDefault();
+                  format(e.key === "b" ? "**" : "*");
+                } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
                   e.preventDefault();
                   if (l.check && !l.text.trim()) return set(lines.map((x, j) => (j === i ? { check: false, done: false, text: "" } : x)), { i, pos: 0 });
                   const head: NoteLine = { ...l, text: l.text.slice(0, pos) };
@@ -186,7 +222,7 @@ export function NotesEditor({
                   }
                 }
               }}
-              className={cx("block min-w-0 w-full resize-none overflow-hidden border-0 bg-transparent p-0 leading-5 outline-none focus-visible:outline-none", l.check && l.done && "text-faint line-through")}
+              className={cx("min-w-0 w-full resize-none overflow-hidden border-0 bg-transparent p-0 leading-5 outline-none focus-visible:outline-none", active === i ? "block" : "absolute inset-0 h-full opacity-0", l.check && l.done && "text-faint line-through")}
             />
           </div>
         </div>

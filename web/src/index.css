@@ -16,9 +16,9 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
-  --color-p1: #3e63dd;
-  --color-p2: #e5930b;
-  --color-p3: #e5484d;
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-p3: var(--p3);
   --radius-ctl: 6px;
 }
 
@@ -34,6 +34,9 @@
   --accent: #5b5bd6;
   --accent-soft: #eeeefb;
   --danger: #d93b40;
+  --p1: #6d94f2;
+  --p2: #c4620a;
+  --p3: #a8231a;
   color-scheme: light;
 }
 .dark {
@@ -48,6 +51,9 @@
   --accent: #8a87f5;
   --accent-soft: #23223a;
   --danger: #f2555a;
+  --p1: #4a69d6;
+  --p2: #e8901a;
+  --p3: #ff9a8a;
   color-scheme: dark;
 }
 
@@ -56,6 +62,11 @@
   body,
   #root {
     height: 100%;
+  }
+  /* edge swipes belong to the app's drawers: no browser back/forward swipe, no pull-to-refresh */
+  html,
+  body {
+    overscroll-behavior: none;
   }
   body {
     margin: 0;

@@ -54,8 +54,13 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [focusNotes, setFocusNotes] = useState(false);
   const mobile = useIsMobile();
-  const select = (id: string | null, focus?: "notes") => { setSelected(id); setFocusNotes(focus === "notes"); };
+  const [hl, setHl] = useState("");
+  /** sub: a checklist item to point out in the opened task (calendar chips of ticked items) */
+  const select = (id: string | null, focus?: "notes", sub?: string) => { setSelected(id); setFocusNotes(focus === "notes"); setHl(sub ?? ""); };
   const [drawer, setDrawer] = useState(false);
+  const [chat, setChat] = useState(false);
+  const [chatSeen, setChatSeen] = useState(false);
+  useEffect(() => { if (chat) setChatSeen(true); }, [chat]);
   const [palette, setPalette] = useState(false);
   const [newKind, setNewKind] = useState<"todo" | "done" | null>(null);
   const player = usePlayer();
@@ -129,7 +134,7 @@ export default function App() {
 
   let main;
   if (page === "done") main = <HaveDone selectedId={selected} onSelect={select} />;
-  else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={select} />;
+  else if (page === "calendar") main = <Calendar selectedId={selected} onSelect={(id, sub) => select(id, undefined, sub)} />;
   else if (page === "habits") main = <Habits />;
   else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
   else if (page === "assistant") main = <div className="flex h-full min-h-0 flex-col"><PageHeader title={t("assistant")} /><AssistantPanel /></div>;
@@ -143,9 +148,17 @@ export default function App() {
       <div className="hidden w-[248px] shrink-0 border-r border-line md:block">
         <Sidebar route={route} onNavigate={() => {}} onSearch={() => setPalette(true)} />
       </div>
-      <Drawer open={drawer} onOpenChange={setDrawer}>
+      <Drawer open={drawer} onOpenChange={setDrawer} blocked={chat} onOverpull={() => setPalette(true)}>
         <Sidebar route={route} onNavigate={() => setDrawer(false)} onSearch={() => { setDrawer(false); setPalette(true); }} />
       </Drawer>
+      {route !== "/assistant" && (
+        <Drawer side="right" open={chat} onOpenChange={setChat} blocked={drawer}>
+          <div className="flex h-full min-h-0 flex-col bg-bg safe-top">
+            <div className="flex h-12 shrink-0 items-center border-b border-line px-4 text-[15px] font-semibold">{t("assistant")}</div>
+            {chatSeen && <AssistantPanel />}
+          </div>
+        </Drawer>
+      )}
 
       <main className="relative flex min-w-0 flex-1 flex-col safe-top">
         <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
@@ -153,7 +166,7 @@ export default function App() {
         <nav className="grid shrink-0 grid-cols-6 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (
             <a key={x.to} href={`#${x.to}`} aria-current={route === x.to || route === (x as { also?: string }).also ? "page" : undefined}
-              className={cx("flex h-14 flex-col items-center justify-center gap-0.5 text-[10px]", route === x.to || route === (x as { also?: string }).also ? "text-accent" : "text-muted")}>
+              className={cx("relative flex h-14 flex-col items-center justify-center gap-0.5 text-[10px]", route === x.to || route === (x as { also?: string }).also ? "font-bold text-accent after:absolute after:inset-x-3 after:top-0 after:h-[3px] after:rounded-b after:bg-accent" : "text-muted")}>
               {x.icon}{x.label}
             </a>
           ))}
@@ -172,12 +185,12 @@ export default function App() {
 
       {hasDetail && !mobile && (
         <div className="anim-fade w-[400px] shrink-0 border-l border-line">
-          <TaskDetail id={selected!} focusNotes={focusNotes} onClose={() => select(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); }} />
+          <TaskDetail id={selected!} focusNotes={focusNotes} highlight={hl} onClose={() => select(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); }} />
         </div>
       )}
       {hasDetail && mobile && (
         <Sheet onClose={() => select(null)}>
-          {(close) => <TaskDetail id={selected!} focusNotes={focusNotes} onClose={close} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); select(null); }} />}
+          {(close) => <TaskDetail id={selected!} focusNotes={focusNotes} highlight={hl} onClose={close} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); select(null); }} />}
         </Sheet>
       )}
 

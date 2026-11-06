@@ -156,7 +156,7 @@ function HabitDialog({ habit, onClose }: { habit?: Habit; onClose: () => void })
           <div className="flex gap-1">
             {order.map((d, i) => (
               <button key={d} onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
-                className={cx("h-8 flex-1 rounded text-xs ring-1", days.includes(d) ? "bg-accent-soft text-accent ring-accent" : "text-muted ring-line")}>{names[i]}</button>
+                className={cx("h-8 flex-1 rounded text-xs ring-1", days.includes(d) ? "bg-accent-soft font-bold text-accent ring-2 ring-accent" : "text-muted ring-line")}>{names[i]}</button>
             ))}
           </div>
         </Field>

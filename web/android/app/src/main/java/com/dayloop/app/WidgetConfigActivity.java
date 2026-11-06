@@ -133,7 +133,7 @@ public class WidgetConfigActivity extends Activity {
 
         // default view
         LinearLayout view = section(col, "Standardansicht");
-        view.addView(segmented(new String[]{"Todo", "Have Done"}, cfg.tab, i -> { cfg.tab = i; preview(); }));
+        view.addView(segmented(new String[]{"Todo", "Have Done", "Kalender"}, cfg.tab, i -> { cfg.tab = i; preview(); }));
 
         // plus
         LinearLayout plusCard = section(col, "Plus-Button");
@@ -189,8 +189,10 @@ public class WidgetConfigActivity extends Activity {
         head.setGravity(Gravity.CENTER_VERTICAL);
         TextView t1 = pill(cfg.tab == 0 ? "Todo" : "Todo", cfg.tab == 0, muted);
         TextView t2 = pill("Have Done", cfg.tab == 1, muted);
+        TextView t3 = pill("Kalender", cfg.tab == 2, muted);
         head.addView(t1);
         head.addView(t2);
+        head.addView(t3);
         View sp = new View(this);
         head.addView(sp, new LinearLayout.LayoutParams(0, 1, 1f));
         if (cfg.plus) {
@@ -206,6 +208,8 @@ public class WidgetConfigActivity extends Activity {
 
         String[][] rows = cfg.tab == 0
             ? new String[][]{{"Zahnarzt", "Heute 15:00"}, {"Referat abgeben", "Morgen"}, {"Milch kaufen", ""}}
+            : cfg.tab == 2
+            ? new String[][]{{"Zahnarzt", "Heute 15:00"}, {"Konzert", "Sa., 14. Nov. 20:00"}}
             : new String[][]{{"Mathe gelernt", "09:05"}, {"Sport gemacht", "08:10"}};
         for (String[] row : rows) {
             LinearLayout line1 = new LinearLayout(this);

@@ -1,4 +1,4 @@
-import { Pause, Play, RotateCcw, RotateCw, X } from "lucide-react";
+import { Pause, Play, RotateCcw, RotateCw, SkipForward, X } from "lucide-react";
 import { usePlayer, player } from "../lib/player";
 import { useT } from "../lib/app";
 import { IconButton } from "./ui";
@@ -17,6 +17,7 @@ export function MiniPlayer() {
         <IconButton label="-15" className="size-8" onClick={() => player.skip(-15)}><RotateCcw size={15} /></IconButton>
         <IconButton label={p.playing ? t("pause") : t("start")} className="size-9" onClick={() => player.toggle()}>{p.playing ? <Pause size={18} /> : <Play size={18} />}</IconButton>
         <IconButton label="+15" className="size-8" onClick={() => player.skip(15)}><RotateCw size={15} /></IconButton>
+        {p.track.next && <IconButton label={t("skip")} className="size-8" onClick={() => void player.next()}><SkipForward size={15} /></IconButton>}
         <IconButton label={t("close")} className="size-8" onClick={() => player.close()}><X size={15} /></IconButton>
       </div>
       <div className="flex items-center gap-2 text-[10px] tabular-nums text-muted">

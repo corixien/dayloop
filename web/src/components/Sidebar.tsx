@@ -11,7 +11,7 @@ function Item({ icon, label, to, route, count, onNavigate }: { icon: ReactNode; 
       href={`#${to}`}
       onClick={onNavigate}
       aria-current={route === to ? "page" : undefined}
-      className={cx("flex h-9 items-center gap-2.5 rounded-ctl px-2.5 text-[13px]", route === to ? "bg-accent-soft font-medium text-accent" : "text-fg hover:bg-hover")}
+      className={cx("flex h-9 items-center gap-2.5 rounded-ctl px-2.5 text-[13px]", route === to ? "bg-accent-soft font-semibold text-accent shadow-[inset_3px_0_0_var(--accent)]" : "text-fg hover:bg-hover")}
     >
       <span className="grid size-4 place-items-center">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>

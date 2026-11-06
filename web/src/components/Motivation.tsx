@@ -125,10 +125,15 @@ function AudioFiles() {
     for (const f of Array.from(files ?? [])) await addAudio(f);
     if (file.current) file.current.value = "";
   }
-  const play = async (a: MAudio) => {
+  /** a playable track for audio i of the list; the one after it is queued as "next" */
+  const track = async (i: number): Promise<Track> => ({
+    src: URL.createObjectURL(await audioBlob(audios[i])), title: audios[i].name, revoke: true,
+    next: i + 1 < audios.length ? () => track(i + 1).catch(() => null) : undefined,
+  });
+  const play = async (i: number) => {
     setErr("");
-    setLoading(a.id);
-    try { player.play({ src: URL.createObjectURL(await audioBlob(a)), title: a.name, revoke: true }); }
+    setLoading(audios[i].id);
+    try { player.play(await track(i)); }
     catch { setErr(t("mAudioMissing")); }
     setLoading(null);
   };
@@ -152,9 +157,9 @@ function AudioFiles() {
         </div>
       ))}
       {audios.length > 0 && downloads.length > 0 && <h2 className="px-4 pb-1 pt-3 text-xs font-medium text-muted md:px-6">{t("mOwnAudio")}</h2>}
-      {audios.map((a) => (
+      {audios.map((a, i) => (
         <div key={a.id} className="flex items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-          <button onClick={() => void play(a)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={a.name}>
+          <button onClick={() => void play(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={a.name}>
             <span className={cx("grid size-9 shrink-0 place-items-center rounded-full", playing?.title === a.name ? "bg-accent text-white dark:text-[#101012]" : "bg-sub text-muted")}>{loading === a.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}</span>
             <span className="min-w-0 flex-1 truncate text-[15px]">{a.name}</span>
           </button>
@@ -253,6 +258,12 @@ function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; o
     return () => void h.then((x) => x.remove());
   }, []);
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", year: "numeric" });
+  /** episode i as a track; the next one in the list follows it */
+  const episodeTrack = (i: number): Track => {
+    const e = eps![i];
+    const d = have.get(downloadId(e.audio));
+    return { src: d ? downloadSrc(d) : e.audio, title: e.title, revoke: !!d && !d.path, next: i + 1 < eps!.length ? async () => episodeTrack(i + 1) : undefined };
+  };
 
   async function save(e: Episode) {
     const id = downloadId(e.audio);
@@ -278,7 +289,7 @@ function Episodes({ feed, onBack, onPlay }: { feed: MFeed; onBack: () => void; o
         const pct = busy[id];
         return (
           <div key={i} className="flex w-full items-center gap-3 border-b border-line/60 px-4 py-3 md:px-6">
-            <button onClick={() => onPlay({ src: d ? downloadSrc(d) : e.audio, title: e.title, revoke: !!d && !d.path })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <button onClick={() => onPlay(episodeTrack(i))} className="flex min-w-0 flex-1 items-center gap-3 text-left">
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sub text-muted"><Play size={15} /></span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-2 text-[14px]">{e.title}</span>

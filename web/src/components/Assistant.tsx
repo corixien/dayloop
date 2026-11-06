@@ -1,13 +1,15 @@
-import { Loader2, Mic, Send, Square } from "lucide-react";
+import { Loader2, Mic, Send, Square, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AssistantError, cleanTranscript, getGroqKey, runAssistant, transcribe } from "../lib/assistant";
 import { appTools } from "../lib/assistantTools";
+import { addChat, clearChat, useChat } from "../lib/chat";
 import { useLang, useSettings, useT } from "../lib/app";
 import { pomo } from "../lib/pomoStore";
 import { cx, inputCls } from "./ui";
 
 type Phase = "idle" | "listening" | "thinking";
 interface Msg { me: boolean; text: string; err?: boolean }
+/** history only shows what happened: a chat bubble for a message that is just a status is not needed */
 
 /** Chat with the assistant: speak (auto-stops on silence) or type; answers appear as chat bubbles. */
 export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
@@ -15,10 +17,10 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
   const lang = useLang();
   const settings = useSettings();
   const [phase, setPhase] = useState<Phase>("idle");
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const msgs = useChat();
   const [typed, setTyped] = useState("");
   const end = useRef<HTMLDivElement>(null);
-  const say = (m: Msg) => setMsgs((x) => [...x, m]);
+  const say = (m: Msg) => void addChat({ ...m, at: Date.now() });
   useEffect(() => { end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [msgs, phase]);
   const rec = useRef<{ stop: () => void } | null>(null);
   const key = getGroqKey();
@@ -129,6 +131,7 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
           </div>
         ) : (
           <div className="space-y-2.5">
+            {msgs.length > 0 && <div className="flex justify-end"><button onClick={() => void clearChat()} className="flex items-center gap-1 text-[11px] text-faint hover:text-muted"><Trash2 size={11} /> {t("chatClear")}</button></div>}
             {msgs.map((m, i) => (
               <div key={i} className={cx("flex", m.me && "justify-end")}>
                 <div

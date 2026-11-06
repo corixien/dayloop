@@ -15,6 +15,8 @@ interface WidgetPlugin {
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
   finishOverlay(): Promise<void>;
   overlayPassThrough(): Promise<void>;
+  mediaSync(o: { title: string; playing: boolean; pos: number; dur: number; hasNext: boolean }): Promise<void>;
+  mediaClear(): Promise<void>;
   openApp(): Promise<void>;
   focusSync(o: object): Promise<void>;
   listSounds(): Promise<{ sounds: { title: string; uri: string; kind: string }[] }>;

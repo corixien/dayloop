@@ -55,7 +55,8 @@ const de = {
   unitMin: "Minuten", unitHour: "Stunden", unitDay: "Tage", apptHint: "Erscheint erst kurz vorher in der Todo-Liste, im Kalender steht er immer.", atEvent: "Zum Termin",
   cmdNewTask: "Neue Aufgabe", cmdNewDone: "Als erledigt eintragen", cmdNewEvent: "Neuer Termin", cmdCreate: "Erstellen", cmdTimer: "Fokus-Timer starten", cmdComplete: "Erledigen", cmdActions: "Aktionen", cmdHabit: "Gewohnheit abhaken", cmdHint: "Tippe eine Aufgabe, Seite oder Aktion – Enter führt aus.",
   mPlayErr: "Audio konnte nicht abgespielt werden.", mAudioMissing: "Die Datei ist noch nicht vom anderen Gerät hochgeladen. Öffne Dayloop dort einmal mit Internet.", mUploading: "Wird hochgeladen …",
-  cmdAdded: "Hinzugefügt", cmdFooter: "Enter ausführen · Strg+Enter erledigen · Esc schließen", cmdDoneHint: "Erledigt", cmdSubItems: "Unterpunkte",
+  cmdAdded: "Hinzugefügt", cmdFooter: "Enter ausführen · Tab Details (Notizen, Unterpunkte) · Strg+Enter erledigen", cmdDoneHint: "Erledigt", cmdSubItems: "Unterpunkte",
+  noEvents: "Keine kommenden Termine", chatClear: "Verlauf löschen", cmdDetails: "Details", cmdBack: "Zurück", cmdTitleHint: "Titel, z. B. „Referat morgen 15 Uhr“", cmdComposeHint: "Notizen und Unterpunkte (\"- \" macht eine Checkliste), Strg+Enter fügt hinzu",
   chatEmpty: "Sag oder schreib, was du erledigen willst: Aufgaben, Erledigtes, Termine, Habits, Timer.", you: "Du",
 } as const;
 
@@ -118,7 +119,8 @@ const en: Record<Key, string> = {
   unitMin: "minutes", unitHour: "hours", unitDay: "days", apptHint: "Shows up in the Todo list only shortly before; the calendar always shows it.", atEvent: "At the appointment",
   cmdNewTask: "New task", cmdNewDone: "Add as done", cmdNewEvent: "New appointment", cmdCreate: "Create", cmdTimer: "Start focus timer", cmdComplete: "Complete", cmdActions: "Actions", cmdHabit: "Tick habit", cmdHint: "Type a task, page or action – Enter runs it.",
   mPlayErr: "Audio could not be played.", mAudioMissing: "The file has not been uploaded from the other device yet. Open Dayloop there once while online.", mUploading: "Uploading …",
-  cmdAdded: "Added", cmdFooter: "Enter run · Ctrl+Enter complete · Esc close", cmdDoneHint: "Done", cmdSubItems: "sub-items",
+  cmdAdded: "Added", cmdFooter: "Enter run · Tab details (notes, sub-items) · Ctrl+Enter complete", cmdDoneHint: "Done", cmdSubItems: "sub-items",
+  noEvents: "No upcoming appointments", chatClear: "Clear history", cmdDetails: "Details", cmdBack: "Back", cmdTitleHint: "Title, e.g. \"Report tomorrow 3pm\"", cmdComposeHint: "Notes and sub-items (\"- \" makes a checklist), Ctrl+Enter adds",
   chatEmpty: "Say or type what you want done: tasks, finished things, appointments, habits, timer.", you: "You",
 };
 

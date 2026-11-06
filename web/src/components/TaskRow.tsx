@@ -121,7 +121,7 @@ export function TaskRow({
           className={cx(
             "relative touch-pan-y group flex min-h-12 cursor-default select-none items-start gap-3 border-b border-line/60 bg-bg px-4 py-2.5 md:min-h-10 md:px-6 md:py-2",
             urgent && "border-l-[5px] border-l-fg pl-[11px] md:pl-[19px]",
-            selected ? "!bg-accent-soft" : "md:hover:bg-hover",
+            selected ? "!bg-accent-soft ring-2 ring-inset ring-accent" : "md:hover:bg-hover",
           )}
         >
           <div className="pt-0.5">

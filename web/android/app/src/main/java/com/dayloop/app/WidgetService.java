@@ -54,7 +54,8 @@ public class WidgetService extends RemoteViewsService {
                 return h;
             }
 
-            boolean doneMode = WidgetStore.mode(ctx, widgetId) == 1;
+            int mode = WidgetStore.mode(ctx, widgetId);
+            boolean doneMode = mode == 1, eventMode = mode == 2;
             String id = r.optString("id");
             RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_row);
             v.setTextViewText(R.id.title, r.optString("title"));
@@ -73,9 +74,14 @@ public class WidgetService extends RemoteViewsService {
             v.setInt(R.id.ic_list, "setColorFilter", muted);
 
             int prio = r.optInt("prio", 0);
-            int tint = doneMode ? muted : prio == 3 ? 0xFFE5484D : prio == 2 ? 0xFFE5930B : prio == 1 ? 0xFF3E63DD : muted;
+            // same palette as the app: in grayscale the darker (light background) / lighter (dark background) the more important
+            boolean night = WidgetStore.night(ctx);
+            int tint = doneMode ? muted : prio == 3 ? (night ? 0xFFFF9A8A : 0xFFA8231A) : prio == 2 ? (night ? 0xFFE8901A : 0xFFC4620A) : prio == 1 ? (night ? 0xFF4A69D6 : 0xFF6D94F2) : muted;
             v.setImageViewResource(R.id.check, doneMode ? R.drawable.widget_check_on : R.drawable.widget_check_off);
             v.setInt(R.id.check, "setColorFilter", tint);
+            // appointments are only listed (tap opens them): no checkbox, the text moves left
+            v.setViewVisibility(R.id.check, eventMode ? android.view.View.GONE : android.view.View.VISIBLE);
+            if (eventMode) v.setViewPadding(R.id.body, Math.round(12 * ctx.getResources().getDisplayMetrics().density), Math.round(7 * ctx.getResources().getDisplayMetrics().density), Math.round(6 * ctx.getResources().getDisplayMetrics().density), Math.round(7 * ctx.getResources().getDisplayMetrics().density));
 
             int sent = doneMode ? r.optInt("s", 0) : 0;
             v.setViewVisibility(R.id.send, sent > 0 ? android.view.View.VISIBLE : android.view.View.GONE);

@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Flame, ListChecks } from "lucide-react";
+import { Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Flame, ListChecks } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { local, useItems, useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, addMonths, fmtDate, fmtLong, fmtMonth, monthGrid, parseDate, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
@@ -29,6 +29,8 @@ interface Ev {
 const HOUR = 48;
 const CHIP_H = 24;
 const TIMING_COLOR: Record<Timing, string> = { early: "#30a46c", on: "var(--accent)", late: "#e5930b", none: "var(--faint)" };
+/** shape per timing so the color coding also reads in grayscale: early = two ticks, on the day = one tick, late = clock */
+const TIMING_ICON = { early: CheckCheck, on: Check, late: Clock, none: Check } as const;
 const timingOf = (due: string | null, day: string): Timing => (!due ? "none" : day < due ? "early" : day === due ? "on" : "late");
 const prioColor = (p: number) => (p === 3 ? "var(--color-p3)" : p === 2 ? "var(--color-p2)" : p === 1 ? "var(--color-p1)" : "var(--accent)");
 const minuteOf = (ms: number) => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); };
@@ -37,16 +39,16 @@ const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const evColor = (ev: Ev) => (ev.habit ? colorOf(ev.habit.color) : ev.timing ? TIMING_COLOR[ev.timing] : prioColor(ev.task!.priority));
 const evTitle = (ev: Ev) => (ev.habit ? ev.habit.name : ev.sub ? `${ev.sub} · ${ev.task!.title}` : ev.task!.title);
 
-function Chip({ ev, onSelect, selected, inert }: { ev: Ev; onSelect: (id: string) => void; selected: boolean; inert?: boolean }) {
+function Chip({ ev, onSelect, selected, inert }: { ev: Ev; onSelect: (id: string, sub?: string) => void; selected: boolean; inert?: boolean }) {
   const c = evColor(ev);
   const finished = !!ev.timing || !!ev.habit;
-  const Icon = ev.habit ? Flame : ev.sub ? ListChecks : Check;
+  const Icon = ev.habit ? Flame : ev.sub ? ListChecks : TIMING_ICON[ev.timing ?? "on"];
   return (
     <button
       draggable={!inert && !!ev.task && !ev.task.done && !ev.sub}
       onDragStart={(e) => ev.task && e.dataTransfer.setData("text/task", ev.task.id)}
-      onClick={(e) => { e.stopPropagation(); if (ev.task) onSelect(ev.task.id); }}
-      className={cx("flex h-full w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-1 ring-accent" : "", inert && "pointer-events-none")}
+      onClick={(e) => { e.stopPropagation(); if (ev.task) onSelect(ev.task.id, ev.sub); }}
+      className={cx("flex h-full w-full items-center gap-1 truncate rounded px-1.5 py-px text-left text-[11px] leading-5", selected ? "ring-2 ring-accent" : "", inert && "pointer-events-none")}
       title={evTitle(ev)}
       style={{ background: `color-mix(in srgb, ${c} 15%, transparent)`, color: "var(--fg)", borderLeft: `2px solid ${c}` }}
     >
@@ -67,7 +69,7 @@ interface BodyProps {
   habits: { id: string; name: string; color: string; target: number; archived: boolean }[];
   logs: Map<string, Map<string, number>>;
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, sub?: string) => void;
   onZoom: (to: Mode, date: string, el: HTMLElement) => void;
   onCreate: (c: { date: string; time: string | null }) => void;
 }
@@ -259,7 +261,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
 
 interface Zoom { to: Mode; anchor: string; dir: "in" | "out"; ox: number; oy: number }
 
-export function Calendar({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+export function Calendar({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string, sub?: string) => void }) {
   const t = useT();
   const lang = useLang();
   const now = useNow();
@@ -486,9 +488,10 @@ function Legend() {
   const items: [Timing, string][] = [["early", t("calEarly")], ["on", t("calOn")], ["late", t("calLate")], ["none", t("calNoDue")]];
   return (
     <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-0.5 text-[10px] text-muted">
-      {items.map(([k, label]) => (
-        <span key={k} className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ background: TIMING_COLOR[k] }} />{label}</span>
-      ))}
+      {items.map(([k, label]) => {
+        const Icon = TIMING_ICON[k];
+        return <span key={k} className="inline-flex items-center gap-1"><Icon size={11} strokeWidth={2.6} style={{ color: TIMING_COLOR[k] }} />{label}</span>;
+      })}
     </div>
   );
 }

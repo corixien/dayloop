@@ -49,28 +49,38 @@ export function Pomodoro() {
   const names = weekdayNames(settings.language, 1);
   const linked = tasks.find((x) => x.id === state.taskId);
 
+  // Portrait (phone, tall window): one column. Landscape (desktop, phone on its side): the ring on the left, everything else
+  // in a column on the right. The ring is sized from the viewport so neither axis overflows; the time scales with the ring.
+  const side = "landscape:col-start-2 landscape:w-full";
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title={t("pomodoro")} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-6 px-4 py-8 md:grid md:max-w-6xl md:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] md:items-start md:gap-x-16 md:px-10 md:py-12">
-          <div className="flex min-w-0 flex-col items-center gap-6 md:gap-8">
-          <Segmented<Phase | "custom">
-            value={state.custom ? "custom" : state.phase}
-            onChange={(p) => { if (state.status !== "idle") return; if (p === "custom") setCustomOpen(true); else pomo.setPhase(p); }}
-            options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }, { value: "custom", label: state.custom ? `${Math.round(state.plannedSec / 60)} ${t("minutesShort")}` : t("custom") }]}
-          />
-          <div className="relative grid size-[280px] place-items-center md:size-[clamp(340px,56vh,560px)]" role="timer" aria-label={label}>
-            <svg viewBox="0 0 280 280" className="absolute inset-0 -rotate-90">
+      <div className="min-h-0 flex-1 overflow-y-auto [container-type:size]">
+        <div className="mx-auto flex min-h-full w-full max-w-md portrait:sm:max-w-2xl flex-col items-center gap-5 px-4 py-6 portrait:justify-center landscape:grid landscape:max-w-6xl landscape:grid-cols-[minmax(0,1fr)_clamp(240px,38%,400px)] landscape:content-center landscape:items-center landscape:gap-x-[clamp(1.5rem,5vw,5rem)] landscape:gap-y-4 landscape:px-[clamp(1rem,4vw,3rem)] landscape:py-4">
+          <div className={cx(side, "flex justify-center landscape:[&>div]:w-full landscape:[&>div>button]:flex-1 landscape:[&>div>button]:px-1")}>
+            <Segmented<Phase | "custom">
+              value={state.custom ? "custom" : state.phase}
+              onChange={(p) => { if (state.status !== "idle") return; if (p === "custom") setCustomOpen(true); else pomo.setPhase(p); }}
+              options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }, { value: "custom", label: state.custom ? `${Math.round(state.plannedSec / 60)} ${t("minutesShort")}` : t("custom") }]}
+            />
+          </div>
+          <div className="flex w-full min-w-0 justify-center [container-type:inline-size] landscape:col-start-1 landscape:row-span-6 landscape:row-start-1">
+          <div
+            className="relative grid aspect-square w-[min(80cqw,56cqh,560px)] shrink-0 place-items-center [container-type:size] landscape:w-[min(100cqw,calc(100cqh-2rem),620px)]"
+            role="timer"
+            aria-label={label}
+          >
+            <svg viewBox="0 0 280 280" className="absolute inset-0 size-full -rotate-90">
               <circle cx="140" cy="140" r={R} fill="none" stroke="var(--line)" strokeWidth="6" />
               <circle cx="140" cy="140" r={R} fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} style={{ transition: "stroke-dashoffset 250ms linear" }} />
             </svg>
             <div className="text-center">
-              <div className="text-[56px] font-semibold leading-none tracking-tight tabular-nums md:text-[clamp(72px,12vh,128px)]">{fmtClock(left)}</div>
-              <div className="mt-2 text-sm text-muted md:text-base">{label}{state.round > 0 && state.phase === "work" ? ` · ${state.round}` : ""}</div>
+              <div className="text-[19cqw] font-semibold leading-none tracking-tight tabular-nums">{fmtClock(left)}</div>
+              <div className="mt-[3cqw] text-[5cqw] text-muted">{label}{state.round > 0 && state.phase === "work" ? ` · ${state.round}` : ""}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          </div>
+          <div className={cx(side, "flex items-center justify-center gap-2")}>
             <Button className="size-10 px-0" onClick={() => pomo.reset()} aria-label={t("reset")} title={t("reset")}><RotateCcw size={16} /></Button>
             {state.status === "running" ? (
               <Button variant="primary" className="h-10 px-6" onClick={() => pomo.pause()}><Pause size={16} /> {t("pause")}</Button>
@@ -78,23 +88,20 @@ export function Pomodoro() {
               <Button variant="primary" className="h-10 px-6" onClick={() => pomo.start()}><Play size={16} /> {state.status === "paused" ? t("resume") : t("start")}</Button>
             )}
             <Button className="size-10 px-0" onClick={() => pomo.skip()} aria-label={t("skip")} title={t("skip")}><SkipForward size={16} /></Button>
+            {state.status === "running" && (
+              <Button className="h-10 gap-2 px-3" onClick={() => { location.hash = "#/zen"; }} aria-label={t("zen")} title={t("zen")}><Moon size={15} /><span className="max-sm:hidden"> {t("zen")}</span></Button>
+            )}
           </div>
-          {state.status === "running" && (
-            <Button className="h-9 gap-2 px-4" onClick={() => { location.hash = "#/zen"; }}><Moon size={15} /> {t("zen")}</Button>
-          )}
-          </div>
-          <div className="flex w-full min-w-0 flex-col items-center gap-6 md:gap-8 md:pt-6">
-          <div className="w-full max-w-xs md:max-w-none">
+          <div className={cx(side, "w-full max-w-xs landscape:max-w-none")}>
             <Select
               label={t("noTaskLinked")}
               value={state.taskId ?? ""}
               options={[{ value: "", label: t("noTaskLinked") }, ...tasks.map((x) => ({ value: x.id, label: x.title }))]}
               onChange={(v) => pomo.setTask(v || null)}
             />
+            {linked && <p className="mt-1.5 text-center text-xs text-muted">{stats.byTask.get(linked.id) ?? 0} {t("sessions")}</p>}
           </div>
-          {linked && <p className="-mt-3 text-xs text-muted">{stats.byTask.get(linked.id) ?? 0} {t("sessions")}</p>}
-
-          <div className="grid w-full grid-cols-2 gap-2 text-center">
+          <div className={cx(side, "grid w-full grid-cols-2 gap-2 text-center")}>
             <div className="rounded-lg border border-line bg-sub py-3">
               <div className="text-xl font-semibold tabular-nums">{stats.count}</div>
               <div className="text-[11px] text-muted">{t("sessionsToday")}</div>
@@ -104,7 +111,7 @@ export function Pomodoro() {
               <div className="text-[11px] text-muted">{t("focusToday")}</div>
             </div>
           </div>
-          <div className="w-full">
+          <div className={cx(side, "w-full [@media(max-height:520px)]:landscape:hidden")}>
             <div className="mb-2 text-xs font-medium text-muted">{t("focusWeek")}</div>
             <div className="flex h-24 items-end gap-2">
               {days.map((d) => {
@@ -117,7 +124,6 @@ export function Pomodoro() {
                 );
               })}
             </div>
-          </div>
           </div>
         </div>
       </div>

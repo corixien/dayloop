@@ -573,3 +573,99 @@ test("motivation audio: list renders, the global player bar stays across pages",
   await page.goto("/#/todo");
   await expect(page.getByRole("region", { name: "stille" })).toBeVisible();
 });
+
+test("mobile drawers: right edge opens the assistant chat (history kept), pulling the menu further opens the search", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: "de-DE" });
+  await ctx.addInitScript(() => localStorage.setItem("dl_groq", "gsk_test"));
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await page.waitForTimeout(600);
+  await swipe(page, [386, 400], [100, 405]);
+  const box = page.getByRole("textbox", { name: "Oder schreib es hier …" });
+  await expect(box).toBeVisible();
+  // the request to Groq fails in the test: question and error stay in the history
+  await box.fill("Hallo Assistent");
+  await box.press("Enter");
+  await expect(page.getByText("Hallo Assistent")).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.reload();
+  await page.waitForTimeout(600);
+  await swipe(page, [386, 400], [100, 405]);
+  await expect(page.getByText("Hallo Assistent")).toBeVisible();
+  await swipe(page, [100, 400], [380, 405]);
+  await page.waitForTimeout(500);
+  // menu from the left edge, then a bit further: search opens, the menu goes back
+  await swipe(page, [4, 400], [370, 405]);
+  await expect(page.getByRole("dialog", { name: /Suchen/ })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Navigation" });
+  await expect.poll(async () => { const b = (await nav.boundingBox())!; return Math.round(b.x + b.width); }).toBeLessThanOrEqual(2);
+});
+
+test("search bar details: notes and checklist go into the new task; bold and italic render", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await page.keyboard.press("Control+k");
+  const box = page.getByRole("dialog", { name: /Suchen/ }).getByRole("textbox");
+  await box.fill("Steuer morgen");
+  await box.press("Tab");
+  const detail = page.getByRole("dialog", { name: "Details" });
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole("textbox", { name: "Titel" })).toHaveValue("Steuer morgen");
+  await detail.getByRole("textbox", { name: "Notiz" }).first().click();
+  await page.keyboard.type("Belege sammeln");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("- Formular ausfüllen");
+  await page.keyboard.press("Control+Enter");
+  await expect(page.getByRole("status").filter({ hasText: "Hinzugefügt" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /Steuer/ }).first().click();
+  await expect(page.getByRole("checkbox", { name: "Formular ausfüllen" })).toBeVisible();
+  // bold: select the first note line, Ctrl+B
+  const first = page.getByRole("textbox", { name: "Notiz" }).first();
+  await first.click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("Control+b");
+  await expect(first).toHaveValue(/\*\*Belege sammeln\*\*/);
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator("[data-notes] .font-bold")).toHaveText("Belege sammeln");
+});
+
+test("calendar: a ticked checklist item opens its task with the item pointed out", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Punktprobe heute");
+  await page.getByRole("button", { name: /Punktprobe/ }).first().click();
+  await page.getByRole("textbox", { name: "Notiz" }).click();
+  await page.keyboard.type("- Teil X");
+  await page.getByRole("checkbox", { name: "Teil X" }).click();
+  await page.getByRole("textbox", { name: "Notiz" }).blur();
+  await page.goto("/#/calendar");
+  await page.reload();
+  await page.getByRole("button", { name: /Teil X/ }).first().click();
+  await expect(page.locator("[data-hl]")).toHaveCount(1);
+});
+
+test("focus page fits every orientation without horizontal overflow", async ({ browser }) => {
+  for (const [w, h, touch] of [[1400, 850, false], [800, 1200, false], [390, 844, true], [844, 390, true]] as const) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, locale: "de-DE" });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+    await page.goto("/#/pomodoro");
+    await page.waitForTimeout(500);
+    const ring = (await page.getByRole("timer").boundingBox())!;
+    const main = (await page.locator("main").boundingBox())!;
+    expect(ring.x).toBeGreaterThanOrEqual(main.x - 1);
+    expect(ring.x + ring.width).toBeLessThanOrEqual(main.x + main.width + 1);
+    expect(ring.y + ring.height).toBeLessThanOrEqual(h + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w);
+    await ctx.close();
+  }
+});

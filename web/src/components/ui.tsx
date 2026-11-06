@@ -57,8 +57,9 @@ export function Field({ label, children, className, group }: { label: string; ch
 }
 
 /** Round checkbox colored by priority. */
-export function Check_({ done, priority = 0, onChange, label, size = 18, color }: { done: boolean; priority?: number; onChange: () => void; label: string; size?: number; color?: string }) {
-  const col = color ?? (priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)");
+export function Check_({ done, priority = 0, onChange, label, size = 18, color, emphasis }: { done: boolean; priority?: number; onChange: () => void; label: string; size?: number; color?: string; emphasis?: boolean }) {
+  // emphasis (the item that was opened from the calendar): accent color, thick ring and an outer ring, readable in grayscale too
+  const col = emphasis ? "var(--accent)" : color ?? (priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)");
   return (
     <button
       role="checkbox"
@@ -70,7 +71,7 @@ export function Check_({ done, priority = 0, onChange, label, size = 18, color }
       }}
       className="grid shrink-0 place-items-center rounded-full transition-colors"
       // ring gets thicker with priority, so the level is readable without color
-      style={{ width: size, height: size, border: `${[1.5, 1.5, 2.5, 3.5][priority] ?? 1.5}px solid ${col}`, background: done ? col : "transparent" }}
+      style={{ width: size, height: size, border: `${emphasis ? 3.5 : [1.5, 1.5, 2.5, 3.5][priority] ?? 1.5}px solid ${col}`, background: done ? col : "transparent", ...(emphasis ? { boxShadow: "0 0 0 2px var(--bg), 0 0 0 4px var(--accent)" } : {}) }}
     >
       {done && <Check size={Math.round(size * 0.62)} strokeWidth={3} className="text-white" />}
     </button>
@@ -115,8 +116,8 @@ export function Segmented<T extends string | number>({
           key={String(o.value)}
           onClick={() => onChange(o.value)}
           className={cx(
-            "h-7 rounded-[5px] px-2.5 text-xs font-medium transition-colors",
-            o.value === value ? "bg-raise text-fg shadow-sm" : "text-muted hover:text-fg",
+            "h-7 whitespace-nowrap rounded-[5px] px-2.5 text-xs font-medium transition-colors",
+            o.value === value ? "bg-raise font-semibold text-fg shadow-sm ring-1 ring-line" : "text-muted hover:text-fg",
           )}
           style={o.value === value && o.color ? { color: o.color } : undefined}
         >
