@@ -161,7 +161,10 @@ export default function App() {
       )}
 
       <main className="relative flex min-w-0 flex-1 flex-col safe-top">
-        <div key={page} className="anim-fade-up min-h-0 flex-1">{main}</div>
+        <div key={page} className="anim-fade-up min-h-0 flex-1" onClick={hasDetail && !mobile ? (e) => {
+          // click on empty space (not a row, button, field or the calendar grid) closes the side detail
+          if (!(e.target as HTMLElement).closest("button,a,input,textarea,select,label,[role=button],[role=dialog],[role=menu],[data-notes],[data-keep]") && !window.getSelection()?.toString()) select(null);
+        } : undefined}>{main}</div>
         <MiniPlayer />
         <nav className="grid shrink-0 grid-cols-6 border-t border-line bg-bg safe-bottom md:hidden" aria-label="Tabs">
           {tabs.map((x) => (

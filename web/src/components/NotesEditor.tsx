@@ -130,13 +130,6 @@ export function NotesEditor({
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onCommit(value); }}
       className="group relative min-h-16 space-y-0.5 rounded-ctl border border-line bg-raise p-2.5 text-[14px] focus-within:border-accent"
     >
-      <div className="absolute -top-8 right-0 z-10 hidden gap-1 group-focus-within:flex" aria-label="format">
-        {([["**", Bold, "B"], ["*", Italic, "I"]] as const).map(([m, Icon, k]) => (
-          <button key={m} type="button" tabIndex={-1} aria-label={m === "**" ? "Bold" : "Italic"} title={`${m === "**" ? "Bold" : "Italic"} (Ctrl+${k})`}
-            onMouseDown={(e) => e.preventDefault()} onClick={() => format(m)}
-            className="grid size-7 place-items-center rounded-md border border-line bg-raise text-muted hover:text-fg"><Icon size={14} strokeWidth={2.5} /></button>
-        ))}
-      </div>
       {lines.map((l, i) => (
         <div key={i} data-hl={highlight && l.check && stripMarks(l.text) === highlight ? "" : undefined} className={cx("flex items-start gap-2.5", highlight && l.check && stripMarks(l.text) === highlight && "-mx-1.5 rounded-md bg-accent-soft px-1.5 py-0.5")}>
           {l.check && (
@@ -227,6 +220,13 @@ export function NotesEditor({
           </div>
         </div>
       ))}
+      <div className="invisible flex justify-end gap-1 pt-0.5 group-focus-within:visible" aria-label="format">
+        {([["**", Bold, "B"], ["*", Italic, "I"]] as const).map(([m, Icon, k]) => (
+          <button key={m} type="button" tabIndex={-1} aria-label={m === "**" ? "Bold" : "Italic"} title={`${m === "**" ? "Bold" : "Italic"} (Ctrl+${k})`}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => format(m)}
+            className="grid size-7 place-items-center rounded-md border border-line bg-raise text-muted hover:text-fg"><Icon size={14} strokeWidth={2.5} /></button>
+        ))}
+      </div>
     </div>
   );
 }

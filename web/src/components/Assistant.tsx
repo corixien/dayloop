@@ -153,7 +153,7 @@ export function AssistantPanel({ autoStart }: { autoStart?: boolean }) {
           </div>
         )}
       </div>
-      <form className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-3 safe-bottom" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <form className="flex shrink-0 items-center gap-2 border-t border-line px-3 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <input className={cx(inputCls, "h-11 rounded-full px-4")} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("aType")} aria-label={t("aType")} />
         {typed.trim() ? (
           <button type="submit" disabled={phase !== "idle"} aria-label={t("add")} className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 dark:text-[#101012]"><Send size={17} /></button>

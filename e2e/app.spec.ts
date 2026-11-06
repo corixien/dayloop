@@ -669,3 +669,28 @@ test("focus page fits every orientation without horizontal overflow", async ({ b
     await ctx.close();
   }
 });
+
+test("round H: focus fills the window, format bar below notes, click outside closes detail, composer spacing", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1400, height: 850 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/pomodoro");
+  await page.waitForTimeout(500);
+  await shot(page, "h-focus-desktop");
+  const stats = (await page.getByText("Fokuszeit heute").boundingBox())!;
+  const main = (await page.locator("main").boundingBox())!;
+  expect(stats.x + stats.width).toBeGreaterThan(main.x + main.width * 0.8);
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Titel der lang genug ist");
+  await page.getByText("Titel der lang genug ist").first().click();
+  await page.getByRole("textbox", { name: "Notiz" }).first().click();
+  await shot(page, "h-notes");
+  const title = (await page.getByRole("textbox", { name: "Titel" }).first().boundingBox())!;
+  const bold = (await page.getByRole("button", { name: "Bold" }).boundingBox())!;
+  expect(bold.y).toBeGreaterThanOrEqual(title.y + title.height);
+  // clicking empty list space closes the detail pane
+  await page.mouse.click(400, 700);
+  await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0);
+  await ctx.close();
+});

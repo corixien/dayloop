@@ -56,7 +56,7 @@ export function Pomodoro() {
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title={t("pomodoro")} />
       <div className="min-h-0 flex-1 overflow-y-auto [container-type:size]">
-        <div className="mx-auto flex min-h-full w-full max-w-md portrait:sm:max-w-2xl flex-col items-center gap-5 px-4 py-6 portrait:justify-center landscape:grid landscape:max-w-6xl landscape:grid-cols-[minmax(0,1fr)_clamp(240px,38%,400px)] landscape:content-center landscape:items-center landscape:gap-x-[clamp(1.5rem,5vw,5rem)] landscape:gap-y-4 landscape:px-[clamp(1rem,4vw,3rem)] landscape:py-4">
+        <div className="mx-auto flex min-h-full w-full max-w-md portrait:sm:max-w-3xl flex-col items-center gap-5 px-4 py-6 portrait:justify-center landscape:grid landscape:max-w-none landscape:grid-cols-2 landscape:content-center [@media(min-height:521px)]:landscape:grid-rows-[repeat(4,auto)_minmax(7rem,18rem)] landscape:items-center landscape:gap-x-[clamp(1.5rem,4vw,4rem)] landscape:gap-y-3 [@media(min-height:521px)]:landscape:gap-y-5 landscape:px-[clamp(1rem,3vw,3rem)] landscape:py-4">
           <div className={cx(side, "flex justify-center landscape:[&>div]:w-full landscape:[&>div>button]:flex-1 landscape:[&>div>button]:px-1")}>
             <Segmented<Phase | "custom">
               value={state.custom ? "custom" : state.phase}
@@ -64,9 +64,9 @@ export function Pomodoro() {
               options={[{ value: "work", label: t("focus") }, { value: "break", label: t("shortBreak") }, { value: "long", label: t("longBreak") }, { value: "custom", label: state.custom ? `${Math.round(state.plannedSec / 60)} ${t("minutesShort")}` : t("custom") }]}
             />
           </div>
-          <div className="flex w-full min-w-0 justify-center [container-type:inline-size] landscape:col-start-1 landscape:row-span-6 landscape:row-start-1">
+          <div className="flex w-full min-w-0 justify-center [container-type:inline-size] landscape:col-start-1 landscape:row-span-5 landscape:row-start-1">
           <div
-            className="relative grid aspect-square w-[min(80cqw,56cqh,560px)] shrink-0 place-items-center [container-type:size] landscape:w-[min(100cqw,calc(100cqh-2rem),620px)]"
+            className="relative grid aspect-square w-[min(80cqw,56cqh,560px)] shrink-0 place-items-center [container-type:size] landscape:w-[min(100cqw,calc(100cqh-2rem))]"
             role="timer"
             aria-label={label}
           >
@@ -103,17 +103,17 @@ export function Pomodoro() {
           </div>
           <div className={cx(side, "grid w-full grid-cols-2 gap-2 text-center")}>
             <div className="rounded-lg border border-line bg-sub py-3">
-              <div className="text-xl font-semibold tabular-nums">{stats.count}</div>
+              <div className="text-xl font-semibold tabular-nums landscape:text-2xl">{stats.count}</div>
               <div className="text-[11px] text-muted">{t("sessionsToday")}</div>
             </div>
             <div className="rounded-lg border border-line bg-sub py-3">
-              <div className="text-xl font-semibold tabular-nums">{Math.round(stats.byDay.get(today) ?? 0)} <span className="text-xs font-normal text-muted">{t("minutesShort")}</span></div>
+              <div className="text-xl font-semibold tabular-nums landscape:text-2xl">{Math.round(stats.byDay.get(today) ?? 0)} <span className="text-xs font-normal text-muted">{t("minutesShort")}</span></div>
               <div className="text-[11px] text-muted">{t("focusToday")}</div>
             </div>
           </div>
-          <div className={cx(side, "w-full [@media(max-height:520px)]:landscape:hidden")}>
+          <div className={cx(side, "flex w-full flex-col landscape:h-full landscape:min-h-24 [@media(max-height:520px)]:landscape:hidden")}>
             <div className="mb-2 text-xs font-medium text-muted">{t("focusWeek")}</div>
-            <div className="flex h-24 items-end gap-2">
+            <div className="flex h-24 items-end gap-2 landscape:h-auto landscape:min-h-0 landscape:flex-1">
               {days.map((d) => {
                 const m = stats.byDay.get(d) ?? 0;
                 return (

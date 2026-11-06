@@ -88,3 +88,9 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Android audio: `MediaService` (foreground service type mediaPlayback) shows the system media notification / lock-screen controls for the web player (`lib/player.ts` -> plugin `mediaSync`/`mediaClear`; button presses return as `mediaAction` events). Tracks can have a `next` (audio list, episode list): auto-advance and a next button.
 - Widget calendar tab (mode 2): `snapshot.events` = upcoming appointments grouped by day (next occurrence of repeating ones, up to 2 years); "+" there opens `/overlay/new/event`.
 - Focus page layout: portrait = one column; landscape = ring left (sized from its grid cell with container query units), controls and stats right.
+
+## Additions 2026-11-06 (round H)
+- Notes editor: B/I bar sits inside the box below the lines (reserved, visible on focus), never over the title.
+- Focus landscape: two equal columns, right column fills its half (weekly chart row `minmax(7rem,18rem)`, hidden when height <= 520px).
+- Desktop: clicking empty space in the main area closes the side detail (`App.tsx`; buttons, rows, inputs, `[data-keep]` excluded).
+- Sidebar active item has no inset bar (soft background + bold only). Assistant composer keeps 1.25rem bottom padding.
