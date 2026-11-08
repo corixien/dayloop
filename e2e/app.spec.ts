@@ -378,6 +378,9 @@ test("pinch goes in and out in one gesture, week tasks are not tappable", async 
   await move([50, 80]);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect.poll(() => page.locator("[data-date]").count(), { timeout: 4000 }).toBeLessThan(20);
+  // the pinch dives into the day between the fingers (not necessarily today): go to today's week
+  await page.getByRole("button", { name: "Heute" }).click();
+  await page.waitForTimeout(500);
   const today = new Date(); const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   await expect(page.locator(`[data-date="${iso}"]`).first()).toBeVisible();
   // week view: a task chip does not open the task; the weekday header zooms into the day
@@ -750,4 +753,51 @@ test("plan page: blocks on a day axis, default start, overlap, day navigation, s
   expect(await mp.locator("div.capitalize").first().innerText()).not.toBe(before);
   await shot(mp, "plan-mobile");
   await m.close();
+});
+
+test("round I: notes survive closing at once, priority ignores taps beside it, habits sit at their time, zoom is continuous", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Notiztest");
+  const open = async () => { await page.getByText("Notiztest").first().click(); await page.waitForTimeout(500); };
+  await open();
+  await page.getByRole("textbox", { name: "Notiz" }).first().fill("geänderte Notiz");
+  await page.getByRole("textbox", { name: "Titel" }).first().fill("Notiztest 2"); // two fields edited, then closed immediately
+  await page.getByRole("button", { name: "Schließen" }).click();
+  await page.waitForTimeout(600);
+  await page.getByText("Notiztest 2").first().click();
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("textbox", { name: "Notiz" }).first()).toHaveValue(/geänderte Notiz/);
+  // priority: choose high, then a tap that began beside the control must not change it
+  await page.getByRole("button", { name: "Hoch" }).click();
+  await page.evaluate(() => {
+    const label = [...document.querySelectorAll("span")].find((s) => s.textContent === "Priorität")!;
+    label.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [], changedTouches: [] }));
+    (document.querySelector('button[class*="flex-1"]') as HTMLButtonElement).click();
+  });
+  await page.waitForTimeout(300);
+  await expect(page.getByRole("button", { name: "Hoch" })).toHaveClass(/font-semibold/);
+  await page.getByRole("button", { name: "Schließen" }).click();
+
+  // habit ticked now sits in the calendar grid at its time
+  await page.goto("/#/habits");
+  await page.getByRole("button", { name: "Neue Gewohnheit" }).click();
+  await page.getByRole("textbox").first().fill("Lesen");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.getByRole("checkbox", { name: "Lesen" }).click();
+  await page.waitForTimeout(500);
+  await page.goto("/#/calendar");
+  await page.waitForTimeout(600);
+  await expect(page.locator(".overflow-y-auto").getByRole("button", { name: /Lesen/ })).toBeVisible();
+  // tapping a month cell zooms continuously: half way, both frames are on screen and nothing is cut off
+  await page.getByRole("button", { name: "Monat" }).first().click();
+  await page.waitForTimeout(700);
+  await page.locator("[data-date]").nth(15).click();
+  await page.waitForTimeout(140);
+  expect(await page.locator("[data-date]").count()).toBeGreaterThan(30); // month and week frame at the same time
+  await shot(page, "zoom-mid");
+  await ctx.close();
 });

@@ -106,17 +106,27 @@ export function Dialog({ title, onClose, children, wide, titleClass }: { title: 
   );
 }
 
+/** Touch browsers retarget a tap near a small control to its nearest button: remember where the finger really went down. */
+let lastTouch: { el: EventTarget | null; t: number } = { el: null, t: -1e9 };
+if (typeof window !== "undefined") window.addEventListener("touchstart", (e) => { lastTouch = { el: e.target, t: e.timeStamp }; }, { capture: true, passive: true });
+
 export function Segmented<T extends string | number>({
-  value, options, onChange,
-}: { value: T; options: { value: T; label: string; color?: string }[]; onChange: (v: T) => void }) {
+  value, options, onChange, full,
+}: { value: T; options: { value: T; label: string; color?: string }[]; onChange: (v: T) => void; full?: boolean }) {
   return (
-    <div className="inline-flex rounded-ctl border border-line bg-sub p-0.5">
+    <div className={cx("rounded-ctl border border-line bg-sub p-0.5", full ? "flex w-full" : "inline-flex")}>
       {options.map((o) => (
         <button
           key={String(o.value)}
-          onClick={() => onChange(o.value)}
+          type="button"
+          onClick={(e) => {
+            // a tap that started beside this button (not on it) is not a choice
+            if (lastTouch.el && e.timeStamp - lastTouch.t < 800 && !e.currentTarget.contains(lastTouch.el as Node)) return;
+            onChange(o.value);
+          }}
           className={cx(
-            "h-7 whitespace-nowrap rounded-[5px] px-2.5 text-xs font-medium transition-colors",
+            "h-8 whitespace-nowrap rounded-[5px] px-2.5 text-xs font-medium transition-colors",
+            full && "flex-1 px-1",
             o.value === value ? "bg-raise font-semibold text-fg shadow-sm ring-1 ring-line" : "text-muted hover:text-fg",
           )}
           style={o.value === value && o.color ? { color: o.color } : undefined}
