@@ -136,5 +136,5 @@ function PlanOverlay({ id }: { id?: string }) {
       setInit({ date, start, end: defaultEnd(start) });
     })();
   }, [id]);
-  return init ? <PlanEditor bare init={init} onClose={() => void closeOverlay()} /> : null;
+  return init ? <PlanEditor bare init={init} onClose={() => void closeOverlay()} onFocus={(min) => void openInApp("/pomodoro", undefined, min)} /> : null;
 }

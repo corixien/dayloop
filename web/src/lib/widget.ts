@@ -129,8 +129,8 @@ export async function closeOverlay() {
 const OPEN_KEY = "dl_open";
 
 /** From the overlay: hand a route (and optionally a task to focus) to the main app, bring it up, close the overlay. */
-export async function openInApp(route: string, focusTaskId?: string) {
-  localStorage.setItem(OPEN_KEY, JSON.stringify({ route, focusTaskId }));
+export async function openInApp(route: string, focusTaskId?: string, focusMin?: number) {
+  localStorage.setItem(OPEN_KEY, JSON.stringify({ route, focusTaskId, focusMin }));
   try {
     await widgetPlugin().openApp();
   } catch {
@@ -139,7 +139,7 @@ export async function openInApp(route: string, focusTaskId?: string) {
 }
 
 /** Main app: apply what the overlay asked for. Returns the route to go to, if any. */
-export function takeOpenRequest(): { route: string; focusTaskId?: string } | null {
+export function takeOpenRequest(): { route: string; focusTaskId?: string; focusMin?: number } | null {
   const raw = localStorage.getItem(OPEN_KEY);
   if (!raw) return null;
   localStorage.removeItem(OPEN_KEY);

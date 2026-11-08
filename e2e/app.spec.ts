@@ -751,3 +751,27 @@ test("plan page: blocks on a day axis, default start, overlap, day navigation, s
   await shot(mp, "plan-mobile");
   await m.close();
 });
+
+test("plan editor autosaves and play starts a focus round of the block length", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: "Neuer Block" }).click();
+  await page.locator("[data-plantitle]").fill("Mathe");
+  await page.getByRole("button", { name: "15 Min." }).click();
+  await page.getByRole("button", { name: "Hinzufügen" }).click();
+  await page.getByRole("button", { name: /Mathe/ }).click();
+  await expect(page.getByRole("button", { name: "Speichern" })).toHaveCount(0);
+  await page.locator("[data-plantitle]").fill("Mathe 2");
+  await page.getByRole("button", { name: "Schließen" }).click();
+  await expect(page.getByRole("button", { name: /Mathe 2/ })).toBeVisible();
+  await page.getByRole("button", { name: /Mathe 2/ }).click();
+  await page.getByRole("button", { name: /Fokus/ }).click();
+  await expect(page).toHaveURL(/#\/pomodoro/);
+  const s = await page.evaluate(() => JSON.parse(localStorage.getItem("dl_pomo")!));
+  expect(s.custom).toBe(true);
+  expect(s.plannedSec).toBe(900);
+  expect(s.status).toBe("running");
+});

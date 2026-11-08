@@ -97,6 +97,7 @@ export default function App() {
       const r = takeOpenRequest();
       if (!r) return;
       if (r.focusTaskId) pomo.focusTask(r.focusTaskId);
+      else if (r.focusMin) pomo.focusBlock(r.focusMin);
       go(r.route);
     };
     apply();

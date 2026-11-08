@@ -1,25 +1,39 @@
-import { Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Play, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { local, useIsMobile, useT } from "../lib/app";
 import { savePlan, deletePlan } from "../lib/plan";
 import { checkRange, defaultEnd, fromMin, toMin } from "../lib/planLogic";
+import { pomo } from "../lib/pomoStore";
 import { NotesEditor } from "./NotesEditor";
 import { Sheet } from "./Sheet";
-import { Button, Dialog, Field, cx, inputCls } from "./ui";
+import { Button, IconButton, Field, cx, inputCls } from "./ui";
 
 export interface PlanInit { id?: string; date: string; start: string; end: string }
 
-/** New or existing plan block: sheet on phones (and in the widget overlay), dialog on desktop. */
-export function PlanEditor({ init, onClose, bare }: { init: PlanInit; onClose: () => void; bare?: boolean }) {
+/** Default for "play": a focus round as long as the block (custom when shorter than a normal round). */
+const focusHere = (min: number) => { pomo.focusBlock(min); location.hash = "/pomodoro"; };
+
+/** New or existing plan block: sheet on phones (and in the widget overlay), centered panel on desktop. */
+export function PlanEditor({ init, onClose, bare, onFocus = focusHere }: { init: PlanInit; onClose: () => void; bare?: boolean; onFocus?: (min: number) => void }) {
   const mobile = useIsMobile();
-  const t = useT();
-  if (bare || mobile) return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form init={init} close={close} />}</Sheet>;
-  return <Dialog title={init.id ? t("planEdit") : t("planNew")} onClose={onClose} wide><Form init={init} close={onClose} inDialog /></Dialog>;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  if (bare || mobile) return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form init={init} close={close} onFocus={onFocus} />}</Sheet>;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div role="dialog" className="pop flex max-h-[90dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-line bg-raise shadow-xl">
+        <Form init={init} close={onClose} onFocus={onFocus} inDialog />
+      </div>
+    </div>
+  );
 }
 
 const DURATIONS = [15, 30, 60, 90, 120];
 
-function Form({ init, close, inDialog }: { init: PlanInit; close: () => void; inDialog?: boolean }) {
+function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () => void; onFocus: (min: number) => void; inDialog?: boolean }) {
   const t = useT();
   const editing = !!init.id;
   const [title, setTitle] = useState("");
@@ -35,16 +49,37 @@ function Form({ init, close, inDialog }: { init: PlanInit; close: () => void; in
     let alive = true;
     void local.get("plan", init.id).then((x) => {
       if (!alive || !x) return;
+      saved.current = JSON.stringify([x.title, x.notes, x.date, x.start, x.end]);
       setTitle(x.title); setNotes(x.notes); setDate(x.date); setStart(x.start); setEnd(x.end); setLoaded(true);
     });
     return () => { alive = false; };
   }, [init.id]);
 
-  const save = async (n = notes) => {
-    if (!title.trim() || bad || !loaded) return;
-    await savePlan({ id: init.id, title: title.trim(), notes: n, date, start, end });
+  // Existing blocks save every change by themselves: debounced while typing, at once on blur, on close and on unmount.
+  const saved = useRef("");
+  const gone = useRef(false);
+  const latest = useRef({ title, notes, date, start, end, ok: false });
+  latest.current = { title, notes, date, start, end, ok: editing && loaded && !!title.trim() && !bad };
+  const flush = () => {
+    const c = latest.current;
+    if (!c.ok || gone.current) return;
+    const key = JSON.stringify([c.title.trim(), c.notes, c.date, c.start, c.end]);
+    if (key === saved.current) return;
+    saved.current = key;
+    void savePlan({ id: init.id, title: c.title.trim(), notes: c.notes, date: c.date, start: c.start, end: c.end });
   };
-  const submit = async () => { await save(); close(); };
+  useEffect(() => {
+    if (!editing) return;
+    const h = setTimeout(flush, 500);
+    return () => clearTimeout(h);
+  }, [title, notes, date, start, end]);
+  useEffect(() => () => flush(), []);
+
+  const add = async () => {
+    if (!title.trim() || bad) return;
+    await savePlan({ title: title.trim(), notes, date, start, end });
+    close();
+  };
   // Moving the start keeps the length
   const moveStart = (v: string) => {
     if (!checkRange(start, end) && /^\d\d:\d\d$/.test(v)) setEnd(fromMin(Math.min(toMin(v) + (toMin(end) - toMin(start)), 1439)));
@@ -54,23 +89,29 @@ function Form({ init, close, inDialog }: { init: PlanInit; close: () => void; in
 
   return (
     <div className={cx("flex min-h-0 flex-1 flex-col", !inDialog && "bg-bg")}>
-      {!inDialog && (
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
-          <h2 className="text-[15px] font-semibold">{editing ? t("planEdit") : t("planNew")}</h2>
-          <button onClick={close} className="text-[13px] text-muted">{t("cancel")}</button>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-line px-3">
+        <h2 className="pl-1 text-[15px] font-semibold">{editing ? t("planEdit") : t("planNew")}</h2>
+        <div className="flex items-center">
+          {editing && (
+            <>
+              <IconButton label={t("startFocus")} disabled={dur === null} onClick={() => { flush(); if (dur !== null) onFocus(dur); }}><Play size={16} /></IconButton>
+              <IconButton label={t("delete")} onClick={() => { gone.current = true; void deletePlan(init.id!); close(); }}><Trash2 size={16} /></IconButton>
+            </>
+          )}
+          <IconButton label={t("close")} onClick={() => { flush(); close(); }}><X size={16} /></IconButton>
         </div>
-      )}
-      <form onSubmit={(e) => { e.preventDefault(); void submit(); }} className={inDialog ? "space-y-4" : "min-h-0 flex-1 space-y-4 overflow-y-auto p-4"}>
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); if (!editing) void add(); }} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <input
           data-plantitle
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => { if (editing) void save(); }}
+          onBlur={flush}
           placeholder={t("planTitleHint")}
           aria-label={t("title")}
           className="w-full bg-transparent text-lg font-semibold outline-none placeholder:font-normal placeholder:text-faint"
         />
-        <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => { setNotes(v); if (editing) void save(v); }} placeholder={t("addNote")} label={t("note")} />
+        <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => { setNotes(v); latest.current.notes = v; flush(); }} placeholder={t("addNote")} label={t("note")} />
         <div className="grid grid-cols-3 gap-3">
           <Field label={t("planDate")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label={t("planStart")}><input type="time" className={inputCls} value={start} onChange={(e) => moveStart(e.target.value)} /></Field>
@@ -90,12 +131,7 @@ function Form({ init, close, inDialog }: { init: PlanInit; close: () => void; in
           </div>
           {bad === "order" && <p className="mt-1.5 text-[12px] text-danger">{t("planErrOrder")}</p>}
         </div>
-        <div className="flex gap-2">
-          {editing && (
-            <Button type="button" variant="danger" className="h-10 gap-1.5 px-3" aria-label={t("delete")} onClick={() => { void deletePlan(init.id!); close(); }}><Trash2 size={15} /></Button>
-          )}
-          <Button type="submit" variant="primary" disabled={!title.trim() || !!bad || !loaded} className="h-10 flex-1 text-[14px]">{editing ? t("planSave") : t("add")}</Button>
-        </div>
+        {!editing && <Button type="submit" variant="primary" disabled={!title.trim() || !!bad} className="h-10 w-full text-[14px]">{t("add")}</Button>}
       </form>
     </div>
   );

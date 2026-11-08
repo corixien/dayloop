@@ -97,6 +97,14 @@ export const pomo = {
   },
   setPhase(p: Phase) { if (state && cfg) set(initial(cfg, p, state.round, state.taskId)); },
   setTask(id: string | null) { if (state) set({ ...state, taskId: id }); },
+  /** start focusing for a plan block: a custom round of its length when shorter than a normal one */
+  focusBlock(min: number) {
+    if (!state || !cfg) return;
+    const base = initial(cfg, "work", state.round, null);
+    if (min >= cfg.workMin) return set(start(base, Date.now()));
+    const sec = Math.round(clampMin(min) * 60);
+    set(start({ ...base, plannedSec: sec, remainingMs: sec * 1000, custom: true }, Date.now()));
+  },
   focusTask(id: string) {
     if (!state || !cfg) return;
     set(start({ ...initial(cfg, "work", state.round, id) }, Date.now()));
