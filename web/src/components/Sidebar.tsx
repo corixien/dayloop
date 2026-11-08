@@ -42,10 +42,10 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
           <Item to="/todo" route={route} label={t("todoTab")} icon={<ListTodo size={sz} />} count={sortOpen(tasks, now.getTime(), hour).length} onNavigate={onNavigate} />
           <Item to="/done" route={route} label={t("haveDone")} icon={<CheckCheck size={sz} />} count={tasks.filter((x) => isDone(x) && doneDay(x) === today).length} onNavigate={onNavigate} />
           <Item to="/calendar" route={route} label={t("calendar")} icon={<Calendar size={sz} />} onNavigate={onNavigate} />
+          <Item to="/plan" route={route} label={t("plan")} icon={<CalendarClock size={sz} />} onNavigate={onNavigate} />
           <Item to="/habits" route={route} label={t("habits")} icon={<Flame size={sz} />} onNavigate={onNavigate} />
           <Item to="/pomodoro" route={route} label={t("pomodoro")} icon={<Timer size={sz} />} onNavigate={onNavigate} />
           <Item to="/motivation" route={route} label={t("motivation")} icon={<Sparkles size={sz} />} onNavigate={onNavigate} />
-          <Item to="/plan" route={route} label={t("plan")} icon={<CalendarClock size={sz} />} onNavigate={onNavigate} />
         </div>
       </div>
       <div className="space-y-px border-t border-line p-2 safe-bottom">

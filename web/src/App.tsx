@@ -1,4 +1,4 @@
-import { Calendar as CalIcon, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
+import { Calendar as CalIcon, CalendarClock, CheckCheck, Flame, ListTodo, Menu, Plus, Timer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { adoptGroqKey, adoptTracker, pushTracker } from "./lib/groqKey";
 import { TRACKER_EVENT } from "./lib/tracker";
@@ -131,8 +131,8 @@ export default function App() {
     { to: "/todo", icon: <ListTodo size={19} />, label: t("todoTab") },
     { to: "/done", icon: <CheckCheck size={19} />, label: t("haveDone") },
     { to: "/calendar", icon: <CalIcon size={19} />, label: t("calendar") },
+    { to: "/plan", icon: <CalendarClock size={19} />, label: t("plan") },
     { to: "/habits", icon: <Flame size={19} />, label: t("tabHabits") },
-    { to: "/pomodoro", icon: <Timer size={19} />, label: t("pomodoro") },
   ];
 
   let main;
