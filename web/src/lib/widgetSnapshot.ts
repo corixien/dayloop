@@ -1,6 +1,8 @@
 import { addDays, fmtLong, todayStr } from "./dates";
 import { occurrences } from "./repeat";
 import { type Lang, translate } from "./i18n";
+import { noteStats } from "./notes";
+import { type Block, byStart } from "./planLogic";
 import { type TaskItem, doneDay, extras, isDone, sortOpen } from "./taskLogic";
 
 /** One rendered row of the home screen widget: a day/section header or a task. */
@@ -29,11 +31,13 @@ const flags = (x: TaskItem, tr: TrackerState): Pick<WRow, "n" | "c" | "s"> => {
 
 export interface WidgetSnapshot {
   lang: Lang;
-  labels: { today: string; none: string; todo: string; done: string; calendar: string; empty: string; emptyDone: string; emptyEvents: string };
+  labels: { today: string; none: string; todo: string; done: string; calendar: string; plan: string; empty: string; emptyDone: string; emptyEvents: string; emptyPlan: string };
   todo: WRow[];
   done: WRow[];
   /** upcoming appointments (next one first), grouped by day, up to two years ahead */
   events: WRow[];
+  /** plan blocks of today and tomorrow in time order, with day headers */
+  plan: WRow[];
 }
 
 const MAX_ROWS = 80;
@@ -42,7 +46,7 @@ const EVENT_DAYS = 730;
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
 /** Pure: everything the native widget needs, already formatted. */
-export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), tracker: TrackerState = null, hour = 9): WidgetSnapshot {
+export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), tracker: TrackerState = null, hour = 9, blocks: Block[] = []): WidgetSnapshot {
   const t = (k: Parameters<typeof translate>[1]) => translate(lang, k);
   const today = todayStr(now);
 
@@ -78,12 +82,25 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
     events.push({ k: "t", id: x.id, title: x.title, meta: x.dueTime ?? "", prio: x.priority, ...flags(x, null) });
   }
 
+  const plan: WRow[] = [];
+  const tomorrow = addDays(today, 1);
+  for (const day of [today, tomorrow]) {
+    const rows = blocks.filter((b) => b.date === day).sort(byStart);
+    if (!rows.length) continue;
+    plan.push({ k: "h", title: day === today ? t("today") : t("tomorrow") });
+    for (const b of rows) {
+      const st = noteStats(b.notes);
+      plan.push({ k: "t", id: b.id, title: b.title, meta: `${b.start}–${b.end}${st.total ? `   ${st.done}/${st.total}` : ""}`, n: !!st.first, c: st.total > 0 });
+    }
+  }
+
   return {
     lang,
-    labels: { today: t("today"), none: t("noDate"), todo: t("todoTab"), done: t("haveDone"), calendar: t("calendar"), empty: t("noOpen"), emptyDone: t("noneDone"), emptyEvents: t("noEvents") },
+    labels: { today: t("today"), none: t("noDate"), todo: t("todoTab"), done: t("haveDone"), calendar: t("calendar"), plan: t("plan"), empty: t("noOpen"), emptyDone: t("noneDone"), emptyEvents: t("noEvents"), emptyPlan: t("planEmptyToday") },
     todo: todo.slice(0, MAX_ROWS),
     done: done.slice(0, MAX_ROWS),
     events: events.slice(0, EVENT_ROWS),
+    plan: plan.slice(0, MAX_ROWS),
   };
 }
 

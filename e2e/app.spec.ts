@@ -694,3 +694,60 @@ test("round H: focus fills the window, format bar below notes, click outside clo
   await expect(page.getByRole("textbox", { name: "Notiz" })).toHaveCount(0);
   await ctx.close();
 });
+
+test("plan page: blocks on a day axis, default start, overlap, day navigation, swipe", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/plan");
+  await expect(page.getByRole("heading", { name: /Plan/ })).toBeVisible();
+  await expect(page.getByLabel("now")).toBeVisible();
+  const add = async (title: string, start?: string, end?: string, notes?: string) => {
+    await page.getByRole("button", { name: "Neuer Block" }).click();
+    await page.locator("[data-plantitle]").fill(title);
+    if (start) await page.getByLabel("Beginn").fill(start);
+    if (end) await page.getByLabel("Ende").fill(end);
+    if (notes) await page.getByRole("textbox", { name: "Notiz" }).first().fill(notes);
+    await page.getByRole("button", { name: "Hinzufügen" }).click();
+    await page.waitForTimeout(300);
+  };
+  await add("Lernen", "09:00", "11:00", "- [ ] Vokabeln\n- [x] Text");
+  await add("Telefonat", "10:00", "10:30");
+  // new block starts where the last one ended (or now if later)
+  await page.getByRole("button", { name: "Neuer Block" }).click();
+  const start = await page.getByLabel("Beginn").inputValue();
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const exp = Math.max(11 * 60, Math.floor(nowMin / 5) * 5);
+  expect(Number(start.slice(0, 2)) * 60 + Number(start.slice(3))).toBeGreaterThanOrEqual(exp - 5);
+  await page.keyboard.press("Escape");
+  const a = (await page.getByRole("button", { name: /Lernen/ }).boundingBox())!;
+  const c = (await page.getByRole("button", { name: /Telefonat/ }).boundingBox())!;
+  expect(c.y).toBeGreaterThan(a.y);
+  expect(c.width).toBeGreaterThan(a.width * 0.8); // stacked, not side by side
+  await shot(page, "plan-desktop");
+  // edit by clicking a block
+  await page.getByRole("button", { name: /Telefonat/ }).click();
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await expect(page.getByRole("button", { name: /Telefonat/ })).toHaveCount(0);
+  // other day: nothing there; back to today keeps blocks
+  await page.getByRole("button", { name: ">" }).click();
+  await expect(page.getByRole("button", { name: /Lernen/ })).toHaveCount(0);
+  await expect(page.getByText("Für diesen Tag ist noch nichts geplant.")).toBeVisible();
+  await page.getByRole("button", { name: "Heute" }).click();
+  await expect(page.getByRole("button", { name: /Lernen/ })).toBeVisible();
+  await ctx.close();
+
+  const m = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: "de-DE" });
+  const mp = await m.newPage();
+  await mp.goto("/");
+  await mp.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await mp.goto("/#/plan");
+  await mp.waitForTimeout(500);
+  const before = await mp.locator("div.capitalize").first().innerText();
+  await swipe(mp, [300, 400], [80, 400]);
+  await mp.waitForTimeout(400);
+  expect(await mp.locator("div.capitalize").first().innerText()).not.toBe(before);
+  await shot(mp, "plan-mobile");
+  await m.close();
+});

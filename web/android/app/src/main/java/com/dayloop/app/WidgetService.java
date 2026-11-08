@@ -55,7 +55,7 @@ public class WidgetService extends RemoteViewsService {
             }
 
             int mode = WidgetStore.mode(ctx, widgetId);
-            boolean doneMode = mode == 1, eventMode = mode == 2;
+            boolean doneMode = mode == 1, eventMode = mode == 2 || mode == 3, planMode = mode == 3;
             String id = r.optString("id");
             RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_row);
             v.setTextViewText(R.id.title, r.optString("title"));
@@ -93,7 +93,7 @@ public class WidgetService extends RemoteViewsService {
 
             Intent toggle = new Intent().putExtra("op", "toggle").putExtra("id", id).putExtra("done", !doneMode).putExtra("rep", r.optBoolean("rep", false));
             v.setOnClickFillInIntent(R.id.check, toggle);
-            Intent open = new Intent().putExtra("op", "open").putExtra("id", id);
+            Intent open = new Intent().putExtra("op", "open").putExtra("id", id).putExtra("plan", planMode);
             v.setOnClickFillInIntent(R.id.body, open);
             return v;
         }

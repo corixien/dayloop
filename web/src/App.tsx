@@ -22,6 +22,7 @@ import { AlarmHost } from "./components/AlarmPopup";
 import { Zen } from "./components/Zen";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
+import { Plan } from "./components/Plan";
 import { TaskDetail } from "./components/TaskDetail";
 import { Drawer } from "./components/Drawer";
 import { usePlayer } from "./lib/player";
@@ -69,6 +70,7 @@ export default function App() {
   const add = () => {
     const p = pageRef.current;
     if (p === "calendar") window.dispatchEvent(new Event("dl-new-event"));
+    else if (p === "plan") window.dispatchEvent(new Event("dl-new-plan"));
     else setNewKind(p === "done" ? "done" : "todo");
   };
   const [welcome, setWelcome] = useState(() => !localStorage.getItem("dl_welcomed") && !syncClient.session);
@@ -139,6 +141,7 @@ export default function App() {
   else if (page === "pomodoro" || page === "zen") main = <Pomodoro />;
   else if (page === "assistant") main = <div className="flex h-full min-h-0 flex-col"><PageHeader title={t("assistant")} /><AssistantPanel /></div>;
   else if (page === "motivation") main = <Motivation />;
+  else if (page === "plan") main = <Plan />;
   else if (page === "settings") main = <Settings />;
   else if (page === "trash") main = <Trash selectedId={selected} onSelect={select} />;
   else main = <TodoView selectedId={selected} onSelect={select} />;
@@ -175,10 +178,10 @@ export default function App() {
           ))}
           <button onClick={() => setDrawer(true)} className="flex h-14 flex-col items-center justify-center gap-0.5 text-[10px] text-muted"><Menu size={19} />{t("menu")}</button>
         </nav>
-        {["todo", "done", "calendar"].includes(page) && (
+        {["todo", "done", "calendar", "plan"].includes(page) && (
           <button
             onClick={add}
-            aria-label={page === "done" ? t("newDone") : page === "calendar" ? t("newEvent") : t("newTask")}
+            aria-label={page === "done" ? t("newDone") : page === "calendar" ? t("newEvent") : page === "plan" ? t("planNew") : t("newTask")}
             className={cx("group absolute bottom-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] right-4 z-20 grid size-14 place-items-center rounded-full bg-accent text-white shadow-lg shadow-black/25 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-black/30 active:scale-95 md:bottom-6 md:right-6 dark:text-[#101012]", player.track && "mb-[3.6rem]")}
           >
             <Plus size={26} strokeWidth={2.2} className="transition-transform duration-200 group-hover:rotate-90" />

@@ -13,7 +13,7 @@ Auth: `Authorization: Bearer dl_...`. A token cannot create or list tokens.
 
 | Call | Purpose |
 |---|---|
-| `GET /api/items?type=task\|list\|habit\|habitlog\|pomodoro\|settings` | list non-deleted items |
+| `GET /api/items?type=task\|list\|habit\|habitlog\|pomodoro\|settings\|plan` | list non-deleted items |
 | `GET /api/items/:type/:id` | one item |
 | `POST /api/items/:type` `{id?, data}` | create / replace (server fills defaults) |
 | `PATCH /api/items/:type/:id` `{data}` | merge fields |
@@ -21,3 +21,5 @@ Auth: `Authorization: Bearer dl_...`. A token cannot create or list tokens.
 | `GET /api/events` | SSE, one `data: <seq>` line per change |
 
 Item `data` schemas live in `shared/src/index.ts`. Revoke a token in Settings at any time.
+
+Plan blocks (`type=plan`: `title, notes, date, start, end`) are what the MCP tools `dayloop_plan*` read and write; the Plan page and the widget show them.

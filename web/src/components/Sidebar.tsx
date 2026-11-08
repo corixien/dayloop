@@ -1,4 +1,4 @@
-import { Calendar, CheckCheck, Flame, ListTodo, Mic, Sparkles, Search, Settings, Timer, Trash2 } from "lucide-react";
+import { Calendar, CalendarClock, CheckCheck, Flame, ListTodo, Mic, Sparkles, Search, Settings, Timer, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useItems, useNow, useSettings, useSyncStatus, useT } from "../lib/app";
 import { todayStr } from "../lib/dates";
@@ -45,6 +45,7 @@ export function Sidebar({ route, onNavigate, onSearch }: { route: string; onNavi
           <Item to="/habits" route={route} label={t("habits")} icon={<Flame size={sz} />} onNavigate={onNavigate} />
           <Item to="/pomodoro" route={route} label={t("pomodoro")} icon={<Timer size={sz} />} onNavigate={onNavigate} />
           <Item to="/motivation" route={route} label={t("motivation")} icon={<Sparkles size={sz} />} onNavigate={onNavigate} />
+          <Item to="/plan" route={route} label={t("plan")} icon={<CalendarClock size={sz} />} onNavigate={onNavigate} />
         </div>
       </div>
       <div className="space-y-px border-t border-line p-2 safe-bottom">

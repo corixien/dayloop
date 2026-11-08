@@ -272,4 +272,19 @@ describe("blobs and motivation items", () => {
     expect(types).toEqual(["moaudio", "mofeed", "motext", "settings"]);
     expect(pull.body.changes.find((c: any) => c.type === "settings").data.groqKey).toBe("gsk_test");
   });
+
+  it("syncs plan blocks and the REST API fills defaults", async () => {
+    const u = await user("plan@example.com");
+    const t = now();
+    const r = await api.post("/api/sync").set(u.h).send({ cursor: 0, changes: [
+      { type: "plan", id: "p1", data: { title: "Lernen", date: "2026-11-09", start: "09:00", end: "10:30" }, updatedAt: t, deleted: false },
+      { type: "plan", id: "p2", data: { title: "kaputt", date: "2026-11-09", start: "9:00", end: "10:30" }, updatedAt: t, deleted: false },
+    ] });
+    expect(r.body.rejected).toEqual([{ type: "plan", id: "p2", reason: "invalid" }]);
+    const one = await api.post("/api/items/plan").set(u.h).send({ data: { title: "Sport", date: "2026-11-09", start: "17:00", end: "18:00" } });
+    expect(one.status).toBe(201);
+    expect(one.body.data.notes).toBe("");
+    const list = await api.get("/api/items?type=plan").set(u.h);
+    expect(list.body.map((x: any) => x.data.title).sort()).toEqual(["Lernen", "Sport"]);
+  });
 });

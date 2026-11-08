@@ -7,6 +7,9 @@ import { pomo, usePomo } from "../lib/pomoStore";
 import { AssistantPanel } from "./Assistant";
 import { AlarmPopup } from "./AlarmPopup";
 import { NewItem } from "./NewItem";
+import { PlanEditor } from "./PlanEditor";
+import { fmtDate } from "../lib/dates";
+import { defaultEnd, nextStart } from "../lib/planLogic";
 import { Sheet } from "./Sheet";
 import { Button } from "./ui";
 import { TaskDetail } from "./TaskDetail";
@@ -39,6 +42,8 @@ export function Overlay() {
   if (kind === "assistant") return <AssistantSheet />;
   if (kind === "alarm") return <AlarmPopup onClose={() => void closeOverlay()} />;
   if (kind === "track" && arg) return <TrackSend id={arg} />;
+  if (kind === "plan") return <PlanOverlay id={arg} />;
+  if (kind === "new" && arg === "plan") return <PlanOverlay />;
   if (kind === "new") return <NewItem kind={arg === "done" ? "done" : arg === "event" ? "event" : "todo"} bare onClose={() => void closeOverlay()} />;
   return null;
 }
@@ -113,4 +118,23 @@ function AssistantSheet() {
       {() => <AssistantPanel autoStart />}
     </Sheet>
   );
+}
+
+/** Widget: edit a plan block (/overlay/plan/<id>) or create one for today at the next free time (/overlay/new/plan). */
+function PlanOverlay({ id }: { id?: string }) {
+  const [init, setInit] = useState<{ id?: string; date: string; start: string; end: string } | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const now = new Date();
+      const date = fmtDate(now);
+      if (id) {
+        const x = await local.get("plan", id);
+        if (x) return setInit({ id, date: x.date, start: x.start, end: x.end });
+      }
+      const today = (await local.all("plan")).filter((x) => x.date === date);
+      const start = nextStart(today, now.getHours() * 60 + now.getMinutes());
+      setInit({ date, start, end: defaultEnd(start) });
+    })();
+  }, [id]);
+  return init ? <PlanEditor bare init={init} onClose={() => void closeOverlay()} /> : null;
 }

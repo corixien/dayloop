@@ -15,7 +15,7 @@ public class WidgetRouterActivity extends Activity {
             sendBroadcast(new Intent(this, DayloopWidget.class).setAction(DayloopWidget.ACTION_TOGGLE)
                 .putExtra("id", id).putExtra("done", in.getBooleanExtra("done", true)).putExtra("rep", in.getBooleanExtra("rep", false)));
         } else if (id != null && "open".equals(op)) {
-            startActivity(DayloopWidget.overlayIntent(this, "task/" + id));
+            startActivity(DayloopWidget.overlayIntent(this, (in.getBooleanExtra("plan", false) ? "plan/" : "task/") + id));
         } else if (id != null && "track".equals(op)) {
             startActivity(DayloopWidget.overlayIntent(this, "track/" + id));
         } else if ("app".equals(op)) {

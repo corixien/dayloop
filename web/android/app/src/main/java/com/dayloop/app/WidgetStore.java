@@ -104,7 +104,7 @@ final class WidgetStore {
     }
 
     static JSONArray rows(Context c, int mode) {
-        JSONArray a = snapshot(c).optJSONArray(mode == 0 ? "todo" : mode == 1 ? "done" : "events");
+        JSONArray a = snapshot(c).optJSONArray(mode == 0 ? "todo" : mode == 1 ? "done" : mode == 2 ? "events" : "plan");
         return a != null ? a : new JSONArray();
     }
 

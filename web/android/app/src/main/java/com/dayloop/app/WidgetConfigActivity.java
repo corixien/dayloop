@@ -133,7 +133,7 @@ public class WidgetConfigActivity extends Activity {
 
         // default view
         LinearLayout view = section(col, "Standardansicht");
-        view.addView(segmented(new String[]{"Todo", "Have Done", "Kalender"}, cfg.tab, i -> { cfg.tab = i; preview(); }));
+        view.addView(segmented(new String[]{"Todo", "Have Done", "Kalender", "Plan"}, cfg.tab, i -> { cfg.tab = i; preview(); }));
 
         // plus
         LinearLayout plusCard = section(col, "Plus-Button");
@@ -193,6 +193,7 @@ public class WidgetConfigActivity extends Activity {
         head.addView(t1);
         head.addView(t2);
         head.addView(t3);
+        head.addView(pill("Plan", cfg.tab == 3, muted));
         View sp = new View(this);
         head.addView(sp, new LinearLayout.LayoutParams(0, 1, 1f));
         if (cfg.plus) {
@@ -210,6 +211,8 @@ public class WidgetConfigActivity extends Activity {
             ? new String[][]{{"Zahnarzt", "Heute 15:00"}, {"Referat abgeben", "Morgen"}, {"Milch kaufen", ""}}
             : cfg.tab == 2
             ? new String[][]{{"Zahnarzt", "Heute 15:00"}, {"Konzert", "Sa., 14. Nov. 20:00"}}
+            : cfg.tab == 3
+            ? new String[][]{{"Lernen", "09:00–10:30   1/3"}, {"Sport", "17:00–18:00"}}
             : new String[][]{{"Mathe gelernt", "09:05"}, {"Sport gemacht", "08:10"}};
         for (String[] row : rows) {
             LinearLayout line1 = new LinearLayout(this);
@@ -220,7 +223,7 @@ public class WidgetConfigActivity extends Activity {
             ring.setStroke((int) dp(2), cfg.tab == 0 ? muted : accent);
             if (cfg.tab == 1) ring.setColor(accent);
             circle.setBackground(ring);
-            line1.addView(circle, new LinearLayout.LayoutParams((int) dp(20), (int) dp(20)));
+            if (cfg.tab < 2) line1.addView(circle, new LinearLayout.LayoutParams((int) dp(20), (int) dp(20)));
             LinearLayout txt = new LinearLayout(this);
             txt.setOrientation(LinearLayout.VERTICAL);
             txt.setPadding((int) dp(12), (int) dp(8), 0, (int) dp(8));

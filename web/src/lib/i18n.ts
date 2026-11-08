@@ -58,6 +58,8 @@ const de = {
   cmdAdded: "Hinzugefügt", cmdFooter: "Enter ausführen · Tab Details (Notizen, Unterpunkte) · Strg+Enter erledigen", cmdDoneHint: "Erledigt", cmdSubItems: "Unterpunkte",
   noEvents: "Keine kommenden Termine", chatClear: "Verlauf löschen", cmdDetails: "Details", cmdBack: "Zurück", cmdTitleHint: "Titel, z. B. „Referat morgen 15 Uhr“", cmdComposeHint: "Notizen und Unterpunkte (\"- \" macht eine Checkliste), Strg+Enter fügt hinzu",
   chatEmpty: "Sag oder schreib, was du erledigen willst: Aufgaben, Erledigtes, Termine, Habits, Timer.", you: "Du",
+  plan: "Plan", planNew: "Neuer Block", planEdit: "Block bearbeiten", planStart: "Beginn", planEnd: "Ende", planDur: "Dauer", planTitleHint: "Was steht in diesem Zeitraum an?",
+  planErrOrder: "Das Ende muss nach dem Beginn liegen.", planEmpty: "Für diesen Tag ist noch nichts geplant.", planSave: "Speichern", planDate: "Datum", planEmptyToday: "Heute nichts geplant",
 } as const;
 
 export type Key = keyof typeof de;
@@ -122,6 +124,8 @@ const en: Record<Key, string> = {
   cmdAdded: "Added", cmdFooter: "Enter run · Tab details (notes, sub-items) · Ctrl+Enter complete", cmdDoneHint: "Done", cmdSubItems: "sub-items",
   noEvents: "No upcoming appointments", chatClear: "Clear history", cmdDetails: "Details", cmdBack: "Back", cmdTitleHint: "Title, e.g. \"Report tomorrow 3pm\"", cmdComposeHint: "Notes and sub-items (\"- \" makes a checklist), Ctrl+Enter adds",
   chatEmpty: "Say or type what you want done: tasks, finished things, appointments, habits, timer.", you: "You",
+  plan: "Plan", planNew: "New block", planEdit: "Edit block", planStart: "Start", planEnd: "End", planDur: "Duration", planTitleHint: "What is planned for this time?",
+  planErrOrder: "The end must be after the start.", planEmpty: "Nothing planned for this day yet.", planSave: "Save", planDate: "Date", planEmptyToday: "Nothing planned today",
 };
 
 export const dict = { de, en };

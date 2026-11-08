@@ -154,6 +154,16 @@ export const chatSchema = z.object({
   messages: z.array(z.object({ me: z.boolean(), text: z.string().max(4000), err: z.boolean().optional(), at: z.number().default(0) })).max(80).default([]),
 });
 
+/** Plan page: time blocks of a day (made by Claude through the MCP or by hand). Checklist lines live in `notes` like in tasks. */
+export const planSchema = z.object({
+  title: z.string().min(1).max(500),
+  notes: z.string().max(20000).default(""),
+  date,
+  start: time,
+  /** end of the block, after `start` on the same day (latest 23:59) */
+  end: time,
+});
+
 export const itemSchemas = {
   folder: folderSchema,
   list: listSchema,
@@ -167,6 +177,7 @@ export const itemSchemas = {
   mofeed: mofeedSchema,
   moaudio: moaudioSchema,
   chat: chatSchema,
+  plan: planSchema,
 } as const;
 
 export type ItemType = keyof typeof itemSchemas;
@@ -185,6 +196,7 @@ export type MoText = z.infer<typeof motextSchema>;
 export type MoFeed = z.infer<typeof mofeedSchema>;
 export type MoAudio = z.infer<typeof moaudioSchema>;
 export type Chat = z.infer<typeof chatSchema>;
+export type Plan = z.infer<typeof planSchema>;
 export type Repeat = z.infer<typeof repeatSchema>;
 export type Subtask = z.infer<typeof subtaskSchema>;
 
@@ -201,6 +213,7 @@ export interface DataOf {
   mofeed: MoFeed;
   moaudio: MoAudio;
   chat: Chat;
+  plan: Plan;
 }
 
 /** Wire format for sync. `data` is the validated payload, ignored for tombstones. */

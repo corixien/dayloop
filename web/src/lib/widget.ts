@@ -76,7 +76,7 @@ export function useWidgetSync() {
       clearTimeout(timer);
       timer = setTimeout(async () => {
         try {
-          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null, hour));
+          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null, hour, await local.all("plan")));
           await ensureCredentials();
         } catch (e) {
           console.warn("widget sync", e);

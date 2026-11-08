@@ -47,7 +47,7 @@ export function CommandPalette({ onClose, onOpenTask, onNew }: { onClose: () => 
   const rows = useMemo<Row[]>(() => {
     const nav: Row[] = ([
       ["/todo", t("todoTab")], ["/done", t("haveDone")], ["/calendar", t("calendar")], ["/habits", t("habits")], ["/pomodoro", t("pomodoro")],
-      ["/motivation", t("motivation")], ["/assistant", t("assistant")], ["/trash", t("trash")], ["/settings", t("settings")],
+      ["/motivation", t("motivation")], ["/plan", t("plan")], ["/assistant", t("assistant")], ["/trash", t("trash")], ["/settings", t("settings")],
     ] as const).map(([to, label]) => ({ key: to, label, hint: t("goTo"), icon: <Search size={14} />, score: 0, run: go(to) }));
 
     const today = todayStr();

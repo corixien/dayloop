@@ -48,3 +48,21 @@ describe("widget calendar tab", () => {
     expect(snap.events[1].meta).toBe("15:00");
   });
 });
+
+describe("widget plan tab", () => {
+  it("lists today's and tomorrow's blocks in time order with checklist progress", async () => {
+    const { buildSnapshot } = await import("./widgetSnapshot");
+    const b = (id: string, title: string, date: string, start: string, end: string, notes = "") => ({ id, title, notes, date, start, end });
+    const snap = buildSnapshot([], "de", new Date(2026, 10, 5, 10, 0), null, 9, [
+      b("b", "Sport", "2026-11-05", "17:00", "18:00"),
+      b("a", "Lernen", "2026-11-05", "09:00", "10:30", "Kapitel\n- [x] Text\n- [ ] Vokabeln"),
+      b("c", "Frühstück", "2026-11-06", "08:00", "08:30"),
+      b("x", "Später", "2026-11-09", "08:00", "09:00"),
+    ]);
+    expect(snap.plan.map((r) => (r.k === "h" ? `# ${r.title}` : `${r.title} ${r.meta}`))).toEqual([
+      "# Heute", "Lernen 09:00–10:30   1/2", "Sport 17:00–18:00", "# Morgen", "Frühstück 08:00–08:30",
+    ]);
+    expect(snap.plan[1]).toMatchObject({ n: true, c: true });
+    expect(snap.labels.plan).toBe("Plan");
+  });
+});
