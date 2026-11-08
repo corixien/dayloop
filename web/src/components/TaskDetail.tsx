@@ -40,13 +40,6 @@ function useDraft<T>(value: T, commit: (v: T) => void): [T, (v: T) => void, (v?:
     timer.current = setTimeout(() => flush(), 600);
   };
   useEffect(() => () => flush(), []);
-  // the app can be sent to the background or closed while a field is still being edited
-  useEffect(() => {
-    const out = () => { if (document.visibilityState === "hidden") flush(); };
-    document.addEventListener("visibilitychange", out);
-    window.addEventListener("pagehide", out as () => void);
-    return () => { document.removeEventListener("visibilitychange", out); window.removeEventListener("pagehide", out as () => void); };
-  }, []);
   return [draft, set, flush];
 }
 
@@ -175,7 +168,6 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes, highlight }: { id
 
         <Field label={t("priority")} group>
           <Segmented
-            full
             value={task.priority}
             onChange={(v) => patch({ priority: v })}
             options={[

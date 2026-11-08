@@ -51,21 +51,10 @@ export class Local {
     return parsed;
   }
 
-  /**
-   * Merge a patch into the existing record (or create from defaults + patch). Read and write happen in one transaction:
-   * two patches in a row (title blur + notes flush when a panel closes) must not overwrite each other with a stale copy.
-   */
+  /** Merge a patch into the existing record (or create from defaults + patch). */
   async patch<T extends ItemType>(type: T, id: string, patch: Partial<DataOf[T]>): Promise<DataOf[T]> {
-    const key = `${type}:${id}`;
-    let parsed!: DataOf[T];
-    await this.db.transaction("rw", this.db.items, async () => {
-      const prev = await this.db.items.get(key);
-      parsed = parseData(type, { ...(prev && !prev.deleted ? prev.data : {}), ...patch });
-      const updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
-      await this.db.items.put({ key, type, id, data: parsed, updatedAt, deleted: 0, dirty: 1 });
-    });
-    this.onWrite();
-    return parsed;
+    const prev = await this.db.items.get(`${type}:${id}`);
+    return this.put(type, id, { ...(prev && !prev.deleted ? prev.data : {}), ...patch });
   }
 
   async remove(type: ItemType, id: string): Promise<void> {

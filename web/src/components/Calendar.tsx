@@ -13,8 +13,6 @@ import { Button, IconButton, PageHeader, Segmented, colorOf, cx } from "./ui";
 type Mode = "month" | "week" | "day";
 /** zoom levels, closest first */
 const MODES: Mode[] = ["day", "week", "month"];
-/** magnification between two levels (a pinch of this ratio completes the step) */
-const ZOOM_STEP = 1.8;
 /** How a completion relates to the deadline: color coding of finished chips. */
 type Timing = "early" | "on" | "late" | "none";
 interface Ev {
@@ -70,8 +68,6 @@ interface BodyProps {
   tasks: TaskItem[];
   habits: { id: string; name: string; color: string; target: number; archived: boolean }[];
   logs: Map<string, Map<string, number>>;
-  /** `${habitId}_${date}` -> when the day's log was last written (ms) */
-  logAt: Map<string, number>;
   selectedId: string | null;
   onSelect: (id: string, sub?: string) => void;
   onZoom: (to: Mode, date: string, el: HTMLElement) => void;
@@ -79,7 +75,7 @@ interface BodyProps {
 }
 
 /** One time frame (month grid or week/day columns). Rendered twice while zooming between two levels. */
-function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, selectedId, onSelect, onZoom, onCreate }: BodyProps) {
+function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId, onSelect, onZoom, onCreate }: BodyProps) {
   const lang = useLang();
   const { weekStart } = useSettings();
   const scroller = useRef<HTMLDivElement>(null);
@@ -115,29 +111,13 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, sele
       if (h.archived) continue;
       const c = logs.get(h.id);
       if (!c) continue;
-      for (const d of days) {
-        if ((c.get(d) ?? 0) < h.target) continue;
-        // habits are ticked at a time of day too: show them where they were done (no time known: all-day row)
-        const w = logAt.get(`${h.id}_${d}`);
-        push(d, { habit: { id: h.id, name: h.name, color: h.color }, at: w !== undefined && fmtDate(new Date(w)) === d ? w : undefined });
-      }
+      for (const d of days) if ((c.get(d) ?? 0) >= h.target) push(d, { habit: { id: h.id, name: h.name, color: h.color } });
     }
     const rank = (e: Ev) => (e.habit ? 2 : e.timing ? 1 : 0);
     for (const v of map.values()) v.sort((a, b) => rank(a) - rank(b) || (a.at ?? 0) - (b.at ?? 0) || (a.task?.dueTime ?? "").localeCompare(b.task?.dueTime ?? ""));
     return map;
-  }, [tasks, habits, logs, logAt, days]);
+  }, [tasks, habits, logs, days]);
 
-  // desktop scroll bars take width from the grid: give the header the same, so the column lines stay one line
-  const [sb, setSb] = useState(0);
-  useLayoutEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const measure = () => setSb(el.offsetWidth - el.clientWidth);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [mode]);
   useLayoutEffect(() => {
     if (mode !== "month" && scroller.current) scroller.current.scrollTop = (days.includes(today) ? Math.max(0, now.getHours() - 1) : 7) * HOUR;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -208,10 +188,10 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, sele
 
   return (
     <>
-      <div key={`h${anchor}`} className={`flex border-b border-line pl-12 ${anim}`} style={{ paddingRight: sb }}>
+      <div key={`h${anchor}`} className={`flex border-b border-line pl-12 ${anim}`}>
         {days.map((d) => {
           // deadlines without a time and habit completions; everything with a time sits in the grid
-          const head = (events.get(d) ?? []).filter((e) => (e.habit ? e.at === undefined : !e.timing && !e.task?.dueTime));
+          const head = (events.get(d) ?? []).filter((e) => e.habit || (!e.timing && !e.task?.dueTime));
           return (
             <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5">
               <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full rounded text-center text-xs leading-tight", mode === "week" && "py-1 hover:bg-hover", d === today ? "font-semibold text-accent" : "text-muted")}>
@@ -220,7 +200,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, sele
                   : <span className="block truncate">{fmtLong(d, lang)}</span>}
               </button>
               <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })} onDoubleClick={mode === "week" ? () => onCreate({ date: d, time: null }) : undefined} {...(mode === "week" ? press(() => ({ date: d, time: null })) : {})}>
-                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={!!ev.habit || (mode === "week" && !ev.timing)} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
+                {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week" && !ev.timing} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
               </div>
             </div>
@@ -236,22 +216,16 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, sele
           </div>
           {days.map((d) => {
             const timed = (events.get(d) ?? [])
-              .filter((e) => (e.habit ? e.at !== undefined : e.timing || e.task?.dueTime))
+              .filter((e) => !e.habit && (e.timing || e.task?.dueTime))
               .map((e) => ({ e, top: ((e.at !== undefined ? minuteOf(e.at) : timeToMin(e.task!.dueTime!)) / 60) * HOUR }))
               .sort((a, b) => a.top - b.top);
-            // things at (nearly) the same time: a few lanes side by side in the day view, one column in the week view;
-            // what does not fit is pushed below the one before, so every chip stays readable (time in the tooltip)
-            const maxLanes = mode === "day" ? 3 : 1;
+            // lanes: things at (nearly) the same time stand side by side
             const lanes: number[] = [];
             const placed = timed.map((x) => {
               let lane = lanes.findIndex((end) => end <= x.top);
-              let top = x.top;
-              if (lane < 0) {
-                if (lanes.length < maxLanes) lane = lanes.length;
-                else { lane = lanes.indexOf(Math.min(...lanes)); top = lanes[lane]; }
-              }
-              lanes[lane] = top + CHIP_H + 2;
-              return { ...x, top, lane };
+              if (lane < 0) lane = lanes.length;
+              lanes[lane] = x.top + CHIP_H + 2;
+              return { ...x, lane };
             });
             const n = Math.max(1, lanes.length);
             return (
@@ -268,7 +242,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, logAt, sele
               >
                 {placed.map(({ e, top, lane }, i) => (
                   <div key={i} className="absolute px-px" style={{ top, height: CHIP_H, left: `${(lane / n) * 100}%`, width: `${100 / n}%` }}>
-                    <Chip ev={e} inert={!!e.habit || (mode === "week" && !e.timing)} onSelect={onSelect} selected={selectedId === e.task?.id} />
+                    <Chip ev={e} inert={mode === "week" && !e.timing} onSelect={onSelect} selected={selectedId === e.task?.id} />
                   </div>
                 ))}
                 {d === today && (
@@ -296,7 +270,6 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   const habits = useItems("habit");
   const habitLogs = useItems("habitlog");
   const logs = useMemo(() => habitCounts(habitLogs), [habitLogs]);
-  const logAt = useMemo(() => new Map(habitLogs.map((l) => [l.id, l.updatedAt])), [habitLogs]);
   const { weekStart } = useSettings();
 
   const [mode, setMode] = useState<Mode>(() => (window.innerWidth < 768 ? "day" : "month"));
@@ -312,34 +285,26 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   S.current = { mode, anchor, zoom };
   const anim = fx === "none" ? "" : `anim-${fx}`;
 
-  // Zoom between levels is one camera move: the wider frame is magnified around the touched day while the closer frame
-  // grows out of that spot (and the other way round), so a pinch, a tap and the mode switch all look like diving in or out.
-  // `p` 0..1 = how far the move to the other level is; the picture under the fingers scales 1:1 with them.
-  const fadeIn = (q: number) => { const t = clamp((q - 0.3) / 0.45, 0, 1); return t * t * (3 - 2 * t); };
+  // Zoom between levels: the current frame grows (or shrinks) around a point while fading into the next one.
   const paint = (p: number, animate: boolean) => {
     prog.current = p;
     const z = S.current.zoom;
-    if (!z || !wrap.current) return;
-    const box = wrap.current.getBoundingClientRect();
-    const vx = box.width / 2, vy = box.height / 2, cx = z.ox, cy = z.oy;
-    const q = z.dir === "in" ? p : 1 - p;
-    const aw = Math.pow(ZOOM_STEP, q), an = aw / ZOOM_STEP;
-    const tr = animate ? "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), opacity 340ms ease-out" : "none";
-    const put = (el: HTMLDivElement | null, a: number, x: number, y: number, opacity: number, zi: number) => {
+    if (!z) return;
+    const tr = animate ? "transform 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease-out" : "none";
+    const origin = `${z.ox}px ${z.oy}px`;
+    const set = (el: HTMLDivElement | null, scale: number, opacity: number) => {
       if (!el) return;
       el.style.transition = tr;
-      el.style.transformOrigin = "0 0";
-      el.style.transform = `translate(${x}px, ${y}px) scale(${a})`;
+      el.style.transformOrigin = origin;
+      el.style.transform = `scale(${scale})`;
       el.style.opacity = String(opacity);
-      el.style.zIndex = String(zi);
     };
-    const wideEl = z.dir === "in" ? cur.current : nxt.current, closeEl = z.dir === "in" ? nxt.current : cur.current;
-    put(wideEl, aw, cx * (1 - aw) + q * (vx - cx), cy * (1 - aw) + q * (vy - cy), 1, 1);
-    put(closeEl, an, cx + q * (vx - cx) - an * vx, cy + q * (vy - cy) - an * vy, fadeIn(q), 2);
+    set(cur.current, z.dir === "in" ? 1 + p * 0.9 : 1 - p * 0.4, 1 - p);
+    set(nxt.current, z.dir === "in" ? 0.55 + p * 0.45 : 1.5 - p * 0.5, p);
   };
   useLayoutEffect(() => {
     if (zoom) paint(prog.current, false);
-    else for (const el of [cur.current, nxt.current]) if (el) { el.style.transition = "none"; el.style.transform = ""; el.style.opacity = ""; el.style.zIndex = ""; }
+    else for (const el of [cur.current, nxt.current]) if (el) { el.style.transition = "none"; el.style.transform = ""; el.style.opacity = ""; }
   }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const finish = (commit: boolean) => {
@@ -350,7 +315,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
       prog.current = 0;
       if (commit) { setFx("none"); setAnchor(z.anchor); setMode(z.to); }
       setZoom(null);
-    }, 350);
+    }, 290);
   };
 
   const zoomTo = (to: Mode, date: string, el?: HTMLElement | null) => {
@@ -383,19 +348,17 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    let d0 = 0, started = false, armed = false, dir: "in" | "out" = "in", lvl: Mode = "month", anc = "", next: Zoom | null = null, mid = { x: 0, y: 0 };
+    let d0 = 0, started = false, armed = false, dir: "in" | "out" = "in", lvl: Mode = "month", anc = "", next: Zoom | null = null;
     let t0: { id: number; x: number; y: number }[] = [];
     const bound: EventTarget[] = [];
     const dist = (e: TouchEvent) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const begin = (d: "in" | "out") => {
       const i = MODES.indexOf(lvl) + (d === "in" ? -1 : 1);
       if (i < 0 || i >= MODES.length) return false;
+      const target = d === "in" ? focusDay(lvl, anc) : anc;
       const box = wrap.current!.getBoundingClientRect();
-      // zooming in dives into the day between the fingers
-      const under = d === "in" ? (document.elementFromPoint(mid.x, mid.y) as HTMLElement | null)?.closest<HTMLElement>("[data-date]") : null;
-      const target = d === "in" ? under?.dataset.date ?? focusDay(lvl, anc) : anc;
       const cells = cur.current?.querySelectorAll(`[data-date="${target}"]`);
-      const c = under ? under.getBoundingClientRect() : cells && cells.length ? cells[cells.length - 1].getBoundingClientRect() : null;
+      const c = cells && cells.length ? cells[cells.length - 1].getBoundingClientRect() : null;
       started = true; dir = d;
       prog.current = 0;
       next = { to: MODES[i], anchor: target, dir: d, ox: c ? c.left + c.width / 2 - box.left : box.width / 2, oy: c ? c.top + c.height / 2 - box.top : box.height / 2 };
@@ -412,7 +375,6 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
       t0 = [a, b].map((t) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
       armed = false;
       d0 = dist(e); started = false; next = null; lvl = S.current.mode; anc = S.current.anchor;
-      mid = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
       // a level switch replaces the touched elements; their touch events then no longer bubble to the wrapper,
       // so follow the fingers on the touched elements themselves
       for (const t of [e.touches[0].target, e.touches[1].target]) {
@@ -448,7 +410,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
         if (!begin(s > 1 ? "in" : "out")) d0 = dist(e); // at the first/last level: re-measure so turning back responds at once
         return;
       }
-      const p = clamp(Math.abs(Math.log(s)) / Math.log(ZOOM_STEP), 0, 1);
+      const p = dir === "in" ? clamp((s - 1) / 0.7, 0, 1) : clamp((1 - s) / 0.4, 0, 1);
       paint(p, false);
       if (p >= 1 && next) {
         // a long pinch continues into the next level: switch now (identical picture), then measure from here
@@ -470,7 +432,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
       unbind();
       if (!started) return;
       started = false;
-      finish(prog.current > 0.4);
+      finish(prog.current > 0.35);
     }
     el.addEventListener("touchstart", start, { passive: true });
     return () => {
@@ -491,7 +453,7 @@ export function Calendar({ selectedId, onSelect }: { selectedId: string | null; 
   const title = mode === "month" ? fmtMonth(anchor, lang) : mode === "day" ? fmtLong(anchor, lang) : `${fmtLong(days[0], lang)} – ${fmtLong(days[1], lang)}`;
   const modeOptions = [{ value: "month" as Mode, label: t("month") }, { value: "week" as Mode, label: t("week") }, { value: "day" as Mode, label: t("day") }];
 
-  const shared = { today, now, tasks, habits, logs, logAt, selectedId, onSelect, onCreate: setCreate, onZoom: zoomTo };
+  const shared = { today, now, tasks, habits, logs, selectedId, onSelect, onCreate: setCreate, onZoom: zoomTo };
 
   return (
     <div className="flex h-full min-h-0 flex-col">

@@ -118,7 +118,6 @@ function Form({ kind, init, close, inDialog }: { kind: NewKind; init?: NewInit; 
             )}
             <Field label={t("priority")} group>
               <Segmented
-                full
                 value={priority}
                 onChange={setPriority}
                 options={[

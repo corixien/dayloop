@@ -191,12 +191,12 @@ export default function App() {
 
       {hasDetail && !mobile && (
         <div className="anim-fade w-[400px] shrink-0 border-l border-line">
-          <TaskDetail key={selected} id={selected!} focusNotes={focusNotes} highlight={hl} onClose={() => select(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); }} />
+          <TaskDetail id={selected!} focusNotes={focusNotes} highlight={hl} onClose={() => select(null)} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); }} />
         </div>
       )}
       {hasDetail && mobile && (
         <Sheet onClose={() => select(null)}>
-          {(close) => <TaskDetail key={selected} id={selected!} focusNotes={focusNotes} highlight={hl} onClose={close} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); select(null); }} />}
+          {(close) => <TaskDetail id={selected!} focusNotes={focusNotes} highlight={hl} onClose={close} onFocus={(id) => { pomo.focusTask(id); go("/pomodoro"); select(null); }} />}
         </Sheet>
       )}
 
