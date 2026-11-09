@@ -9,7 +9,8 @@ import { useSwipe } from "../lib/swipe";
 import { PlanEditor, type PlanInit } from "./PlanEditor";
 import { Button, IconButton, PageHeader, cx } from "./ui";
 
-const HOUR = 72; // px per hour: 15 min = 18 px
+const HOUR = 120; // px per hour: 15 min = 30 px, 5 min = 10 px
+const MIN_H = 24; // short blocks grow to this height, but never into the next block
 const GUTTER = 52;
 const INDENT = 12;
 const y = (min: number) => (min * HOUR) / 60;
@@ -94,7 +95,10 @@ export function Plan() {
           {!blocks.length && <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-bg px-2 text-[13px] text-faint" style={{ top: y(isToday ? Math.max(nowMin, 6 * 60) + 40 : 9 * 60) }}>{t("planEmpty")}</p>}
           {stacked.map(({ b, depth }) => {
             const s = toMin(b.start), e = Math.max(toMin(b.end), s + 1);
-            const h = Math.max(y(e - s), 26);
+            // a short block is drawn at least MIN_H high unless the next block starts sooner: times that do not overlap never overlap on screen
+            const next = blocks.reduce((m, o) => { const os = toMin(o.start); return os > s && os < m ? os : m; }, Infinity);
+            const h = Math.max(y(e - s), Math.min(MIN_H, y(next - s) + 2));
+            const tight = h < 30;
             const st = noteStats(b.notes);
             const lines = parseNotes(b.notes).filter((l) => l.text.trim());
             const live = isToday && nowMin >= s && nowMin < e;
@@ -105,23 +109,23 @@ export function Plan() {
                 data-block
                 onClick={() => setEdit({ id: b.id, date: b.date, start: b.start, end: b.end })}
                 className={cx(
-                  "absolute overflow-hidden rounded-lg border-l-[5px] border-accent bg-accent-soft py-1 pl-2.5 pr-2 text-left shadow-sm ring-1 ring-line transition-shadow hover:shadow-md",
+                  "absolute overflow-hidden rounded-lg border-l-[5px] border-accent bg-accent-soft pl-2.5 pr-2 text-left shadow-sm ring-1 ring-line transition-shadow hover:shadow-md", tight ? "py-0" : "py-1",
                   live && "ring-2 ring-accent", past && "opacity-70",
                 )}
                 style={{ top: y(s) + 1, height: h - 2, left: GUTTER + depth * INDENT, right: 8, zIndex: 1 + depth }}
               >
                 <div className="flex items-baseline gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-tight">{stripMarks(b.title)}</span>
+                  <span className={cx("min-w-0 flex-1 truncate font-semibold leading-tight", tight ? "text-[12px]" : "text-[14px]")}>{stripMarks(b.title)}</span>
                   <span className="shrink-0 text-[11px] tabular-nums text-muted">{b.start}–{b.end}</span>
                 </div>
-                {h >= 52 && (
+                {h >= 60 && (
                   <div className="mt-0.5 space-y-px overflow-hidden text-[12px] leading-snug text-muted">
                     {lines.slice(0, Math.floor((h - 34) / 16)).map((l, i) => (
                       <div key={i} className={cx("truncate", l.check && l.done && "line-through")}>{l.check ? (l.done ? "☑ " : "☐ ") : ""}{stripMarks(l.text)}</div>
                     ))}
                   </div>
                 )}
-                {h < 52 && st.total > 0 && <ListChecks size={12} className="absolute bottom-1 right-2 text-muted" />}
+                {h < 60 && !tight && st.total > 0 && <ListChecks size={12} className="absolute bottom-1 right-2 text-muted" />}
               </button>
             );
           })}

@@ -790,3 +790,27 @@ test("new todo form stays open when picking a priority; todo has priority sectio
   await expect(page.getByRole("heading", { name: /^Hoch/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Wichtig/ })).toBeVisible();
 });
+
+test("plan: back-to-back short blocks never overlap on screen", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/plan");
+  const add = async (title: string, start: string, end: string) => {
+    await page.getByRole("button", { name: "Neuer Block" }).click();
+    await page.locator("[data-plantitle]").fill(title);
+    await page.getByLabel("Beginn").fill(start);
+    await page.getByLabel("Ende").fill(end);
+    await page.getByRole("button", { name: "Hinzufügen" }).click();
+    await page.waitForTimeout(250);
+  };
+  await add("Aa", "10:00", "10:05");
+  await add("Bb", "10:05", "10:10");
+  await add("Cc", "10:10", "10:25");
+  await add("Dd", "10:30", "10:45");
+  const box = async (n: string) => (await page.getByRole("button", { name: new RegExp(n) }).boundingBox())!;
+  const [a, b, c, d] = [await box("Aa"), await box("Bb"), await box("Cc"), await box("Dd")];
+  for (const [p, q] of [[a, b], [b, c], [c, d]]) expect(p.y + p.height).toBeLessThanOrEqual(q.y + 0.5);
+  expect(b.x).toBe(a.x);
+});
