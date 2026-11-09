@@ -47,19 +47,22 @@ export function Plan() {
   // Zoom the time scale: pinch (two fingers) or Ctrl + wheel; the minute under the fingers stays where it is
   const press = useRef<{ x: number; y: number; id: number } | null>(null);
   const hold = useRef<{ minute: number; offset: number } | null>(null);
+  const hrRef = useRef(hr);
+  hrRef.current = hr;
   const zoomTo = (next: number, clientY: number, anchor?: { minute: number; offset: number }) => {
     const el = scroller.current!;
     const off = clientY - el.getBoundingClientRect().top;
-    hold.current = anchor ?? { minute: ((off + el.scrollTop) * 60) / hr, offset: off };
-    setHr(clampHour(next));
+    hold.current = anchor ?? { minute: ((off + el.scrollTop) * 60) / hrRef.current, offset: off };
+    const nh = clampHour(next);
+    // the scale did not change (e.g. fingers only moved): scroll right away, otherwise the layout effect does it after the render
+    if (nh === hrRef.current) el.scrollTop = (hold.current.minute * nh) / 60 - hold.current.offset;
+    else setHr(nh);
   };
   useLayoutEffect(() => {
     const el = scroller.current, h = hold.current;
     if (el && h) el.scrollTop = (h.minute * hr) / 60 - h.offset;
     localStorage.setItem("dl_planzoom", String(Math.round(hr)));
   }, [hr]);
-  const hrRef = useRef(hr);
-  hrRef.current = hr;
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
