@@ -791,7 +791,7 @@ test("new todo form stays open when picking a priority; todo has priority sectio
   await expect(page.getByRole("button", { name: /Wichtig/ })).toBeVisible();
 });
 
-test("plan: zoom stretches the time scale, short blocks are indented while they collide", async ({ browser }) => {
+test("plan: zoom stretches the time scale, blocks stay full width", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
   const page = await ctx.newPage();
   await page.goto("/");
@@ -809,8 +809,13 @@ test("plan: zoom stretches the time scale, short blocks are indented while they 
   await add("Bb", "10:05", "10:10");
   await add("Lang", "11:00", "12:00");
   const box = async (n: string) => (await page.getByRole("button", { name: new RegExp(n) }).boundingBox())!;
+  await page.getByRole("button", { name: /Aa/ }).scrollIntoViewIfNeeded();
   const a0 = await box("Aa"), b0 = await box("Bb"), l0 = await box("Lang");
-  expect(b0.x).toBeGreaterThan(a0.x); // collide at this scale: indented
+  expect(b0.x).toBe(a0.x); // always full width, even where they collide
+  expect(b0.width).toBe(a0.width);
+  // where they overlap the earlier block is on top
+  const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest("[data-block]")?.textContent ?? "", [b0.x + 40, b0.y + 2]);
+  expect(top).toContain("Aa");
   // Ctrl + wheel = pinch on a trackpad
   const area = page.locator("[data-block]").first();
   await area.scrollIntoViewIfNeeded();
@@ -821,6 +826,5 @@ test("plan: zoom stretches the time scale, short blocks are indented while they 
   const l1 = await box("Lang");
   expect(l1.height).toBeGreaterThan(l0.height * 1.8);
   const a1 = await box("Aa"), b1 = await box("Bb");
-  expect(b1.x).toBe(a1.x); // enough room now: no indent, no overlap
   expect(a1.y + a1.height).toBeLessThanOrEqual(b1.y + 1);
 });

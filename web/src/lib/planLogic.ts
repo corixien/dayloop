@@ -25,22 +25,6 @@ export function nextStart(blocks: { start: string; end: string }[], nowMin: numb
 /** End of a new block: one hour after the start, clamped to the end of the day. */
 export const defaultEnd = (start: string, minutes = 60): string => fromMin(Math.min(toMin(start) + minutes, DAY_MIN - 1));
 
-/**
- * Overlapping blocks are not placed side by side: each one gets a depth (0 = nothing before it overlaps) and is drawn
- * full width with a small indent per level, later blocks on top. minLen: shortest length a block counts as (minutes), so
- * blocks drawn at a minimum height that collide with the next one are indented too.
- */
-export function stack<T extends { start: string; end: string }>(sorted: T[], minLen = 1): { b: T; depth: number }[] {
-  const ends: number[] = [];
-  return sorted.map((b) => {
-    const s = toMin(b.start);
-    let depth = ends.findIndex((e) => e <= s);
-    if (depth < 0) depth = ends.length;
-    ends[depth] = Math.max(toMin(b.end), s + minLen);
-    return { b, depth };
-  });
-}
-
 /** Problem with a start/end pair, or null when valid. */
 export const checkRange = (start: string, end: string): "format" | "order" | null => {
   const re = /^([01]\d|2[0-3]):[0-5]\d$/;

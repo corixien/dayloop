@@ -4,16 +4,15 @@ import { useLang, useNow, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
 import { noteStats, parseNotes, stripMarks } from "../lib/notes";
 import { usePlan } from "../lib/plan";
-import { DAY_MIN, fromMin, nextStart, defaultEnd, stack, toMin } from "../lib/planLogic";
+import { DAY_MIN, fromMin, nextStart, defaultEnd, toMin } from "../lib/planLogic";
 import { useSwipe } from "../lib/swipe";
 import { PlanEditor, type PlanInit } from "./PlanEditor";
 import { Button, IconButton, PageHeader, cx } from "./ui";
 
 const HOUR_MIN = 48, HOUR_MAX = 480, HOUR_DEFAULT = 96; // px per hour, changed by pinch (or Ctrl + wheel)
 const clampHour = (v: number) => Math.max(HOUR_MIN, Math.min(HOUR_MAX, v));
-const MIN_H = 24; // short blocks are drawn at least this high; blocks that then collide are indented like overlapping ones
+const MIN_H = 24; // short blocks are drawn at least this high; blocks are always full width; where they overlap the earlier one is on top
 const GUTTER = 52;
-const INDENT = 12;
 
 /** One day as a time axis (00:00 at the top, 24:00 at the bottom). Day-wise only: swipe or arrows, no week/month. */
 export function Plan() {
@@ -113,7 +112,6 @@ export function Plan() {
     const r = scroller.current!.getBoundingClientRect();
     return ((clientY - r.top + scroller.current!.scrollTop) * 60) / hr;
   };
-  const stacked = stack(blocks, Math.ceil((MIN_H * 60) / hr));
   const title = fmtLong(day, lang);
 
   return (
@@ -147,9 +145,11 @@ export function Plan() {
             </div>
           ))}
           {!blocks.length && <p className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-bg px-2 text-[13px] text-faint" style={{ top: y(isToday ? Math.max(nowMin, 6 * 60) + 40 : 9 * 60) }}>{t("planEmpty")}</p>}
-          {stacked.map(({ b, depth }) => {
+          {blocks.map((b, idx) => {
             const s = toMin(b.start), e = Math.max(toMin(b.end), s + 1);
             const h = Math.max(y(e - s), MIN_H);
+            // earlier blocks lie on top of later ones, except one that lies completely inside an earlier one (it would be hidden)
+            const inside = blocks.some((o, j) => j < idx && toMin(o.start) <= s && toMin(o.end) >= e);
             const tight = h < 30;
             const st = noteStats(b.notes);
             const lines = parseNotes(b.notes).filter((l) => l.text.trim());
@@ -164,7 +164,7 @@ export function Plan() {
                   "absolute overflow-hidden rounded-lg border-l-[5px] border-accent bg-accent-soft pl-2.5 pr-2 text-left shadow-sm ring-1 ring-line transition-shadow hover:shadow-md", tight ? "py-0" : "py-1",
                   live && "ring-2 ring-accent", past && "opacity-70",
                 )}
-                style={{ top: y(s) + 1, height: h - 2, left: GUTTER + depth * INDENT, right: 8, zIndex: 1 + depth }}
+                style={{ top: y(s) + 1, height: h - 2, left: GUTTER, right: 8, zIndex: blocks.length - idx + (inside ? blocks.length : 0) }}
               >
                 <div className="flex items-baseline gap-2">
                   <span className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-tight">{stripMarks(b.title)}</span>

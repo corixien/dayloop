@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRange, defaultEnd, fromMin, nextStart, stack, toMin } from "./planLogic";
+import { checkRange, defaultEnd, fromMin, nextStart, toMin } from "./planLogic";
 
 const b = (start: string, end: string) => ({ start, end });
 
@@ -20,10 +20,6 @@ describe("plan logic", () => {
     expect(defaultEnd("12:00")).toBe("13:00");
     expect(defaultEnd("23:30")).toBe("23:59");
     expect(defaultEnd("12:00", 30)).toBe("12:30");
-  });
-  it("stacks overlapping blocks instead of placing them side by side", () => {
-    const s = stack([b("09:00", "11:00"), b("10:00", "10:30"), b("10:15", "12:00"), b("11:00", "12:00")]);
-    expect(s.map((x) => x.depth)).toEqual([0, 1, 2, 0]);
   });
   it("validates ranges", () => {
     expect(checkRange("09:00", "10:00")).toBeNull();
