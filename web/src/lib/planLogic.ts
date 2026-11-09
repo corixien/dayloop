@@ -27,15 +27,16 @@ export const defaultEnd = (start: string, minutes = 60): string => fromMin(Math.
 
 /**
  * Overlapping blocks are not placed side by side: each one gets a depth (0 = nothing before it overlaps) and is drawn
- * full width with a small indent per level, later blocks on top.
+ * full width with a small indent per level, later blocks on top. minLen: shortest length a block counts as (minutes), so
+ * blocks drawn at a minimum height that collide with the next one are indented too.
  */
-export function stack<T extends { start: string; end: string }>(sorted: T[]): { b: T; depth: number }[] {
+export function stack<T extends { start: string; end: string }>(sorted: T[], minLen = 1): { b: T; depth: number }[] {
   const ends: number[] = [];
   return sorted.map((b) => {
     const s = toMin(b.start);
     let depth = ends.findIndex((e) => e <= s);
     if (depth < 0) depth = ends.length;
-    ends[depth] = Math.max(toMin(b.end), s + 1);
+    ends[depth] = Math.max(toMin(b.end), s + minLen);
     return { b, depth };
   });
 }

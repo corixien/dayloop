@@ -791,7 +791,7 @@ test("new todo form stays open when picking a priority; todo has priority sectio
   await expect(page.getByRole("button", { name: /Wichtig/ })).toBeVisible();
 });
 
-test("plan: back-to-back short blocks never overlap on screen", async ({ browser }) => {
+test("plan: zoom stretches the time scale, short blocks are indented while they collide", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
   const page = await ctx.newPage();
   await page.goto("/");
@@ -807,10 +807,20 @@ test("plan: back-to-back short blocks never overlap on screen", async ({ browser
   };
   await add("Aa", "10:00", "10:05");
   await add("Bb", "10:05", "10:10");
-  await add("Cc", "10:10", "10:25");
-  await add("Dd", "10:30", "10:45");
+  await add("Lang", "11:00", "12:00");
   const box = async (n: string) => (await page.getByRole("button", { name: new RegExp(n) }).boundingBox())!;
-  const [a, b, c, d] = [await box("Aa"), await box("Bb"), await box("Cc"), await box("Dd")];
-  for (const [p, q] of [[a, b], [b, c], [c, d]]) expect(p.y + p.height).toBeLessThanOrEqual(q.y + 0.5);
-  expect(b.x).toBe(a.x);
+  const a0 = await box("Aa"), b0 = await box("Bb"), l0 = await box("Lang");
+  expect(b0.x).toBeGreaterThan(a0.x); // collide at this scale: indented
+  // Ctrl + wheel = pinch on a trackpad
+  const area = page.locator("[data-block]").first();
+  await area.scrollIntoViewIfNeeded();
+  const c = (await area.boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + 40);
+  for (let i = 0; i < 6; i++) { await page.keyboard.down("Control"); await page.mouse.wheel(0, -100); await page.keyboard.up("Control"); }
+  await page.waitForTimeout(300);
+  const l1 = await box("Lang");
+  expect(l1.height).toBeGreaterThan(l0.height * 1.8);
+  const a1 = await box("Aa"), b1 = await box("Bb");
+  expect(b1.x).toBe(a1.x); // enough room now: no indent, no overlap
+  expect(a1.y + a1.height).toBeLessThanOrEqual(b1.y + 1);
 });
