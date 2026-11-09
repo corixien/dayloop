@@ -1,10 +1,12 @@
 import { Play, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { local, useIsMobile, useT } from "../lib/app";
-import { savePlan, deletePlan } from "../lib/plan";
+import type { PlanEntry } from "@dayloop/shared";
+import { savePlan, deletePlan, useEntryViews } from "../lib/plan";
 import { checkRange, defaultEnd, fromMin, toMin } from "../lib/planLogic";
 import { pomo } from "../lib/pomoStore";
 import { NotesEditor } from "./NotesEditor";
+import { EntryTree, TodoPicker } from "./PlanEntries";
 import { Sheet } from "./Sheet";
 import { Button, IconButton, Field, cx, inputCls } from "./ui";
 
@@ -41,6 +43,8 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
   const [date, setDate] = useState(init.date);
   const [start, setStart] = useState(init.start);
   const [end, setEnd] = useState(init.end);
+  const [entries, setEntries] = useState<PlanEntry[]>([]);
+  const views = useEntryViews(entries);
   const [loaded, setLoaded] = useState(!editing);
   const bad = checkRange(start, end);
 
@@ -49,8 +53,8 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
     let alive = true;
     void local.get("plan", init.id).then((x) => {
       if (!alive || !x) return;
-      saved.current = JSON.stringify([x.title, x.notes, x.date, x.start, x.end]);
-      setTitle(x.title); setNotes(x.notes); setDate(x.date); setStart(x.start); setEnd(x.end); setLoaded(true);
+      saved.current = JSON.stringify([x.title, x.notes, x.date, x.start, x.end, x.entries]);
+      setTitle(x.title); setNotes(x.notes); setEntries(x.entries); setDate(x.date); setStart(x.start); setEnd(x.end); setLoaded(true);
     });
     return () => { alive = false; };
   }, [init.id]);
@@ -58,26 +62,26 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
   // Existing blocks save every change by themselves: debounced while typing, at once on blur, on close and on unmount.
   const saved = useRef("");
   const gone = useRef(false);
-  const latest = useRef({ title, notes, date, start, end, ok: false });
-  latest.current = { title, notes, date, start, end, ok: editing && loaded && !!title.trim() && !bad };
+  const latest = useRef({ title, notes, date, start, end, entries, ok: false });
+  latest.current = { title, notes, date, start, end, entries, ok: editing && loaded && !!title.trim() && !bad };
   const flush = () => {
     const c = latest.current;
     if (!c.ok || gone.current) return;
-    const key = JSON.stringify([c.title.trim(), c.notes, c.date, c.start, c.end]);
+    const key = JSON.stringify([c.title.trim(), c.notes, c.date, c.start, c.end, c.entries]);
     if (key === saved.current) return;
     saved.current = key;
-    void savePlan({ id: init.id, title: c.title.trim(), notes: c.notes, date: c.date, start: c.start, end: c.end });
+    void savePlan({ id: init.id, title: c.title.trim(), notes: c.notes, date: c.date, start: c.start, end: c.end, entries: c.entries });
   };
   useEffect(() => {
     if (!editing) return;
     const h = setTimeout(flush, 500);
     return () => clearTimeout(h);
-  }, [title, notes, date, start, end]);
+  }, [title, notes, date, start, end, entries]);
   useEffect(() => () => flush(), []);
 
   const add = async () => {
     if (!title.trim() || bad) return;
-    await savePlan({ title: title.trim(), notes, date, start, end });
+    await savePlan({ title: title.trim(), notes, date, start, end, entries });
     close();
   };
   // Moving the start keeps the length
@@ -114,6 +118,11 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
           className="w-full bg-transparent text-lg font-semibold outline-none placeholder:font-normal placeholder:text-faint"
         />
         <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => { setNotes(v); latest.current.notes = v; flush(); }} placeholder={t("addNote")} label={t("note")} />
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted">{t("planTodos")}</span>
+          <EntryTree views={views} onRemove={(id) => { setEntries((e) => e.filter((x) => x.taskId !== id)); latest.current.entries = latest.current.entries.filter((x) => x.taskId !== id); }} />
+          <TodoPicker taken={entries.map((e) => e.taskId)} onPick={(taskId) => setEntries((e) => [...e, { taskId, points: null }])} />
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <Field label={t("planDate")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label={t("planStart")}><input type="time" className={inputCls} value={start} onChange={(e) => moveStart(e.target.value)} /></Field>

@@ -155,6 +155,12 @@ export const chatSchema = z.object({
 });
 
 /** Plan page: time blocks of a day (made by Claude through the MCP or by hand). Checklist lines live in `notes` like in tasks. */
+/** A todo shown inside a plan block; `points` null = all its checklist points, else only those point ids. */
+export const planEntrySchema = z.object({
+  taskId: id,
+  points: z.array(z.string().max(16)).max(200).nullable().default(null),
+});
+
 export const planSchema = z.object({
   title: z.string().min(1).max(500),
   notes: z.string().max(20000).default(""),
@@ -162,6 +168,8 @@ export const planSchema = z.object({
   start: time,
   /** end of the block, after `start` on the same day (latest 23:59) */
   end: time,
+  /** real todos (and their checklist points) shown below the block title, in order */
+  entries: z.array(planEntrySchema).max(100).default([]),
 });
 
 export const itemSchemas = {
@@ -197,6 +205,7 @@ export type MoFeed = z.infer<typeof mofeedSchema>;
 export type MoAudio = z.infer<typeof moaudioSchema>;
 export type Chat = z.infer<typeof chatSchema>;
 export type Plan = z.infer<typeof planSchema>;
+export type PlanEntry = z.infer<typeof planEntrySchema>;
 export type Repeat = z.infer<typeof repeatSchema>;
 export type Subtask = z.infer<typeof subtaskSchema>;
 

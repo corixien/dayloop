@@ -1,21 +1,23 @@
 /** Notes are plain text; lines like "- [ ] foo" / "- [x] foo" are checklist items (the former subtasks). */
-const CHECK = /^- \[( |x(?:@(\d+))?)\] ?/;
+const CHECK = /^- \[( |x)(?:@(\d+))?(?:#([a-z0-9]{3,12}))?\] ?/;
 
 export interface NoteLine {
   check: boolean;
   done: boolean;
   /** completion time (ms), written when ticked; older items have none */
   at?: number;
+  /** stable id, written when a plan block links the point ("- [ #a3f9] x", "- [x@<ms>#a3f9] x"); hidden in the editor */
+  id?: string;
   text: string;
 }
 
 export const parseLine = (l: string): NoteLine => {
   const m = CHECK.exec(l);
   return m
-    ? { check: true, done: m[1][0] === "x", ...(m[2] ? { at: Number(m[2]) } : {}), text: l.slice(m[0].length) }
+    ? { check: true, done: m[1] === "x", ...(m[2] ? { at: Number(m[2]) } : {}), ...(m[3] ? { id: m[3] } : {}), text: l.slice(m[0].length) }
     : { check: false, done: false, text: l };
 };
-export const formatLine = (l: NoteLine) => (l.check ? `- [${l.done ? `x${l.at ? `@${l.at}` : ""}` : " "}] ${l.text}` : l.text);
+export const formatLine = (l: NoteLine) => (l.check ? `- [${l.done ? `x${l.at ? `@${l.at}` : ""}` : " "}${l.id ? `#${l.id}` : ""}] ${l.text}` : l.text);
 export const parseNotes = (notes: string) => notes.split("\n").map(parseLine);
 export const formatNotes = (lines: NoteLine[]) => lines.map(formatLine).join("\n");
 
@@ -69,10 +71,24 @@ export function noteStats(notes: string) {
 }
 
 /** A repeating task starts its next round with all checklist items unchecked. */
-export const uncheckAll = (notes: string) => notes.replace(/^- \[x(@\d+)?\]/gm, "- [ ]");
+export const uncheckAll = (notes: string) => notes.replace(/^- \[x(?:@\d+)?(#[a-z0-9]+)?\]/gm, (_m, id) => `- [ ${id ?? ""}]`);
 
 /** Checklist items that were ticked with a known time (for the calendar). */
 export const doneItems = (notes: string) => parseNotes(notes).filter((l) => l.check && l.done && l.at).map((l) => ({ text: stripMarks(l.text), at: l.at! }));
 
 /** Tick/untick: remembers when. */
-export const toggled = (l: NoteLine): NoteLine => (l.done ? { check: true, done: false, text: l.text } : { ...l, done: true, at: Date.now() });
+export const toggled = (l: NoteLine): NoteLine => (l.done ? { check: true, done: false, ...(l.id ? { id: l.id } : {}), text: l.text } : { ...l, done: true, at: Date.now() });
+
+const newId = () => Math.random().toString(36).slice(2, 6).padEnd(4, "0");
+
+/** A point's id; gives the checklist line at `index` one when it has none. Returns the new notes and the id. */
+export function ensurePointId(notes: string, index: number): { notes: string; id: string } {
+  const lines = parseNotes(notes);
+  const l = lines[index];
+  if (l.id) return { notes, id: l.id };
+  const used = new Set(lines.map((x) => x.id));
+  let id = newId();
+  while (used.has(id)) id = newId();
+  lines[index] = { ...l, id };
+  return { notes: formatNotes(lines), id };
+}

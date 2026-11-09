@@ -27,3 +27,47 @@ describe("plan logic", () => {
     expect(checkRange("9:00", "10:00")).toBe("format");
   });
 });
+
+import { blockProgress, carryOver, resolveEntries, type Block, type TaskRef } from "./planLogic";
+import { ensurePointId, formatNotes, parseNotes, uncheckAll } from "./notes";
+
+describe("plan entries", () => {
+  const task = (id: string, notes: string, over: Partial<TaskRef> = {}): TaskRef => ({ id, title: `T${id}`, notes, done: false, trashedAt: null, ...over });
+  const tasks = new Map([
+    ["1", task("1", "- [ #aa11] a\n- [x@5#bb22] b\n- [ ] c")],
+    ["2", task("2", "")],
+    ["3", task("3", "", { trashedAt: 1 })],
+  ]);
+
+  it("round-trips point ids and keeps them when unchecking", () => {
+    const n = "- [ #aa11] a\n- [x@5#bb22] b\n- [x] c";
+    expect(formatNotes(parseNotes(n))).toBe(n);
+    expect(parseNotes(n)[1]).toMatchObject({ id: "bb22", done: true, at: 5 });
+    expect(uncheckAll(n)).toBe("- [ #aa11] a\n- [ #bb22] b\n- [ ] c");
+  });
+
+  it("ensurePointId adds an id once", () => {
+    const r = ensurePointId("x\n- [ ] a", 1);
+    expect(parseNotes(r.notes)[1].id).toBe(r.id);
+    expect(ensurePointId(r.notes, 1)).toEqual(r);
+  });
+
+  it("resolves entries live: subset by id, trashed and missing dropped", () => {
+    const v = resolveEntries([{ taskId: "1", points: ["bb22"] }, { taskId: "3", points: null }, { taskId: "9", points: null }, { taskId: "2", points: null }], tasks);
+    expect(v.map((x) => x.task.id)).toEqual(["1", "2"]);
+    expect(v[0].points.map((p) => p.text)).toEqual(["b"]);
+    expect(resolveEntries([{ taskId: "1", points: null }], tasks)[0].points).toHaveLength(3);
+    expect(blockProgress("- [x] own", resolveEntries([{ taskId: "1", points: null }, { taskId: "2", points: null }], tasks))).toEqual({ done: 2, total: 5 });
+  });
+
+  it("carries only open work to the next day, once", () => {
+    const blk = (id: string, title: string, date: string, entries: Block["entries"]): Block => ({ id, title, notes: "", date, start: "15:00", end: "17:00", entries });
+    const from = [blk("a", "Schule", "d1", [{ taskId: "1", points: ["aa11", "bb22"] }, { taskId: "2", points: null }]), blk("b", "Leer", "d1", [])];
+    const done = new Map(tasks).set("2", task("2", "", { done: true }));
+    const plan = carryOver(from, [], "d2", done);
+    expect(plan.create).toHaveLength(1);
+    expect(plan.create[0]).toMatchObject({ title: "Schule", date: "d2", entries: [{ taskId: "1", points: ["aa11"] }] });
+    const there = [blk("z", "schule", "d2", [{ taskId: "1", points: ["aa11"] }])];
+    expect(carryOver(from, there, "d2", done)).toEqual({ create: [], update: [] });
+  });
+});

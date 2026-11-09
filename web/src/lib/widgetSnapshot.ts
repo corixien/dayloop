@@ -2,7 +2,7 @@ import { addDays, fmtLong, todayStr } from "./dates";
 import { occurrences } from "./repeat";
 import { type Lang, translate } from "./i18n";
 import { noteStats } from "./notes";
-import { type Block, byStart } from "./planLogic";
+import { type Block, blockProgress, byStart, resolveEntries } from "./planLogic";
 import { type TaskItem, doneDay, extras, groupOpen, isDone, sortOpen } from "./taskLogic";
 
 /** One rendered row of the home screen widget: a day/section header or a task. */
@@ -86,6 +86,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
   }
 
   const plan: WRow[] = [];
+  const refs = new Map(tasks.map((x) => [x.id, { id: x.id, title: x.title, notes: x.notes, done: x.done, trashedAt: x.trashedAt }]));
   const tomorrow = addDays(today, 1);
   for (const day of [today, tomorrow]) {
     const rows = blocks.filter((b) => b.date === day).sort(byStart);
@@ -93,7 +94,8 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
     plan.push({ k: "h", title: day === today ? t("today") : t("tomorrow") });
     for (const b of rows) {
       const st = noteStats(b.notes);
-      plan.push({ k: "t", id: b.id, title: b.title, meta: `${b.start}–${b.end}${st.total ? `   ${st.done}/${st.total}` : ""}`, n: !!st.first, c: st.total > 0 });
+      const pr = blockProgress(b.notes, resolveEntries(b.entries ?? [], refs));
+      plan.push({ k: "t", id: b.id, title: b.title, meta: `${b.start}–${b.end}${pr.total ? `   ${pr.done}/${pr.total}` : ""}`, n: !!st.first, c: pr.total > 0 });
     }
   }
 

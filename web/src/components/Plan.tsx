@@ -1,10 +1,11 @@
-import { ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, ListChecks, ListTree } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useLang, useNow, useT } from "../lib/app";
+import { local, useLang, useNow, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
 import { noteStats, parseNotes, stripMarks } from "../lib/notes";
-import { usePlan } from "../lib/plan";
-import { DAY_MIN, fromMin, nextStart, defaultEnd, toMin } from "../lib/planLogic";
+import { savePlan, usePlan, useTaskRefs } from "../lib/plan";
+import { DAY_MIN, blockProgress, carryOver, fromMin, nextStart, defaultEnd, resolveEntries, toMin } from "../lib/planLogic";
+import { EntryTree } from "./PlanEntries";
 import { useSwipe } from "../lib/swipe";
 import { PlanEditor, type PlanInit } from "./PlanEditor";
 import { Button, IconButton, PageHeader, cx } from "./ui";
@@ -26,6 +27,16 @@ export function Plan() {
   const y = (min: number) => (min * hr) / 60;
   const [edit, setEdit] = useState<PlanInit | null>(null);
   const blocks = usePlan(day);
+  const refs = useTaskRefs();
+  const [view, setView] = useState<"axis" | "list">(() => (localStorage.getItem("dl_planview") === "list" ? "list" : "axis"));
+  const flip = () => setView((v) => { const n = v === "axis" ? "list" : "axis"; localStorage.setItem("dl_planview", n); return n; });
+  // open work of the day before that is not in this day's plan yet
+  const carry = carryOver(usePlan(addDays(day, -1)), blocks, day, refs);
+  const carryCount = carry.create.reduce((n, b) => n + b.entries.length, 0) + carry.update.reduce((n, u) => n + u.entries.length - (blocks.find((b) => b.id === u.id)?.entries.length ?? 0), 0);
+  const doCarry = async () => {
+    for (const b of carry.create) await savePlan(b);
+    for (const u of carry.update) await local.patch("plan", u.id, { entries: u.entries });
+  };
   const scroller = useRef<HTMLDivElement>(null);
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const isToday = day === today;
@@ -120,12 +131,41 @@ export function Plan() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title={<span className="truncate text-lg capitalize md:text-[22px]">{isToday ? `${t("plan")} · ${t("today")}` : t("plan")}</span>}>
+        <IconButton label={view === "axis" ? t("planListView") : t("planAxis")} onClick={flip}>{view === "axis" ? <ListTree size={18} /> : <CalendarClock size={18} />}</IconButton>
         <IconButton label="<" onClick={() => step(-1)}><ChevronLeft size={18} /></IconButton>
         <Button onClick={() => { if (day !== today) { setFx(today > day ? "anim-in-right" : "anim-in-left"); centered.current = ""; setDay(today); } else if (scroller.current) scroller.current.scrollTo({ top: Math.max(0, y(nowMin) - scroller.current.clientHeight / 2), behavior: "smooth" }); }}>{t("today_btn")}</Button>
         <IconButton label=">" onClick={() => step(1)}><ChevronRight size={18} /></IconButton>
       </PageHeader>
       <div className="shrink-0 border-b border-line px-4 py-1.5 text-[13px] capitalize text-muted md:px-6">{title}</div>
-      <div ref={scroller} className="relative min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain">
+      {carryCount > 0 && day >= today && (
+        <button type="button" onClick={() => void doCarry()} className="shrink-0 border-b border-line bg-accent-soft px-4 py-2 text-left text-[13px] font-medium text-accent md:px-6">{t("planCarry")} ({carryCount})</button>
+      )}
+      {view === "list" && (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:px-6">
+          {!blocks.length && <p className="text-[13px] text-faint">{t("planEmpty")}</p>}
+          {blocks.map((b) => {
+            const views = resolveEntries(b.entries, refs);
+            const pr = blockProgress(b.notes, views);
+            const own = parseNotes(b.notes).filter((l) => l.text.trim());
+            return (
+              <section key={b.id} className="rounded-lg border-l-[5px] border-accent bg-accent-soft p-3 ring-1 ring-line">
+                <button type="button" className="flex w-full items-baseline gap-2 text-left" onClick={() => setEdit({ id: b.id, date: b.date, start: b.start, end: b.end })}>
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{stripMarks(b.title)}</span>
+                  {pr.total > 0 && <span className="shrink-0 text-[11px] tabular-nums text-muted">{pr.done}/{pr.total}</span>}
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted">{b.start}–{b.end}</span>
+                </button>
+                {own.length > 0 && (
+                  <div className="mt-1 space-y-px text-[12px] text-muted">
+                    {own.map((l, i) => <div key={i} className={cx(l.check && l.done && "line-through")}>{l.check ? (l.done ? "☑ " : "☐ ") : ""}{stripMarks(l.text)}</div>)}
+                  </div>
+                )}
+                {views.length > 0 && <div className="mt-2"><EntryTree views={views} /></div>}
+              </section>
+            );
+          })}
+        </div>
+      )}
+      <div ref={scroller} className={cx("relative min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain", view === "list" && "hidden")}>
         <div
           key={day}
           className={cx("relative", fx)}
@@ -154,8 +194,12 @@ export function Plan() {
             // earlier blocks lie on top of later ones, except one that lies completely inside an earlier one (it would be hidden)
             const inside = blocks.some((o, j) => j < idx && toMin(o.start) <= s && toMin(o.end) >= e);
             const tight = h < 30;
-            const st = noteStats(b.notes);
-            const lines = parseNotes(b.notes).filter((l) => l.text.trim());
+            const views = resolveEntries(b.entries, refs);
+            const st = blockProgress(b.notes, views);
+            const lines = [
+              ...parseNotes(b.notes).filter((l) => l.text.trim()).map((l) => ({ check: l.check, done: l.done, text: l.text, depth: 0 })),
+              ...views.flatMap((v) => [{ check: true, done: v.task.done, text: v.task.title, depth: 0 }, ...v.points.map((p) => ({ check: true, done: p.done, text: p.text, depth: 1 }))]),
+            ];
             const live = isToday && nowMin >= s && nowMin < e;
             const past = isToday && nowMin >= e;
             return (
@@ -176,7 +220,7 @@ export function Plan() {
                 {h >= 60 && (
                   <div className="mt-0.5 space-y-px overflow-hidden text-[12px] leading-snug text-muted">
                     {lines.slice(0, Math.floor((h - 34) / 16)).map((l, i) => (
-                      <div key={i} className={cx("truncate", l.check && l.done && "line-through")}>{l.check ? (l.done ? "☑ " : "☐ ") : ""}{stripMarks(l.text)}</div>
+                      <div key={i} className={cx("truncate", l.check && l.done && "line-through", l.depth > 0 && "pl-4")}>{l.check ? (l.done ? "☑ " : "☐ ") : ""}{stripMarks(l.text)}</div>
                     ))}
                   </div>
                 )}

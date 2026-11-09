@@ -48,6 +48,7 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes, highlight }: { id
   const lang = useLang();
   const tasks = useItems("task");
   const task = tasks.find((x) => x.id === id);
+  const inPlan = useItems("plan").filter((b) => b.entries.some((e) => e.taskId === id)).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   const patch = (p: object) => local.patch("task", id, p as any);
 
   const [title, setTitle, flushTitle] = useDraft(task?.title ?? "", (v) => v.trim() && patch({ title: v.trim() }));
@@ -115,6 +116,9 @@ export function TaskDetail({ id, onClose, onFocus, focusNotes, highlight }: { id
         <div ref={notesBox}>
           <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => flushNotes(v)} placeholder={t("addNote")} label={t("note")} highlight={highlight} />
         </div>
+        {inPlan.length > 0 && (
+          <p className="text-[12px] text-muted">{t("inPlan")}: {inPlan.slice(-3).map((b) => `${b.title} (${b.date.slice(8)}.${b.date.slice(5, 7)}. ${b.start})`).join(", ")}</p>
+        )}
 
         {!task.done && (
           <div className="grid grid-cols-2 gap-3">

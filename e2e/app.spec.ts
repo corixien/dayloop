@@ -752,6 +752,42 @@ test("plan page: blocks on a day axis, default start, overlap, day navigation, s
   await m.close();
 });
 
+test("plan block holds real todos: ticking a point in the plan ticks it in the todo list", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await page.getByRole("button", { name: "Neue Aufgabe" }).click();
+  await page.locator("[data-newtitle]").fill("Referat");
+  await page.getByRole("textbox", { name: "Notiz" }).first().fill("- [ ] Quellen\n- [ ] Gliederung");
+  await page.locator("[data-newtitle]").press("Enter");
+  await page.waitForTimeout(450);
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: "Neuer Block" }).click();
+  await page.locator("[data-plantitle]").fill("Schule");
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  await page.getByLabel("Todo suchen").fill("refer");
+  await page.getByRole("button", { name: "Referat" }).click();
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toBeVisible();
+  await page.getByRole("button", { name: "Hinzufügen" }).click();
+  await page.waitForTimeout(300);
+  await page.getByRole("button", { name: "Liste" }).click();
+  await expect(page.getByText("0/2")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Quellen" }).click();
+  await expect(page.getByText("1/2")).toBeVisible();
+  // same point is ticked in the todo list
+  await page.goto("/#/todo");
+  await page.getByText("Referat").first().click();
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText(/Im Plan: Schule/)).toBeVisible();
+  // and the other way round: untick in the todo, the plan follows
+  await page.getByRole("checkbox", { name: "Quellen" }).click();
+  await page.goto("/#/plan");
+  await expect(page.getByText("0/2")).toBeVisible();
+  await ctx.close();
+});
+
 test("plan editor autosaves and play starts a focus round of the block length", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
   const page = await ctx.newPage();

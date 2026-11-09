@@ -52,7 +52,7 @@ describe("widget calendar tab", () => {
 describe("widget plan tab", () => {
   it("lists today's and tomorrow's blocks in time order with checklist progress", async () => {
     const { buildSnapshot } = await import("./widgetSnapshot");
-    const b = (id: string, title: string, date: string, start: string, end: string, notes = "") => ({ id, title, notes, date, start, end });
+    const b = (id: string, title: string, date: string, start: string, end: string, notes = "") => ({ id, title, notes, date, start, end, entries: [] });
     const snap = buildSnapshot([], "de", new Date(2026, 10, 5, 10, 0), null, 9, [
       b("b", "Sport", "2026-11-05", "17:00", "18:00"),
       b("a", "Lernen", "2026-11-05", "09:00", "10:30", "Kapitel\n- [x] Text\n- [ ] Vokabeln"),
