@@ -98,7 +98,9 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
               <IconButton label={t("delete")} onClick={() => { gone.current = true; void deletePlan(init.id!); close(); }}><Trash2 size={16} /></IconButton>
             </>
           )}
-          <IconButton label={t("close")} onClick={() => { flush(); close(); }}><X size={16} /></IconButton>
+          {editing
+            ? <IconButton label={t("close")} onClick={() => { flush(); close(); }}><X size={16} /></IconButton>
+            : <button type="button" onClick={close} className="px-1 text-[13px] text-muted">{t("cancel")}</button>}
         </div>
       </div>
       <form onSubmit={(e) => { e.preventDefault(); if (!editing) void add(); }} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">

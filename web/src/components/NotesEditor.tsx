@@ -220,12 +220,15 @@ export function NotesEditor({
           </div>
         </div>
       ))}
-      <div className="invisible flex justify-end gap-1 pt-0.5 group-focus-within:visible" aria-label="format">
+      {/* the box grows when the caret is in it; shrinking waits 300 ms so a tap on a control below is not moved away under the finger */}
+      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] delay-300 duration-150 group-focus-within:grid-rows-[1fr] group-focus-within:delay-0">
+      <div className="flex min-h-0 justify-end gap-1 overflow-hidden pt-0.5" aria-label="format">
         {([["**", Bold, "B"], ["*", Italic, "I"]] as const).map(([m, Icon, k]) => (
           <button key={m} type="button" tabIndex={-1} aria-label={m === "**" ? "Bold" : "Italic"} title={`${m === "**" ? "Bold" : "Italic"} (Ctrl+${k})`}
             onMouseDown={(e) => e.preventDefault()} onClick={() => format(m)}
             className="grid size-7 place-items-center rounded-md border border-line bg-raise text-muted hover:text-fg"><Icon size={14} strokeWidth={2.5} /></button>
         ))}
+      </div>
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "primary" | "ghost" | "danger" }) {
   return (
     <button
+      type="button"
       {...p}
       className={cx(
         "inline-flex h-8 items-center justify-center gap-1.5 rounded-ctl px-3 text-[13px] font-medium transition-colors disabled:opacity-50",
@@ -31,6 +32,7 @@ export function Button({
 export function IconButton({ label, className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
     <button
+      type="button"
       {...p}
       aria-label={label}
       title={label}
@@ -62,6 +64,7 @@ export function Check_({ done, priority = 0, onChange, label, size = 18, color, 
   const col = emphasis ? "var(--accent)" : color ?? (priority === 3 ? "var(--color-p3)" : priority === 2 ? "var(--color-p2)" : priority === 1 ? "var(--color-p1)" : "var(--faint)");
   return (
     <button
+      type="button"
       role="checkbox"
       aria-checked={done}
       aria-label={label}
@@ -113,6 +116,7 @@ export function Segmented<T extends string | number>({
     <div className="inline-flex rounded-ctl border border-line bg-sub p-0.5">
       {options.map((o) => (
         <button
+          type="button"
           key={String(o.value)}
           onClick={() => onChange(o.value)}
           className={cx(
@@ -133,6 +137,7 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
     <div className="flex flex-wrap gap-1.5">
       {Object.entries(COLORS).map(([name, hex]) => (
         <button
+          type="button"
           key={name}
           aria-label={name}
           onClick={() => onChange(name)}

@@ -775,3 +775,18 @@ test("plan editor autosaves and play starts a focus round of the block length", 
   expect(s.plannedSec).toBe(900);
   expect(s.status).toBe("running");
 });
+
+test("new todo form stays open when picking a priority; todo has priority sections", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await page.getByRole("button", { name: "Neue Aufgabe" }).click();
+  await page.locator("[data-newtitle]").fill("Wichtig");
+  await page.getByRole("button", { name: "Hoch" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Hinzufügen" }).click();
+  await expect(page.getByRole("heading", { name: /^Hoch/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Wichtig/ })).toBeVisible();
+});

@@ -23,7 +23,7 @@ export const isUrgent = (t: TaskItem, now: number, hour: number) => {
 
 /**
  * The one Todo list: urgent ones (deadline within 24 h or overdue) first by deadline, then everything else
- * by priority, then deadline (none last), then manual order.
+ * by priority, then creation order (oldest first).
  */
 export function sortOpen(tasks: TaskItem[], now: number, hour: number): TaskItem[] {
   const key = (t: TaskItem) => dueAt(t, hour) ?? Infinity;
@@ -34,11 +34,21 @@ export function sortOpen(tasks: TaskItem[], now: number, hour: number): TaskItem
   return tasks.filter((t) => isOpen(t) && shown(t)).sort((a, b) => {
     const ua = isUrgent(a, now, hour), ub = isUrgent(b, now, hour);
     if (ua !== ub) return ua ? -1 : 1;
-    if (!ua && a.priority !== b.priority) return b.priority - a.priority;
-    if (key(a) !== key(b)) return key(a) < key(b) ? -1 : 1;
-    if (a.priority !== b.priority) return b.priority - a.priority;
-    return a.order - b.order || a.updatedAt - b.updatedAt;
+    if (ua) return key(a) - key(b) || b.priority - a.priority || a.order - b.order;
+    return b.priority - a.priority || a.order - b.order || a.updatedAt - b.updatedAt;
   });
+}
+
+/** The sorted open list in its Todo sections: due within 24 h ("urgent"), then one per priority, oldest first. */
+export function groupOpen(sorted: TaskItem[], now: number, hour: number): { key: "urgent" | 3 | 2 | 1 | 0; tasks: TaskItem[] }[] {
+  const out: { key: "urgent" | 3 | 2 | 1 | 0; tasks: TaskItem[] }[] = [];
+  for (const t of sorted) {
+    const key = isUrgent(t, now, hour) ? "urgent" : (t.priority as 0 | 1 | 2 | 3);
+    const last = out[out.length - 1];
+    if (last?.key === key) last.tasks.push(t);
+    else out.push({ key, tasks: [t] });
+  }
+  return out;
 }
 
 /** Local calendar day a task was completed on ("YYYY-MM-DD"), for Have Done and the calendar. */

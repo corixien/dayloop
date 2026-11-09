@@ -78,3 +78,17 @@ describe("appointments", () => {
     expect(at(new Date(2026, 9, 31, 9, 0))).toContain("appt");
   });
 });
+
+describe("todo sections", () => {
+  const task = (over: object) => ({ id: "a", title: "x", notes: "", done: false, trashedAt: null, priority: 0, order: 0, updatedAt: 0, dueDate: null, dueTime: null, showBeforeMin: null, ...over }) as never;
+  it("one section per priority, oldest first, due-soon on top", async () => {
+    const { sortOpen, groupOpen } = await import("./taskLogic");
+    const now = new Date(2026, 9, 28, 10, 0).getTime();
+    const tasks = [
+      task({ id: "n1", order: 1 }), task({ id: "h2", priority: 3, order: 5 }), task({ id: "h1", priority: 3, order: 2 }),
+      task({ id: "m", priority: 2, order: 9 }), task({ id: "soon", dueDate: "2026-10-28", dueTime: "18:00", order: 7 }),
+    ];
+    const g = groupOpen(sortOpen(tasks, now, 9), now, 9);
+    expect(g.map((x) => [x.key, x.tasks.map((t: { id: string }) => t.id)])).toEqual([["urgent", ["soon"]], [3, ["h1", "h2"]], [2, ["m"]], [0, ["n1"]]]);
+  });
+});
