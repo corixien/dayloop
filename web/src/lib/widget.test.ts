@@ -21,7 +21,7 @@ describe("widget snapshot", () => {
       task("gone", { trashedAt: 5 }),
     ], "de", NOW);
 
-    expect(s.todo.map((r) => r.id)).toEqual(["over", "now", "rep", "later", "none"]);
+    expect(s.todo.map((r) => (r.k === "h" ? `# ${r.title}` : r.id))).toEqual(["# Bald fällig", "over", "now", "rep", "# Keine", "later", "none"]);
     expect(s.todo.find((r) => r.id === "now")).toMatchObject({ meta: "15:00" });
     expect(s.todo.find((r) => r.id === "over")).toMatchObject({ prio: 3 });
     expect(s.todo.find((r) => r.id === "rep")).toMatchObject({ rep: true });

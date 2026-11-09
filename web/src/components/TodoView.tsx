@@ -21,7 +21,7 @@ export function TodoView({ selectedId, onSelect }: { selectedId: string | null; 
         {open.length === 0 && <Empty>{t("noOpen")}</Empty>}
         {groups.map((g) => (
           <section key={g.key}>
-            <div className="sticky top-0 z-10 bg-bg/95 px-4 pb-1 pt-3 backdrop-blur md:px-6">
+            <div className="px-4 pb-1 pt-3 md:px-6">
               <h2 className="text-xs font-medium text-muted">{label(g.key)} <span className="text-faint">{g.tasks.length}</span></h2>
             </div>
             {g.tasks.map((x) => <TaskRow key={x.id} task={x} selected={selectedId === x.id} onSelect={(f) => onSelect(x.id, f)} />)}

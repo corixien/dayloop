@@ -114,7 +114,7 @@ final class WidgetStore {
             JSONObject s = snapshot(c);
             JSONObject labels = s.optJSONObject("labels");
             String today = labels != null ? labels.optString("today", "Heute") : "Heute";
-            String none = labels != null ? labels.optString("none", "Ohne Deadline") : "Ohne Deadline";
+            String none = labels != null ? labels.optString("noPrio", "Keine") : "Keine";
             JSONArray todo = s.optJSONArray("todo"), doneList = s.optJSONArray("done");
             if (todo == null) todo = new JSONArray();
             if (doneList == null) doneList = new JSONArray();

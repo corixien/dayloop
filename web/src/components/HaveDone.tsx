@@ -57,7 +57,7 @@ export function HaveDone({ selectedId, onSelect }: { selectedId: string | null; 
           const st = status?.day === day ? status : null;
           return (
             <section key={day}>
-              <div className="sticky top-0 z-10 flex items-center justify-between bg-bg/95 px-4 pb-1 pt-3 backdrop-blur md:px-6">
+              <div className="flex items-center justify-between px-4 pb-1 pt-3 md:px-6">
                 <h2 className="text-xs font-medium text-muted">
                   {label(day)} <span className="text-faint">{items.length}</span>
                 </h2>

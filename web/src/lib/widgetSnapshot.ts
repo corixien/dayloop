@@ -3,7 +3,7 @@ import { occurrences } from "./repeat";
 import { type Lang, translate } from "./i18n";
 import { noteStats } from "./notes";
 import { type Block, byStart } from "./planLogic";
-import { type TaskItem, doneDay, extras, isDone, sortOpen } from "./taskLogic";
+import { type TaskItem, doneDay, extras, groupOpen, isDone, sortOpen } from "./taskLogic";
 
 /** One rendered row of the home screen widget: a day/section header or a task. */
 export interface WRow {
@@ -31,7 +31,7 @@ const flags = (x: TaskItem, tr: TrackerState): Pick<WRow, "n" | "c" | "s"> => {
 
 export interface WidgetSnapshot {
   lang: Lang;
-  labels: { today: string; none: string; todo: string; done: string; calendar: string; plan: string; empty: string; emptyDone: string; emptyEvents: string; emptyPlan: string };
+  labels: { today: string; none: string; noPrio: string; todo: string; done: string; calendar: string; plan: string; empty: string; emptyDone: string; emptyEvents: string; emptyPlan: string };
   todo: WRow[];
   done: WRow[];
   /** upcoming appointments (next one first), grouped by day, up to two years ahead */
@@ -51,9 +51,12 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
   const today = todayStr(now);
 
   const todo: WRow[] = [];
-  for (const x of sortOpen(tasks, now.getTime(), hour)) {
+  for (const g of groupOpen(sortOpen(tasks, now.getTime(), hour), now.getTime(), hour)) {
+    todo.push({ k: "h", title: g.key === "urgent" ? t("dueSoon") : g.key === 3 ? t("pHigh") : g.key === 2 ? t("pMed") : g.key === 1 ? t("pLow") : t("pNone") });
+    for (const x of g.tasks) {
     const meta = !x.dueDate ? "" : x.dueDate === today ? x.dueTime ?? "" : `${x.dueDate === addDays(today, 1) ? t("tomorrow") : fmtLong(x.dueDate, lang)}${x.dueTime ? ` ${x.dueTime}` : ""}`;
     todo.push({ k: "t", id: x.id, title: x.title, meta: x.priority ? `${"!".repeat(x.priority)} ${meta}`.trim() : meta, prio: x.priority, rep: !!x.repeat, ...flags(x, tracker) });
+    }
   }
 
   const done: WRow[] = [];
@@ -96,7 +99,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
 
   return {
     lang,
-    labels: { today: t("today"), none: t("noDate"), todo: t("todoTab"), done: t("haveDone"), calendar: t("calendar"), plan: t("plan"), empty: t("noOpen"), emptyDone: t("noneDone"), emptyEvents: t("noEvents"), emptyPlan: t("planEmptyToday") },
+    labels: { today: t("today"), none: t("noDate"), noPrio: t("pNone"), todo: t("todoTab"), done: t("haveDone"), calendar: t("calendar"), plan: t("plan"), empty: t("noOpen"), emptyDone: t("noneDone"), emptyEvents: t("noEvents"), emptyPlan: t("planEmptyToday") },
     todo: todo.slice(0, MAX_ROWS),
     done: done.slice(0, MAX_ROWS),
     events: events.slice(0, EVENT_ROWS),
