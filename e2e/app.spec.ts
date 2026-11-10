@@ -788,6 +788,44 @@ test("plan block holds real todos: ticking a point in the plan ticks it in the t
   await ctx.close();
 });
 
+test("calendar shows quiet background dates (holidays, school breaks) and plan points can be added and removed", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/calendar");
+  for (let i = 0; i < 14 && !(await page.getByText("Heiligabend").first().isVisible()); i++) await page.getByRole("button", { name: ">" }).click();
+  await expect(page.getByText("Heiligabend").first()).toBeVisible();
+  await expect(page.getByText("Weihnachtsferien").first()).toBeVisible();
+  await shot(page, "calendar-info");
+
+  // plan: add / remove a point of a linked todo from the plan; the todo follows
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Referat");
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: "Neuer Block" }).click();
+  await page.locator("[data-plantitle]").fill("Schule");
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  await page.getByLabel("Todo suchen").fill("refer");
+  await page.getByRole("button", { name: "Referat" }).click();
+  await page.getByLabel("Punkt hinzufügen").fill("Quellen");
+  await page.getByLabel("Punkt hinzufügen").press("Enter");
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toBeVisible();
+  await page.getByRole("button", { name: "Hinzufügen", exact: true }).click();
+  await page.goto("/#/todo");
+  await page.getByText("Referat").first().click();
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toBeVisible();
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: /Schule/ }).click();
+  await page.getByRole("button", { name: "Punkt entfernen: Quellen" }).click();
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Schließen" }).click();
+  await page.goto("/#/todo");
+  await page.getByText("Referat").first().click();
+  await expect(page.getByRole("checkbox", { name: "Quellen" })).toHaveCount(0);
+  await ctx.close();
+});
+
 test("plan editor autosaves and play starts a focus round of the block length", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
   const page = await ctx.newPage();

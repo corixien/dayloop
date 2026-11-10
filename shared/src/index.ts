@@ -172,6 +172,15 @@ export const planSchema = z.object({
   entries: z.array(planEntrySchema).max(100).default([]),
 });
 
+/** A date shown quietly in the calendar background (holiday, school break, exam period, own notes like homework dates). */
+export const infoSchema = z.object({
+  title: z.string().min(1).max(200),
+  date,
+  /** last day of a range (school break); null = a single day */
+  endDate: date.nullable().default(null),
+  note: z.string().max(1000).default(""),
+});
+
 export const itemSchemas = {
   folder: folderSchema,
   list: listSchema,
@@ -186,6 +195,7 @@ export const itemSchemas = {
   moaudio: moaudioSchema,
   chat: chatSchema,
   plan: planSchema,
+  info: infoSchema,
 } as const;
 
 export type ItemType = keyof typeof itemSchemas;
@@ -205,6 +215,7 @@ export type MoFeed = z.infer<typeof mofeedSchema>;
 export type MoAudio = z.infer<typeof moaudioSchema>;
 export type Chat = z.infer<typeof chatSchema>;
 export type Plan = z.infer<typeof planSchema>;
+export type Info = z.infer<typeof infoSchema>;
 export type PlanEntry = z.infer<typeof planEntrySchema>;
 export type Repeat = z.infer<typeof repeatSchema>;
 export type Subtask = z.infer<typeof subtaskSchema>;
@@ -223,6 +234,7 @@ export interface DataOf {
   moaudio: MoAudio;
   chat: Chat;
   plan: Plan;
+  info: Info;
 }
 
 /** Wire format for sync. `data` is the validated payload, ignored for tombstones. */

@@ -5,7 +5,8 @@ import { TRACKER_EVENT } from "./lib/tracker";
 import { flushUploads, migrateMotivation } from "./lib/motivation";
 import { syncClient, useHashRoute, useIsMobile, useSettings, useSyncStatus, useT, useTheme } from "./lib/app";
 import { pomo, usePomo } from "./lib/pomoStore";
-import { takeOpenRequest } from "./lib/widget";
+import { isNative } from "./lib/native";
+import { takeOpenRequest, widgetPlugin } from "./lib/widget";
 import { useReminders } from "./lib/useReminders";
 import { useWidgetSync } from "./lib/widget";
 import { AuthPanel } from "./components/AuthPanel";
@@ -94,6 +95,8 @@ export default function App() {
   useEffect(() => {
     const apply = () => {
       if (document.visibilityState !== "visible") return;
+      // tapped empty widget space: open the page the widget was showing
+      if (isNative()) void widgetPlugin().takeRoute().then((x) => x.route && go(x.route)).catch(() => {});
       const r = takeOpenRequest();
       if (!r) return;
       if (r.focusTaskId) pomo.focusTask(r.focusTaskId);

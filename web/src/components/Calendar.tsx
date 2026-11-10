@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { local, useItems, useLang, useNow, useSettings, useT } from "../lib/app";
 import { addDays, addMonths, fmtDate, fmtLong, fmtMonth, monthGrid, parseDate, startOfWeek, timeToMin, todayStr, weekdayNames } from "../lib/dates";
 import { habitCounts } from "../lib/habits";
+import { type Info, infoByDay } from "../lib/infoDates";
 import { doneItems } from "../lib/notes";
 import { occurrences } from "../lib/repeat";
 import { useSwipe } from "../lib/swipe";
@@ -59,6 +60,32 @@ function Chip({ ev, onSelect, selected, inert }: { ev: Ev; onSelect: (id: string
   );
 }
 
+type DayInfo = Info & { first: boolean };
+const INFO_TINT: Record<Info["kind"], string | null> = {
+  holiday: "color-mix(in srgb, var(--accent) 10%, transparent)",
+  school: "color-mix(in srgb, var(--faint) 16%, transparent)",
+  exam: "color-mix(in srgb, var(--danger) 9%, transparent)",
+  day: null,
+  custom: "color-mix(in srgb, var(--faint) 10%, transparent)",
+};
+/** Quiet background of a day: the tint of its most "blocking" info (holiday > exam > school > custom). */
+const infoTint = (infos: DayInfo[]) => {
+  for (const k of ["holiday", "exam", "school", "custom"] as const) if (infos.some((i) => i.kind === k)) return INFO_TINT[k] ?? undefined;
+  return undefined;
+};
+/** Muted labels of the day's info (ranges only on their first visible day). */
+function InfoLabels({ infos, all }: { infos: DayInfo[]; all?: boolean }) {
+  const shown = infos.filter((i) => all || i.first);
+  return (
+    <>
+      {shown.slice(0, 2).map((i) => (
+        <div key={i.id} className="truncate text-[10px] font-medium italic leading-4 text-muted opacity-80" title={i.title}>{i.title}</div>
+      ))}
+      {shown.length > 2 && <div className="text-[10px] leading-4 text-muted opacity-80">+{shown.length - 2}</div>}
+    </>
+  );
+}
+
 interface BodyProps {
   mode: Mode;
   anchor: string;
@@ -85,6 +112,9 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
     if (mode === "week") { const s = startOfWeek(anchor, weekStart); return Array.from({ length: 7 }, (_, i) => addDays(s, i)); }
     return [anchor];
   }, [mode, anchor, weekStart]);
+
+  const customInfo = useItems("info");
+  const info = useMemo(() => infoByDay(days, lang, customInfo), [days, lang, customInfo]);
 
   const events = useMemo(() => {
     const from = days[0], to = days[days.length - 1];
@@ -167,6 +197,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => drop(e, d)}
                 className={cx("min-h-0 min-w-0 overflow-hidden border-b border-r border-line p-1", out && "bg-sub/60")}
+                style={{ background: infoTint(info.get(d) ?? []) }}
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); onZoom("day", d, e.currentTarget.parentElement!); }}
@@ -174,6 +205,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 >
                   {Number(d.slice(8))}
                 </button>
+                <InfoLabels infos={info.get(d) ?? []} />
                 <div className="space-y-0.5">
                   {evs.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                   {evs.length > 3 && <div className="px-1 text-[11px] text-muted">+{evs.length - 3}</div>}
@@ -193,12 +225,13 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
           // deadlines without a time and habit completions; everything with a time sits in the grid
           const head = (events.get(d) ?? []).filter((e) => e.habit || (!e.timing && !e.task?.dueTime));
           return (
-            <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5">
+            <div key={d} data-date={d} className="min-w-0 flex-1 basis-0 border-l border-line px-1 py-1.5" style={{ background: infoTint(info.get(d) ?? []) }}>
               <button onClick={(e) => onZoom("day", d, e.currentTarget.parentElement!)} className={cx("block w-full rounded text-center text-xs leading-tight", mode === "week" && "py-1 hover:bg-hover", d === today ? "font-semibold text-accent" : "text-muted")}>
                 {mode === "week"
                   ? <><span className="block">{new Intl.DateTimeFormat(lang, { weekday: "short" }).format(parseDate(d))}</span><span className="block text-sm tabular-nums">{Number(d.slice(8))}</span></>
                   : <span className="block truncate">{fmtLong(d, lang)}</span>}
               </button>
+              <div className="mt-0.5 text-center"><InfoLabels infos={info.get(d) ?? []} all={mode === "day"} /></div>
               <div className="mt-1 min-h-6 space-y-0.5" onDragOver={(e) => e.preventDefault()} onDrop={(e) => drop(e, d, null)} onClick={mode === "week" ? undefined : () => onCreate({ date: d, time: null })} onDoubleClick={mode === "week" ? () => onCreate({ date: d, time: null }) : undefined} {...(mode === "week" ? press(() => ({ date: d, time: null })) : {})}>
                 {head.slice(0, 3).map((ev, i) => <div key={i} className="h-5"><Chip ev={ev} inert={mode === "week" && !ev.timing} onSelect={onSelect} selected={selectedId === ev.task?.id} /></div>)}
                 {head.length > 3 && <div className="px-1 text-[11px] text-muted">+{head.length - 3}</div>}
@@ -233,7 +266,7 @@ function Body({ mode, anchor, anim, today, now, tasks, habits, logs, selectedId,
                 key={d}
                 data-date={d}
                 className="relative min-w-0 flex-1 basis-0 border-l border-line"
-                style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR - 1}px, var(--line) ${HOUR - 1}px, var(--line) ${HOUR}px)` }}
+                style={{ backgroundColor: infoTint(info.get(d) ?? []), backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR - 1}px, var(--line) ${HOUR - 1}px, var(--line) ${HOUR}px)` }}
                 onClick={mode === "week" ? undefined : (e) => onCreate({ date: d, time: timeFromY(e) })}
                 onDoubleClick={mode === "week" ? (e) => onCreate({ date: d, time: timeFromY(e) }) : undefined}
                 {...(mode === "week" ? press((e) => ({ date: d, time: timeFromY(e) })) : {})}

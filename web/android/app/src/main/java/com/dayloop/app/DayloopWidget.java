@@ -158,6 +158,8 @@ public class DayloopWidget extends AppWidgetProvider {
         // taps on the background or the empty text open the app
         Intent launch = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
         if (launch != null) {
+            // open the app on the page the widget is showing
+            launch.putExtra("route", mode == 0 ? "/todo" : mode == 1 ? "/done" : mode == 2 ? "/calendar" : "/plan");
             PendingIntent open = PendingIntent.getActivity(ctx, id * 10 + 5, launch, flags(false));
             v.setOnClickPendingIntent(R.id.root, open);
             v.setOnClickPendingIntent(R.id.empty, open);

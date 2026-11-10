@@ -120,7 +120,7 @@ function Form({ init, close, onFocus, inDialog }: { init: PlanInit; close: () =>
         <NotesEditor value={notes} onChange={setNotes} onCommit={(v) => { setNotes(v); latest.current.notes = v; flush(); }} placeholder={t("addNote")} label={t("note")} />
         <div className="space-y-2">
           <span className="block text-xs font-medium text-muted">{t("planTodos")}</span>
-          <EntryTree views={views} onRemove={(id) => { setEntries((e) => e.filter((x) => x.taskId !== id)); latest.current.entries = latest.current.entries.filter((x) => x.taskId !== id); }} />
+          <EntryTree views={views} onAdded={(taskId, pointId) => setEntries((e) => e.map((x) => (x.taskId === taskId && x.points && !x.points.includes(pointId) ? { ...x, points: [...x.points, pointId] } : x)))} onRemove={(id) => { setEntries((e) => e.filter((x) => x.taskId !== id)); latest.current.entries = latest.current.entries.filter((x) => x.taskId !== id); }} />
           <TodoPicker taken={entries.map((e) => e.taskId)} onPick={(taskId) => setEntries((e) => [...e, { taskId, points: null }])} />
         </div>
         <div className="grid grid-cols-3 gap-3">

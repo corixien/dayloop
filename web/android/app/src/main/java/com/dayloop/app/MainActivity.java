@@ -13,6 +13,19 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(WidgetPlugin.class);
         super.onCreate(savedInstanceState);
         claimLeftEdge();
+        keepRoute(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        keepRoute(intent);
+    }
+
+    /** The widget opens the app on the page it was showing; the web layer picks the route up when it becomes visible. */
+    private void keepRoute(android.content.Intent intent) {
+        String route = intent == null ? null : intent.getStringExtra("route");
+        if (route != null) WidgetStore.setRoute(this, route);
     }
 
     /** Keep a strip of the left edge away from the system back gesture so the in-app menu swipe works there. */

@@ -205,6 +205,14 @@ final class WidgetStore {
         p(c).edit().putString("url", url).putString("token", token).apply();
     }
 
+    /** Page the widget asked the app to open (read once by the web layer). */
+    static void setRoute(Context c, String route) { p(c).edit().putString("route", route).apply(); }
+    static String takeRoute(Context c) {
+        String r = p(c).getString("route", "");
+        if (!r.isEmpty()) p(c).edit().remove("route").apply();
+        return r;
+    }
+
     static String url(Context c) { return p(c).getString("url", ""); }
     static String token(Context c) { return p(c).getString("token", ""); }
 

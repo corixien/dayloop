@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { local, uid, useItems } from "./app";
 import { type Block, type EntryView, type TaskRef, byStart, resolveEntries } from "./planLogic";
-import { toggleDone } from "./tasks";
-import { ensurePointId, parseNotes, formatNotes } from "./notes";
+import { addTask, toggleDone } from "./tasks";
+import { appendPoint, ensurePointId, formatNotes, parseNotes, removePoint } from "./notes";
 
 export const usePlan = (date: string): Block[] =>
   useItems("plan").filter((x) => x.date === date).map((x) => ({ id: x.id, title: x.title, notes: x.notes, date: x.date, start: x.start, end: x.end, entries: x.entries })).sort(byStart);
@@ -48,3 +48,32 @@ export async function toggleTaskById(taskId: string): Promise<void> {
   const t = await local.get("task", taskId);
   if (t) await toggleDone(t);
 }
+
+/** New point on a real todo (from the plan). Returns its id. */
+export async function addPoint(taskId: string, text: string): Promise<string | null> {
+  const t = await local.get("task", taskId);
+  const title = text.trim();
+  if (!t || !title) return null;
+  const r = appendPoint(t.notes, title);
+  await local.patch("task", taskId, { notes: r.notes });
+  return r.id;
+}
+
+/** Delete a point of a real todo (from the plan). */
+export async function deletePoint(taskId: string, p: { id?: string; index: number }): Promise<void> {
+  const t = await local.get("task", taskId);
+  if (!t) return;
+  const notes = removePoint(t.notes, p);
+  if (notes !== t.notes) await local.patch("task", taskId, { notes });
+}
+
+/** A block that only shows some points of a todo also shows a point that was just added there. */
+export async function showPoint(blockId: string, taskId: string, pointId: string): Promise<void> {
+  const b = await local.get("plan", blockId);
+  if (!b) return;
+  const entries = b.entries.map((e) => (e.taskId === taskId && e.points && !e.points.includes(pointId) ? { ...e, points: [...e.points, pointId] } : e));
+  await local.patch("plan", blockId, { entries });
+}
+
+/** A brand-new todo created from the plan picker. */
+export const createTodo = (title: string) => addTask({ title });

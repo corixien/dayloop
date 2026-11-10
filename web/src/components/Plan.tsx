@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { local, useLang, useNow, useT } from "../lib/app";
 import { addDays, fmtLong, todayStr } from "../lib/dates";
 import { noteStats, parseNotes, stripMarks } from "../lib/notes";
-import { savePlan, usePlan, useTaskRefs } from "../lib/plan";
+import { savePlan, showPoint, usePlan, useTaskRefs } from "../lib/plan";
 import { DAY_MIN, blockProgress, carryOver, fromMin, nextStart, defaultEnd, resolveEntries, toMin } from "../lib/planLogic";
 import { EntryTree } from "./PlanEntries";
 import { useSwipe } from "../lib/swipe";
@@ -159,7 +159,7 @@ export function Plan() {
                     {own.map((l, i) => <div key={i} className={cx(l.check && l.done && "line-through")}>{l.check ? (l.done ? "☑ " : "☐ ") : ""}{stripMarks(l.text)}</div>)}
                   </div>
                 )}
-                {views.length > 0 && <div className="mt-2"><EntryTree views={views} /></div>}
+                {views.length > 0 && <div className="mt-2"><EntryTree views={views} onAdded={(taskId, pointId) => void showPoint(b.id, taskId, pointId)} /></div>}
               </section>
             );
           })}

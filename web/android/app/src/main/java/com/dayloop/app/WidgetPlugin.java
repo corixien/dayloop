@@ -68,6 +68,14 @@ public class WidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Page the widget wanted the app to open ("" if none). */
+    @PluginMethod
+    public void takeRoute(PluginCall call) {
+        JSObject out = new JSObject();
+        out.put("route", WidgetStore.takeRoute(getContext()));
+        call.resolve(out);
+    }
+
     /** API token the widget uses to tick todos without opening the app. */
     @PluginMethod
     public void setCredentials(PluginCall call) {

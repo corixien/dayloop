@@ -3,12 +3,12 @@ import { useMemo, useState } from "react";
 import { useT } from "../lib/app";
 import { fuzzyScore } from "../lib/fuzzy";
 import { stripMarks } from "../lib/notes";
-import { ensurePointIds, tickPoint, toggleTaskById, useTaskRefs } from "../lib/plan";
+import { addPoint, createTodo, deletePoint, ensurePointIds, tickPoint, toggleTaskById, useTaskRefs } from "../lib/plan";
 import type { EntryView } from "../lib/planLogic";
 import { Check_, cx } from "./ui";
 
 /** Todos of a plan block with their checklist points one level deeper. Ticking writes to the real todo. */
-export function EntryTree({ views, onRemove }: { views: EntryView[]; onRemove?: (taskId: string) => void }) {
+export function EntryTree({ views, onRemove, onAdded }: { views: EntryView[]; onRemove?: (taskId: string) => void; onAdded?: (taskId: string, pointId: string) => void }) {
   const t = useT();
   return (
     <ul className="space-y-1">
@@ -25,10 +25,12 @@ export function EntryTree({ views, onRemove }: { views: EntryView[]; onRemove?: 
                 <li key={p.id ?? p.index} className="flex items-center gap-2">
                   <Check_ done={p.done} size={15} label={p.text} onChange={() => void tickPoint(v.task.id, p, !p.done)} />
                   <span className={cx("min-w-0 flex-1 truncate text-[13px]", p.done && "text-muted line-through")}>{p.text}</span>
+                  <button type="button" aria-label={`${t("planRemovePoint")}: ${p.text}`} onClick={() => void deletePoint(v.task.id, p)} className="grid size-5 place-items-center rounded text-faint hover:text-fg"><X size={12} /></button>
                 </li>
               ))}
             </ul>
           )}
+          <PointAdder taskId={v.task.id} nested={v.points.length > 0} onAdded={onAdded} />
         </li>
       ))}
     </ul>
@@ -49,11 +51,38 @@ export function TodoPicker({ taken, onPick }: { taken: string[]; onPick: (taskId
   return (
     <div className="rounded-lg border border-line bg-raise p-2">
       <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("planFindTodo")} aria-label={t("planFindTodo")} className="mb-1 h-8 w-full rounded-ctl bg-transparent px-2 text-[14px] outline-none" />
-      {list.length === 0 && <p className="px-2 py-1 text-[13px] text-faint">{t("planNoTodos")}</p>}
+      {list.length === 0 && !q.trim() && <p className="px-2 py-1 text-[13px] text-faint">{t("planNoTodos")}</p>}
       {list.map((x) => (
         <button key={x.id} type="button" onClick={async () => { await ensurePointIds(x.id); onPick(x.id); setQ(""); setOpen(false); }} className="block w-full truncate rounded px-2 py-1.5 text-left text-[14px] hover:bg-accent-soft">{stripMarks(x.title)}</button>
       ))}
+      {q.trim() && (
+        <button type="button" onClick={async () => { const id = await createTodo(q.trim()); onPick(id); setQ(""); setOpen(false); }} className="flex w-full items-center gap-1.5 truncate rounded px-2 py-1.5 text-left text-[14px] text-accent hover:bg-accent-soft"><Plus size={14} />{t("planNewTodo")}: {q.trim()}</button>
+      )}
       <button type="button" onClick={() => { setOpen(false); setQ(""); }} className="mt-1 px-2 text-[12px] text-muted">{t("cancel")}</button>
+    </div>
+  );
+}
+
+/** "+ Punkt": adds a checklist point to the real todo. */
+function PointAdder({ taskId, nested, onAdded }: { taskId: string; nested: boolean; onAdded?: (taskId: string, pointId: string) => void }) {
+  const t = useT();
+  const [text, setText] = useState("");
+  const add = async () => {
+    const id = await addPoint(taskId, text);
+    setText("");
+    if (id) onAdded?.(taskId, id);
+  };
+  return (
+    <div className={cx("mt-0.5 flex items-center gap-2", nested ? "ml-3 border-l border-line pl-4" : "ml-3 pl-4")}>
+      <Plus size={13} className="shrink-0 text-faint" />
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void add(); } }}
+        placeholder={t("planAddPoint")}
+        aria-label={t("planAddPoint")}
+        className="h-6 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+      />
     </div>
   );
 }

@@ -92,3 +92,26 @@ export function ensurePointId(notes: string, index: number): { notes: string; id
   lines[index] = { ...l, id };
   return { notes: formatNotes(lines), id };
 }
+
+/** Add a new unchecked point (with an id) at the end of the checklist, after the last checklist line or the notes. */
+export function appendPoint(notes: string, text: string): { notes: string; id: string } {
+  const lines = parseNotes(notes);
+  const used = new Set(lines.map((x) => x.id));
+  let id = newId();
+  while (used.has(id)) id = newId();
+  const last = lines.reduce((m, l, i) => (l.check ? i : m), -1);
+  const at = last >= 0 ? last + 1 : lines.length;
+  const line: NoteLine = { check: true, done: false, id, text };
+  if (!notes.trim()) return { notes: formatNotes([line]), id };
+  lines.splice(at, 0, line);
+  return { notes: formatNotes(lines), id };
+}
+
+/** Remove the checklist point with this id (or, without an id, at this position). Unchanged notes when it is gone. */
+export function removePoint(notes: string, ref: { id?: string; index: number }): string {
+  const lines = parseNotes(notes);
+  const i = ref.id ? lines.findIndex((l) => l.check && l.id === ref.id) : ref.index;
+  if (!lines[i]?.check) return notes;
+  lines.splice(i, 1);
+  return formatNotes(lines);
+}

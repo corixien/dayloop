@@ -59,7 +59,7 @@ const de = {
   noEvents: "Keine kommenden Termine", chatClear: "Verlauf löschen", cmdDetails: "Details", cmdBack: "Zurück", cmdTitleHint: "Titel, z. B. „Referat morgen 15 Uhr“", cmdComposeHint: "Notizen und Unterpunkte (\"- \" macht eine Checkliste), Strg+Enter fügt hinzu",
   chatEmpty: "Sag oder schreib, was du erledigen willst: Aufgaben, Erledigtes, Termine, Habits, Timer.", you: "Du",
   plan: "Plan", planNew: "Neuer Block", planEdit: "Block bearbeiten", planStart: "Beginn", planEnd: "Ende", planDur: "Dauer", planTitleHint: "Was steht in diesem Zeitraum an?",
-  planErrOrder: "Das Ende muss nach dem Beginn liegen.", planEmpty: "Für diesen Tag ist noch nichts geplant.", planSave: "Speichern", planDate: "Datum", planEmptyToday: "Heute nichts geplant", planTodos: "Todos im Block", planAddTodo: "Todo verknüpfen", planFindTodo: "Todo suchen", planNoTodos: "Keine offenen Todos", planAxis: "Zeitachse", planListView: "Liste", planCarry: "Offene von gestern übernehmen", inPlan: "Im Plan", removeFromPlan: "Aus dem Block entfernen",
+  planErrOrder: "Das Ende muss nach dem Beginn liegen.", planEmpty: "Für diesen Tag ist noch nichts geplant.", planSave: "Speichern", planDate: "Datum", planEmptyToday: "Heute nichts geplant", planTodos: "Todos im Block", planAddPoint: "Punkt hinzufügen", planRemovePoint: "Punkt entfernen", planNewTodo: "Neues Todo", planAddTodo: "Todo verknüpfen", planFindTodo: "Todo suchen", planNoTodos: "Keine offenen Todos", planAxis: "Zeitachse", planListView: "Liste", planCarry: "Offene von gestern übernehmen", inPlan: "Im Plan", removeFromPlan: "Aus dem Block entfernen",
 } as const;
 
 export type Key = keyof typeof de;
@@ -125,7 +125,7 @@ const en: Record<Key, string> = {
   noEvents: "No upcoming appointments", chatClear: "Clear history", cmdDetails: "Details", cmdBack: "Back", cmdTitleHint: "Title, e.g. \"Report tomorrow 3pm\"", cmdComposeHint: "Notes and sub-items (\"- \" makes a checklist), Ctrl+Enter adds",
   chatEmpty: "Say or type what you want done: tasks, finished things, appointments, habits, timer.", you: "You",
   plan: "Plan", planNew: "New block", planEdit: "Edit block", planStart: "Start", planEnd: "End", planDur: "Duration", planTitleHint: "What is planned for this time?",
-  planErrOrder: "The end must be after the start.", planEmpty: "Nothing planned for this day yet.", planSave: "Save", planDate: "Date", planEmptyToday: "Nothing planned today", planTodos: "Todos in block", planAddTodo: "Link todo", planFindTodo: "Find todo", planNoTodos: "No open todos", planAxis: "Timeline", planListView: "List", planCarry: "Carry over open items from yesterday", inPlan: "In plan", removeFromPlan: "Remove from block",
+  planErrOrder: "The end must be after the start.", planEmpty: "Nothing planned for this day yet.", planSave: "Save", planDate: "Date", planEmptyToday: "Nothing planned today", planTodos: "Todos in block", planAddPoint: "Add point", planRemovePoint: "Remove point", planNewTodo: "New todo", planAddTodo: "Link todo", planFindTodo: "Find todo", planNoTodos: "No open todos", planAxis: "Timeline", planListView: "List", planCarry: "Carry over open items from yesterday", inPlan: "In plan", removeFromPlan: "Remove from block",
 };
 
 export const dict = { de, en };

@@ -13,6 +13,7 @@ interface WidgetPlugin {
   overlayReady(): Promise<void>;
   update(snapshot: object): Promise<void>;
   setCredentials(o: { url: string; token: string }): Promise<void>;
+  takeRoute(): Promise<{ route: string }>;
   takePending(): Promise<{ actions: { id: string; done: boolean; at: number }[] }>;
   finishOverlay(): Promise<void>;
   overlayPassThrough(): Promise<void>;
