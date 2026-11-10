@@ -84,7 +84,7 @@ export class Auth {
         [sha256(bearer)],
       );
       if (!r.rows[0]) return null;
-      this.db.query("update api_tokens set last_used_at=now() where id=$1", [r.rows[0].id]).catch(() => {});
+      this.db.query("update api_tokens set last_used_at=now() where id=$1 and (last_used_at is null or last_used_at < now() - interval '1 hour')", [r.rows[0].id]).catch(() => {});
       return { userId: r.rows[0].user_id, viaApiToken: true };
     }
     try {

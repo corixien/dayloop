@@ -27,6 +27,8 @@ export class AuthError extends Error {
 const SESSION_KEY = "dl_session";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const IDLE_GRACE_MS = 120_000;
+
 /** Push dirty rows, pull everything after the cursor, keep a live SSE channel for server-side changes. */
 export class SyncClient {
   status: SyncStatus = "signedout";
@@ -38,6 +40,8 @@ export class SyncClient {
   private sse: AbortController | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private debounce: ReturnType<typeof setTimeout> | null = null;
+  private idle: ReturnType<typeof setTimeout> | undefined;
+  private started = false;
 
   constructor(
     private local: Local,
@@ -238,30 +242,58 @@ export class SyncClient {
 
   // ---- live channel ----
 
+  /** The live channel (SSE + 60 s poll) only runs while someone can see the app, plus a short grace period. */
   start() {
-    if (!this.session || this.sse) return;
+    if (!this.session || this.started) return;
+    this.started = true;
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", this.kick);
+      document.addEventListener("visibilitychange", this.onVisibility);
+    }
+    if (this.visible()) this.openLive();
+  }
+
+  private visible() {
+    return typeof document === "undefined" || document.visibilityState === "visible";
+  }
+
+  private openLive() {
+    clearTimeout(this.idle);
+    if (this.sse) return;
     const ac = (this.sse = new AbortController());
     void this.listen(ac);
     this.poll = setInterval(() => void this.syncNow(), 60_000);
-    if (typeof window !== "undefined") {
-      window.addEventListener("online", this.kick);
-      document.addEventListener("visibilitychange", this.kick);
-    }
   }
 
-  private kick = () => {
-    if (typeof document === "undefined" || document.visibilityState === "visible") void this.syncNow();
-  };
-
-  stop() {
+  private closeLive() {
+    clearTimeout(this.idle);
     this.sse?.abort();
     this.sse = null;
     if (this.poll) clearInterval(this.poll);
     this.poll = null;
+  }
+
+  private onVisibility = () => {
+    if (this.visible()) {
+      this.openLive();
+      void this.syncNow();
+    } else {
+      clearTimeout(this.idle);
+      this.idle = setTimeout(() => this.closeLive(), IDLE_GRACE_MS);
+    }
+  };
+
+  private kick = () => {
+    if (this.visible()) void this.syncNow();
+  };
+
+  stop() {
+    this.started = false;
+    this.closeLive();
     if (this.debounce) clearTimeout(this.debounce);
     if (typeof window !== "undefined") {
       window.removeEventListener("online", this.kick);
-      document.removeEventListener("visibilitychange", this.kick);
+      document.removeEventListener("visibilitychange", this.onVisibility);
     }
   }
 

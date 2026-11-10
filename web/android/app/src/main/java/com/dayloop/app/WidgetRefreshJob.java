@@ -48,13 +48,7 @@ public class WidgetRefreshJob extends JobService {
 
     private static void scheduleUnchecked(Context ctx) {
         JobScheduler js = (JobScheduler) ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        if (js != null && js.getPendingJob(PERIODIC) == null) {
-            js.schedule(new JobInfo.Builder(PERIODIC, new ComponentName(ctx, WidgetRefreshJob.class))
-                .setPeriodic(15 * 60_000L)
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .setPersisted(true)
-                .build());
-        }
+        if (js != null) js.cancel(PERIODIC); // no background polling: only while the screen is on (alarm below) or on demand
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pi = PendingIntent.getBroadcast(ctx, ALARM, new Intent(ctx, DayloopWidget.class).setAction(ACTION_REFRESH), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         if (am != null) am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 5 * 60_000L, 5 * 60_000L, pi);

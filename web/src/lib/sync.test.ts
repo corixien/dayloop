@@ -155,3 +155,49 @@ describe("two devices", () => {
     a.sync.stop();
   });
 });
+
+describe("live channel follows visibility", () => {
+  it("polls/SSE only while visible, stops 2 min after hiding, resumes and syncs when visible again", async () => {
+    const g = globalThis as any;
+    const target = new EventTarget();
+    g.window = target;
+    g.document = Object.assign(target, { visibilityState: "visible" });
+    const hide = (v: "visible" | "hidden") => { g.document.visibilityState = v; target.dispatchEvent(new Event("visibilitychange")); };
+    const a = device();
+    const s = a.sync as any;
+    try {
+      await a.sync.register("vis@example.com", "password123");
+      expect(s.sse).not.toBeNull();
+      expect(s.poll).not.toBeNull();
+
+      const { vi } = await import("vitest");
+      vi.useFakeTimers();
+      hide("hidden");
+      vi.advanceTimersByTime(119_000);
+      expect(s.sse).not.toBeNull(); // grace period
+      vi.advanceTimersByTime(2_000);
+      expect(s.sse).toBeNull();
+      expect(s.poll).toBeNull();
+
+      hide("visible"); // back: reopen
+      expect(s.sse).not.toBeNull();
+      expect(s.poll).not.toBeNull();
+
+      hide("hidden");
+      vi.advanceTimersByTime(60_000);
+      hide("visible"); // returning inside the grace period keeps one channel and cancels the close
+      vi.advanceTimersByTime(300_000);
+      expect(s.sse).not.toBeNull();
+      vi.useRealTimers();
+
+      a.sync.stop();
+      expect(s.sse).toBeNull();
+      a.sync.start();
+      expect(s.sse).not.toBeNull();
+    } finally {
+      a.sync.stop();
+      delete g.window;
+      delete g.document;
+    }
+  });
+});
