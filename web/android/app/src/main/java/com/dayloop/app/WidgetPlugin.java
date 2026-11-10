@@ -62,7 +62,9 @@ public class WidgetPlugin extends Plugin {
     public void update(PluginCall call) {
         Context ctx = getContext();
         WidgetStore.saveSnapshot(ctx, call.getData());
+        WidgetStore.markSynced(ctx, true);
         DayloopWidget.refreshAll(ctx);
+        WidgetRefreshJob.schedule(ctx);
         call.resolve();
     }
 

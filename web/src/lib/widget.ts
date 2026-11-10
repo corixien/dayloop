@@ -1,6 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import { useEffect } from "react";
 import { local, syncClient, useSettings } from "./app";
+import { todayStr } from "./dates";
 import { isNative } from "./native";
 import { toggleDone } from "./tasks";
 import { TRACKER_EVENT, getTracker, sentIds } from "./tracker";
@@ -72,17 +73,28 @@ export function useWidgetSync() {
   useEffect(() => {
     if (!isNative()) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const send = async () => {
+      try {
+        const tracker = getTracker();
+        const snap = buildSnapshot(await local.all("task"), lang, new Date(), tracker ? { sent: sentIds() } : null, hour, await local.all("plan"));
+        // `meta` is what the native background refresh (app closed) needs to build the same snapshot
+        await widgetPlugin().update({ ...snap, meta: { hour, tracker: !!tracker, sent: tracker ? [...sentIds()] : [] } });
+        await ensureCredentials();
+      } catch (e) {
+        console.warn("widget sync", e);
+      }
+    };
     const push = () => {
       clearTimeout(timer);
-      timer = setTimeout(async () => {
-        try {
-          await widgetPlugin().update(buildSnapshot(await local.all("task"), lang, new Date(), getTracker() ? { sent: sentIds() } : null, hour, await local.all("plan")));
-          await ensureCredentials();
-        } catch (e) {
-          console.warn("widget sync", e);
-        }
-      }, 700);
+      timer = setTimeout(() => void send(), 250);
     };
+    // leaving the app: the WebView may be frozen right after, so write at once instead of waiting for the timer
+    const flush = () => {
+      if (document.visibilityState !== "hidden") return;
+      clearTimeout(timer);
+      void send();
+    };
+    let lastDay = todayStr();
     const resume = () => {
       if (document.visibilityState !== "visible") return;
       void applyPendingWidgetActions().then(push).catch(() => {});
@@ -90,14 +102,24 @@ export function useWidgetSync() {
     local.db.items.hook("creating", push);
     local.db.items.hook("updating", push);
     document.addEventListener("visibilitychange", resume);
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
     window.addEventListener(TRACKER_EVENT, push);
     resume();
     push();
-    const day = setInterval(push, 15 * 60_000);
+    // urgency windows move with time (15 min), the day headers at midnight (checked every minute)
+    const day = setInterval(() => {
+      const d = todayStr();
+      if (d !== lastDay) { lastDay = d; push(); }
+    }, 60_000);
+    const slow = setInterval(push, 15 * 60_000);
     return () => {
       clearTimeout(timer);
       clearInterval(day);
+      clearInterval(slow);
       document.removeEventListener("visibilitychange", resume);
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
       window.removeEventListener(TRACKER_EVENT, push);
       local.db.items.hook("creating").unsubscribe(push);
       local.db.items.hook("updating").unsubscribe(push);

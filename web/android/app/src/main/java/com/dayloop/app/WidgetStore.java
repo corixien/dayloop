@@ -205,6 +205,19 @@ final class WidgetStore {
         p(c).edit().putString("url", url).putString("token", token).apply();
     }
 
+    static String url(Context c) { return p(c).getString("url", ""); }
+    static String token(Context c) { return p(c).getString("token", ""); }
+
+    /** When the widget data last came from the app / from any refresh (ms). The background job stays out while the app is active. */
+    static void markSynced(Context c, boolean fromApp) {
+        long now = System.currentTimeMillis();
+        SharedPreferences.Editor e = p(c).edit().putLong("lastSync", now);
+        if (fromApp) e.putLong("lastApp", now);
+        e.apply();
+    }
+    static long lastApp(Context c) { return p(c).getLong("lastApp", 0); }
+    static long lastSync(Context c) { return p(c).getLong("lastSync", 0); }
+
     static boolean hasCredentials(Context c) {
         return !p(c).getString("url", "").isEmpty() && !p(c).getString("token", "").isEmpty();
     }

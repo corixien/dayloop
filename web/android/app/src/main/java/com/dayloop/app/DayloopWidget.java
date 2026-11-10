@@ -24,6 +24,13 @@ public class DayloopWidget extends AppWidgetProvider {
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         for (int id : ids) render(ctx, mgr, id);
+        WidgetRefreshJob.schedule(ctx);
+        WidgetRefreshJob.kick(ctx);
+    }
+
+    @Override
+    public void onEnabled(Context ctx) {
+        WidgetRefreshJob.schedule(ctx);
     }
 
     @Override
@@ -39,7 +46,13 @@ public class DayloopWidget extends AppWidgetProvider {
     @Override
     public void onReceive(final Context ctx, Intent intent) {
         String action = intent.getAction();
+        if (WidgetRefreshJob.ACTION_REFRESH.equals(action)) {
+            android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            if (pm != null && pm.isInteractive()) WidgetRefreshJob.kick(ctx); // only while someone can look at it
+            return;
+        }
         if (ACTION_TAB.equals(action)) {
+            if (System.currentTimeMillis() - WidgetStore.lastSync(ctx) > 60_000) WidgetRefreshJob.kick(ctx);
             int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
                 WidgetStore.setMode(ctx, id, intent.getIntExtra("mode", 0));
