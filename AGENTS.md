@@ -127,3 +127,7 @@ npm workspaces: `shared` (zod schemas + types, single source of truth), `server`
 - Neon/Render stay awake while any client talks to the server. `SyncClient` runs SSE + the 60 s poll only while `document.visibilityState` is visible and closes both 2 min after the page is hidden (`IDLE_GRACE_MS`); becoming visible reopens them and syncs. Local edits still push at once (debounced), also from the background.
 - Widget: no periodic job any more (7101 is cancelled in `WidgetRefreshJob.schedule`). Refresh only on demand (`onUpdate`, tab tap if older than 60 s, app resume) and by the inexact 5 min alarm, which skips when the screen is off (a non-wakeup alarm fires right after unlock). Check: `adb shell dumpsys jobscheduler | grep -c 7101` is 0 after the app ran once.
 - API-token `last_used_at` is written at most once per hour.
+
+## Plan todo picker (2026-11-11)
+- `TodoPicker` (PlanEntries): list scrolls (`max-h-56`), sorted by priority (high first, then match score, then `order`) with the todo ring + `!` marks; a pointerdown elsewhere or Escape closes it. A typed name with no match offers "Neues Todo: x" which opens `NewItem` (title prefilled via `init.title`, result via `onCreated(id)`) in a portal over the plan editor and adds the todo to the block. Portal children bubble React events to the plan editor's `<form>`: the portal wrapper stops `submit`.
+- `resolveEntries` sorts a block's todos by priority (stable); `TaskRef` carries `priority` and `order`; `EntryTree` shows the priority ring and `!`.

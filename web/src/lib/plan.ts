@@ -14,7 +14,7 @@ export const deletePlan = (id: string) => local.remove("plan", id);
 /** All todos by id (trashed ones included, the resolver drops them). */
 export function useTaskRefs(): Map<string, TaskRef> {
   const tasks = useItems("task");
-  return useMemo(() => new Map(tasks.map((t) => [t.id, { id: t.id, title: t.title, notes: t.notes, done: t.done, trashedAt: t.trashedAt }])), [tasks]);
+  return useMemo(() => new Map(tasks.map((t) => [t.id, { id: t.id, title: t.title, notes: t.notes, done: t.done, priority: t.priority, order: t.order, trashedAt: t.trashedAt }])), [tasks]);
 }
 
 export const useEntryViews = (entries: Block["entries"]): EntryView[] => {
@@ -75,5 +75,3 @@ export async function showPoint(blockId: string, taskId: string, pointId: string
   await local.patch("plan", blockId, { entries });
 }
 
-/** A brand-new todo created from the plan picker. */
-export const createTodo = (title: string) => addTask({ title });

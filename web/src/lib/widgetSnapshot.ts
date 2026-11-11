@@ -86,7 +86,7 @@ export function buildSnapshot(tasks: TaskItem[], lang: Lang, now = new Date(), t
   }
 
   const plan: WRow[] = [];
-  const refs = new Map(tasks.map((x) => [x.id, { id: x.id, title: x.title, notes: x.notes, done: x.done, trashedAt: x.trashedAt }]));
+  const refs = new Map(tasks.map((x) => [x.id, { id: x.id, title: x.title, notes: x.notes, done: x.done, priority: x.priority, order: x.order, trashedAt: x.trashedAt }]));
   const tomorrow = addDays(today, 1);
   for (const day of [today, tomorrow]) {
     const rows = blocks.filter((b) => b.date === day).sort(byStart);

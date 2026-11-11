@@ -37,7 +37,7 @@ export const checkRange = (start: string, end: string): "format" | "order" | nul
 
 /* ---- todos inside a block: block -> todo -> checklist points; the plan only stores references ---- */
 
-export interface TaskRef { id: string; title: string; notes: string; done: boolean; trashedAt: number | null }
+export interface TaskRef { id: string; title: string; notes: string; done: boolean; priority: number; order: number; trashedAt: number | null }
 export interface PointView { id?: string; index: number; text: string; done: boolean }
 export interface EntryView { task: TaskRef; points: PointView[] }
 
@@ -51,7 +51,7 @@ export function resolveEntries(entries: PlanEntry[], tasks: Map<string, TaskRef>
     const pick = e.points === null ? all : all.filter((x) => x.l.id && e.points!.includes(x.l.id));
     out.push({ task, points: pick.map(({ l, index }) => ({ ...(l.id ? { id: l.id } : {}), index, text: stripMarks(l.text), done: l.done })) });
   }
-  return out;
+  return out.sort((a, b) => b.task.priority - a.task.priority); // stable: equal priorities keep their order
 }
 
 /** Progress of a block: its own checklist lines plus the linked points (a linked todo without points counts as one item). */

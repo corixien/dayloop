@@ -826,6 +826,65 @@ test("calendar shows quiet background dates (holidays, school breaks) and plan p
   await ctx.close();
 });
 
+test("plan todo picker: by priority with rings, closes on outside click, new todo via the form is added", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/todo");
+  await addVia(page, "todo", "Alpha");
+  await addVia(page, "todo", "Beta !1 ");
+  await addVia(page, "todo", "Gamma !2 ");
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: "Neuer Block" }).click();
+  await page.locator("[data-plantitle]").fill("Schule");
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  const rows = page.locator("[data-noswipe] button");
+  await expect(rows).toHaveText([/Beta/, /Gamma/, /Alpha/]);
+  await expect(rows.first()).toContainText("!!!");
+  const sc = await page.locator("[data-noswipe]").evaluate((e) => getComputedStyle(e).overflowY);
+  expect(sc).toBe("auto");
+  // a click elsewhere closes the picker
+  await page.locator("[data-plantitle]").click();
+  await expect(page.getByLabel("Todo suchen")).toHaveCount(0);
+  // typed name -> new todo form with the text, saving adds it to the block
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  await page.getByLabel("Todo suchen").fill("Neu123");
+  await page.getByRole("button", { name: /Neues Todo: Neu123/ }).click();
+  await expect(page.locator("[data-newtitle]")).toHaveValue("Neu123");
+  await page.locator("[data-newtitle]").press("Enter");
+  await expect(page.getByRole("checkbox", { name: "Neu123" })).toBeVisible();
+  await expect(page.getByLabel("Todo suchen")).toHaveCount(0);
+  // linked todos are listed by priority too
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  await page.getByRole("button", { name: /Beta/ }).click();
+  await page.getByRole("button", { name: "Todo verknüpfen" }).click();
+  await page.getByRole("button", { name: /Gamma/ }).click();
+  await expect(page.getByRole("checkbox", { name: "Gamma" })).toBeVisible();
+  const names = await page.getByRole("checkbox").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+  expect(names.filter((n) => ["Beta", "Gamma", "Neu123"].includes(n!))).toEqual(["Beta", "Gamma", "Neu123"]);
+  await ctx.close();
+});
+
+test("plan todo picker on a phone: new todo form opens over the plan sheet and the todo lands in the block", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true, locale: "de-DE" });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ohne Konto fortfahren" }).click();
+  await page.goto("/#/plan");
+  await page.getByRole("button", { name: "Neuer Block" }).tap();
+  await page.locator("[data-plantitle]").fill("Schule");
+  await page.getByRole("button", { name: "Todo verknüpfen" }).tap();
+  await page.getByLabel("Todo suchen").fill("Mathe lernen");
+  await page.getByRole("button", { name: /Neues Todo: Mathe lernen/ }).tap();
+  await expect(page.locator("[data-newtitle]")).toHaveValue("Mathe lernen");
+  await page.getByRole("button", { name: "Hinzufügen", exact: true }).last().tap();
+  await expect(page.getByRole("checkbox", { name: "Mathe lernen" })).toBeVisible();
+  await expect(page.locator("[data-newtitle]")).toHaveCount(0);
+  await expect(page.locator("[data-plantitle]")).toHaveValue("Schule");
+  await ctx.close();
+});
+
 test("plan editor autosaves and play starts a focus round of the block length", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "de-DE" });
   const page = await ctx.newPage();

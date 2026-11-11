@@ -9,32 +9,32 @@ import { Sheet } from "./Sheet";
 import { Button, Dialog, Field, LeadField, Segmented, Select, cx, inputCls } from "./ui";
 
 export type NewKind = "todo" | "done" | "event";
-export interface NewInit { date?: string; time?: string | null }
+export interface NewInit { date?: string; time?: string | null; title?: string }
 
 /** The "+" flow: one form (sheet on phones, dialog on desktop) for a new todo, appointment or Have Done entry. */
-export function NewItem({ kind, onClose, bare, init }: { kind: NewKind; onClose: () => void; bare?: boolean; init?: NewInit }) {
+export function NewItem({ kind, onClose, bare, init, onCreated }: { kind: NewKind; onClose: () => void; bare?: boolean; init?: NewInit; onCreated?: (id: string) => void }) {
   const mobile = useIsMobile();
   if (bare || mobile) {
-    return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form kind={kind} init={init} close={close} />}</Sheet>;
+    return <Sheet always={bare} fit={bare} onClose={onClose}>{(close) => <Form kind={kind} init={init} close={close} onCreated={onCreated} />}</Sheet>;
   }
-  return <DialogShell kind={kind} init={init} onClose={onClose} />;
+  return <DialogShell kind={kind} init={init} onClose={onClose} onCreated={onCreated} />;
 }
 
 const heading = (kind: NewKind, t: ReturnType<typeof useT>) => (kind === "todo" ? t("newTask") : kind === "event" ? t("newEvent") : t("newDone"));
 
-function DialogShell({ kind, init, onClose }: { kind: NewKind; init?: NewInit; onClose: () => void }) {
+function DialogShell({ kind, init, onClose, onCreated }: { kind: NewKind; init?: NewInit; onClose: () => void; onCreated?: (id: string) => void }) {
   const t = useT();
   return (
     <Dialog title={heading(kind, t)} onClose={onClose} wide>
-      <Form kind={kind} init={init} close={onClose} inDialog />
+      <Form kind={kind} init={init} close={onClose} onCreated={onCreated} inDialog />
     </Dialog>
   );
 }
 
-function Form({ kind, init, close, inDialog }: { kind: NewKind; init?: NewInit; close: () => void; inDialog?: boolean }) {
+function Form({ kind, init, close, inDialog, onCreated }: { kind: NewKind; init?: NewInit; close: () => void; inDialog?: boolean; onCreated?: (id: string) => void }) {
   const t = useT();
   const lang = useLang();
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(init?.title ?? "");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(kind === "event" ? init?.date ?? todayStr() : "");
   const [time, setTime] = useState(init?.time ?? "");
@@ -51,11 +51,12 @@ function Form({ kind, init, close, inDialog }: { kind: NewKind; init?: NewInit; 
     if (!p.title) return;
     setBusy(true);
     const n = (notes.trim() || p.notes).trim();
-    if (kind === "done") await addDoneEntry(p.title, n);
+    let id: string;
+    if (kind === "done") id = await addDoneEntry(p.title, n);
     else {
       const dueDate = date || p.dueDate;
       const when = time || p.dueTime;
-      await addTask({
+      id = await addTask({
         title: p.title,
         notes: n,
         dueDate: dueDate || null,
@@ -66,6 +67,7 @@ function Form({ kind, init, close, inDialog }: { kind: NewKind; init?: NewInit; 
         ...(kind === "event" ? { showBeforeMin: lead } : {}),
       });
     }
+    onCreated?.(id);
     close();
   }
 

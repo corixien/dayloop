@@ -32,7 +32,7 @@ import { blockProgress, carryOver, resolveEntries, type Block, type TaskRef } fr
 import { ensurePointId, formatNotes, parseNotes, uncheckAll } from "./notes";
 
 describe("plan entries", () => {
-  const task = (id: string, notes: string, over: Partial<TaskRef> = {}): TaskRef => ({ id, title: `T${id}`, notes, done: false, trashedAt: null, ...over });
+  const task = (id: string, notes: string, over: Partial<TaskRef> = {}): TaskRef => ({ id, title: `T${id}`, notes, done: false, priority: 0, order: 0, trashedAt: null, ...over });
   const tasks = new Map([
     ["1", task("1", "- [ #aa11] a\n- [x@5#bb22] b\n- [ ] c")],
     ["2", task("2", "")],
@@ -69,5 +69,10 @@ describe("plan entries", () => {
     expect(plan.create[0]).toMatchObject({ title: "Schule", date: "d2", entries: [{ taskId: "1", points: ["aa11"] }] });
     const there = [blk("z", "schule", "d2", [{ taskId: "1", points: ["aa11"] }])];
     expect(carryOver(from, there, "d2", done)).toEqual({ create: [], update: [] });
+  });
+  it("lists the todos of a block by priority, highest first (stable)", () => {
+    const m = new Map([["1", task("1", "", { priority: 1 })], ["2", task("2", "", { priority: 3 })], ["3", task("3", "", { priority: 1 })], ["4", task("4", "")]]);
+    const ids = resolveEntries(["1", "2", "3", "4"].map((taskId) => ({ taskId, points: null })), m).map((v) => v.task.id);
+    expect(ids).toEqual(["2", "1", "3", "4"]);
   });
 });
